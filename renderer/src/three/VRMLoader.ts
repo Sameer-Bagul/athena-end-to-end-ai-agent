@@ -97,8 +97,22 @@ export class VRMLoaderService {
     });
 
     // Position the VRM at origin
-    // Most VRM models are designed to be at Y=0
-    vrm.scene.position.set(0, 0, 0);
+    // Most VRM models are designed to be at Y=0, but we need to check the bounding box
+    // to ensure proper positioning
+    const bbox = new THREE.Box3().setFromObject(vrm.scene);
+    const size = new THREE.Vector3();
+    bbox.getSize(size);
+    const center = new THREE.Vector3();
+    bbox.getCenter(center);
+    
+    console.log('🔍 [VRMLoader] VRM Bounding Box:');
+    console.log('   Size:', size);
+    console.log('   Center:', center);
+    console.log('   Min:', bbox.min);
+    console.log('   Max:', bbox.max);
+    
+    // Position so the model's feet are at Y=0 and centered on X/Z
+    vrm.scene.position.set(0, -bbox.min.y, 0);
 
     // VRM models typically face +Z, but we want them to face -Z (towards camera)
     // Rotate 180 degrees around Y axis
@@ -107,18 +121,6 @@ export class VRMLoaderService {
     // Scale adjustment (most VRMs are in meters, standard human ~1.6-1.8m tall)
     // Keep at 1.0 for now, adjust if needed based on your specific model
     vrm.scene.scale.setScalar(1.0);
-
-    // Add bounding box helper for debugging
-    const bbox = new THREE.Box3().setFromObject(vrm.scene);
-    const size = new THREE.Vector3();
-    bbox.getSize(size);
-    const center = new THREE.Vector3();
-    bbox.getCenter(center);
-    console.log('🔍 [VRMLoader] VRM Bounding Box:');
-    console.log('   Size:', size);
-    console.log('   Center:', center);
-    console.log('   Min:', bbox.min);
-    console.log('   Max:', bbox.max);
 
     // Add box helper to visualize bounds
     const boxHelper = new THREE.BoxHelper(vrm.scene, 0xff00ff);

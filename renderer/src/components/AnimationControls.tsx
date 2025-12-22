@@ -6,11 +6,17 @@ interface AnimationControlsProps {
 }
 
 const ANIMATION_LABELS: Record<AnimationAction, string> = {
-  [AnimationAction.IDLE]: 'Idle',
-  [AnimationAction.TALK]: 'Talk',
-  [AnimationAction.GREET]: 'Greet',
-  [AnimationAction.HAPPY]: 'Happy',
+  [AnimationAction.ANGRY]: 'Angry',
+  [AnimationAction.BLUSH]: 'Blush',
+  [AnimationAction.CLAPPING]: 'Clapping',
+  [AnimationAction.GOODBYE]: 'Goodbye',
   [AnimationAction.JUMP]: 'Jump',
+  [AnimationAction.LOOK_AROUND]: 'Look Around',
+  [AnimationAction.RELAX]: 'Relax',
+  [AnimationAction.SAD]: 'Sad',
+  [AnimationAction.SLEEPY]: 'Sleepy',
+  [AnimationAction.SURPRISED]: 'Surprised',
+  [AnimationAction.THINKING]: 'Thinking',
 };
 
 export const AnimationControls: React.FC<AnimationControlsProps> = ({
@@ -19,7 +25,7 @@ export const AnimationControls: React.FC<AnimationControlsProps> = ({
 }) => {
   return (
     <div className="shrink-0 h-20 flex items-center px-6 bg-black/40 backdrop-blur-md border-t border-white/10">
-      <div className="w-full flex items-center justify-center gap-3">
+      <div className="w-full flex items-center justify-center gap-3 flex-wrap">
         {Object.values(AnimationAction).map((action) => (
           <button
             key={action}

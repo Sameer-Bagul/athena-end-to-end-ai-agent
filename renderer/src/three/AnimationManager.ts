@@ -1,45 +1,58 @@
 /**
  * AnimationManager.ts
  * 
- * Manages FBX animation loading and playback for VRM avatars.
- * Handles animation blending, retargeting, and state management.
+ * Manages VRMA animation loading and playback for VRM avatars.
+ * Handles animation blending and state management.
  * 
  * Architecture principle:
- * - Load FBX animations from public/animations/
- * - Retarget to VRM humanoid skeleton
+ * - Load VRMA animations from public/animations/
+ * - No retargeting needed - VRMA is native VRM format
  * - Smooth crossfade between animations
  * - Prevent animation conflicts
  * - Maintain clean state machine
  */
 
 import * as THREE from 'three';
-import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { VRM } from '@pixiv/three-vrm';
+import { VRMAnimationLoaderPlugin, createVRMAnimationClip } from '@pixiv/three-vrm-animation';
 
 /**
  * Animation action types
- * Maps semantic actions to FBX files
+ * Maps semantic actions to VRMA files
  */
 export const AnimationAction = {
-  IDLE: 'IDLE',
-  TALK: 'TALK',
-  GREET: 'GREET',
-  HAPPY: 'HAPPY',
+  ANGRY: 'ANGRY',
+  BLUSH: 'BLUSH',
+  CLAPPING: 'CLAPPING',
+  GOODBYE: 'GOODBYE',
   JUMP: 'JUMP',
+  LOOK_AROUND: 'LOOK_AROUND',
+  RELAX: 'RELAX',
+  SAD: 'SAD',
+  SLEEPY: 'SLEEPY',
+  SURPRISED: 'SURPRISED',
+  THINKING: 'THINKING',
 } as const;
 
 export type AnimationAction = typeof AnimationAction[keyof typeof AnimationAction];
 
 /**
  * Animation file mapping
- * Maps enum values to FBX filenames
+ * Maps enum values to VRMA filenames
  */
 const ANIMATION_FILES: Record<AnimationAction, string> = {
-  [AnimationAction.IDLE]: 'idleFemale.fbx',
-  [AnimationAction.TALK]: 'talking.fbx',
-  [AnimationAction.GREET]: 'greeting.fbx',
-  [AnimationAction.HAPPY]: 'excited.fbx',
-  [AnimationAction.JUMP]: 'jump.fbx',
+  [AnimationAction.ANGRY]: 'Angry.vrma',
+  [AnimationAction.BLUSH]: 'Blush.vrma',
+  [AnimationAction.CLAPPING]: 'Clapping.vrma',
+  [AnimationAction.GOODBYE]: 'Goodbye.vrma',
+  [AnimationAction.JUMP]: 'Jump.vrma',
+  [AnimationAction.LOOK_AROUND]: 'LookAround.vrma',
+  [AnimationAction.RELAX]: 'Relax.vrma',
+  [AnimationAction.SAD]: 'Sad.vrma',
+  [AnimationAction.SLEEPY]: 'Sleepy.vrma',
+  [AnimationAction.SURPRISED]: 'Surprised.vrma',
+  [AnimationAction.THINKING]: 'Thinking.vrma',
 };
 
 /**
@@ -53,18 +66,22 @@ interface AnimationConfig {
 }
 
 export class AnimationManager {
-  private fbxLoader: FBXLoader;
+  private gltfLoader: GLTFLoader;
   private mixer: THREE.AnimationMixer | null = null;
   private vrm: VRM | null = null;
   private animations: Map<AnimationAction, AnimationConfig> = new Map();
   private currentAction: THREE.AnimationAction | null = null;
-  private currentAnimationType: AnimationAction = AnimationAction.IDLE;
+  private currentAnimationType: AnimationAction = AnimationAction.RELAX;
   
   // Animation settings
   private readonly CROSSFADE_DURATION = 0.5; // seconds
 
   constructor() {
-    this.fbxLoader = new FBXLoader();
+    this.gltfLoader = new GLTFLoader();
+    // Register the VRMA animation loader plugin
+    this.gltfLoader.register((parser) => {
+      return new VRMAnimationLoaderPlugin(parser);
+    });
   }
 
   /**
@@ -73,11 +90,13 @@ export class AnimationManager {
    */
   public initialize(vrm: VRM): void {
     this.vrm = vrm;
+    // Create mixer on the VRM scene for proper animation
     this.mixer = new THREE.AnimationMixer(vrm.scene);
+    console.log('🎭 Animation mixer created on VRM scene');
   }
 
   /**
-   * Load a single animation from FBX file
+   * Load a single animation from VRMA file
    * 
    * @param action - Animation action to load
    * @param basePath - Base path to animations folder (default: '/animations/')
@@ -94,22 +113,36 @@ export class AnimationManager {
     const path = `${basePath}${filename}`;
 
     return new Promise((resolve, reject) => {
-      this.fbxLoader.load(
+      this.gltfLoader.load(
         path,
-        (fbx: THREE.Group) => {
-          // Extract animation clip from FBX
-          const clip = fbx.animations[0];
+        (gltf) => {
+          console.log(`✅ Loaded VRMA file: ${filename}`, gltf);
 
-          if (!clip) {
-            reject(new Error(`No animation found in ${filename}`));
+          // Extract VRM animation data from the loaded GLTF
+          const vrmAnimations = gltf.userData.vrmAnimations;
+
+          if (!vrmAnimations || vrmAnimations.length === 0) {
+            reject(new Error(`No VRM animation found in ${filename}`));
             return;
           }
 
-          // Retarget animation to VRM humanoid
-          const retargetedClip = this.retargetAnimationClip(clip);
+          // Get the first animation from the file
+          const vrmAnimationData = vrmAnimations[0];
+
+          // Convert VRM animation data to THREE.AnimationClip
+          const clip = createVRMAnimationClip(vrmAnimationData, this.vrm!);
+
+          if (!clip) {
+            reject(new Error(`Failed to create animation clip from ${filename}`));
+            return;
+          }
+
+          console.log(`🎬 Created animation clip for ${action}:`, clip);
+          console.log(`   Duration: ${clip.duration.toFixed(2)}s`);
+          console.log(`   Tracks: ${clip.tracks.length}`);
 
           // Create animation action
-          const clipAction = this.mixer!.clipAction(retargetedClip);
+          const clipAction = this.mixer!.clipAction(clip);
           
           // Configure animation
           clipAction.setLoop(THREE.LoopRepeat, Infinity);
@@ -118,12 +151,12 @@ export class AnimationManager {
           // Store animation config
           this.animations.set(action, {
             action,
-            clip: retargetedClip,
+            clip,
             mixer: this.mixer!,
             clipAction,
           });
 
-          console.log(`Loaded animation: ${action} (${filename})`);
+          console.log(`✅ Loaded animation: ${action} (${filename})`);
           resolve();
         },
         (progress) => {
@@ -148,72 +181,8 @@ export class AnimationManager {
     );
 
     await Promise.all(loadPromises);
-    console.log('All animations loaded successfully');
+    console.log('✅ All VRMA animations loaded successfully');
   }
-
-  /**
-   * Retarget FBX animation to VRM humanoid skeleton
-   * Handles bone name mismatches between FBX and VRM
-   */
-  private retargetAnimationClip(clip: THREE.AnimationClip): THREE.AnimationClip {
-    if (!this.vrm) {
-      throw new Error('VRM not set');
-    }
-
-    // Clone the clip to avoid modifying the original
-    const retargetedClip = clip.clone();
-
-    // Map FBX bone names to VRM humanoid bone names
-    retargetedClip.tracks = retargetedClip.tracks.map((track) => {
-      const trackSplitted = track.name.split('.');
-      const mixamoRigName = trackSplitted[0];
-      const propertyName = trackSplitted[1];
-
-      // Get corresponding VRM bone
-      const vrmBoneName = this.mixamoVRMBoneMap[mixamoRigName];
-      // @ts-expect-error - VRM humanoid bone names are dynamic
-      const vrmNodeName = this.vrm!.humanoid?.getNormalizedBoneNode(vrmBoneName);
-
-      if (vrmNodeName) {
-        const newTrack = track.clone();
-        newTrack.name = `${vrmNodeName.name}.${propertyName}`;
-        return newTrack;
-      }
-
-      return track;
-    });
-
-    return retargetedClip;
-  }
-
-  /**
-   * Mixamo to VRM bone name mapping
-   * Maps standard Mixamo rig bone names to VRM humanoid bone names
-   */
-  private mixamoVRMBoneMap: Record<string, string> = {
-    mixamorigHips: 'hips',
-    mixamorigSpine: 'spine',
-    mixamorigSpine1: 'chest',
-    mixamorigSpine2: 'upperChest',
-    mixamorigNeck: 'neck',
-    mixamorigHead: 'head',
-    mixamorigLeftShoulder: 'leftShoulder',
-    mixamorigLeftArm: 'leftUpperArm',
-    mixamorigLeftForeArm: 'leftLowerArm',
-    mixamorigLeftHand: 'leftHand',
-    mixamorigRightShoulder: 'rightShoulder',
-    mixamorigRightArm: 'rightUpperArm',
-    mixamorigRightForeArm: 'rightLowerArm',
-    mixamorigRightHand: 'rightHand',
-    mixamorigLeftUpLeg: 'leftUpperLeg',
-    mixamorigLeftLeg: 'leftLowerLeg',
-    mixamorigLeftFoot: 'leftFoot',
-    mixamorigLeftToeBase: 'leftToes',
-    mixamorigRightUpLeg: 'rightUpperLeg',
-    mixamorigRightLeg: 'rightLowerLeg',
-    mixamorigRightFoot: 'rightFoot',
-    mixamorigRightToeBase: 'rightToes',
-  };
 
   /**
    * Play an animation with smooth crossfade
@@ -222,17 +191,22 @@ export class AnimationManager {
    * @param fadeTime - Crossfade duration (optional, uses default if not provided)
    */
   public play(action: AnimationAction, fadeTime?: number): void {
+    console.log(`🎯 Play request for: ${action}`);
+    
     const animConfig = this.animations.get(action);
 
     if (!animConfig) {
-      console.warn(`Animation ${action} not loaded yet`);
+      console.warn(`⚠️ Animation ${action} not loaded yet`);
       return;
     }
 
     const newAction = animConfig.clipAction;
 
-    // If same animation is already playing, do nothing
+    // If same animation is already playing, restart it
     if (this.currentAction === newAction) {
+      console.log(`🔄 Restarting same animation: ${action}`);
+      newAction.reset();
+      newAction.play();
       return;
     }
 
@@ -240,9 +214,11 @@ export class AnimationManager {
     const duration = fadeTime ?? this.CROSSFADE_DURATION;
 
     if (this.currentAction) {
+      console.log(`⏸️ Fading out current animation`);
       this.currentAction.fadeOut(duration);
     }
 
+    console.log(`▶️ Starting animation: ${action}`);
     newAction
       .reset()
       .setEffectiveTimeScale(1)
@@ -252,8 +228,6 @@ export class AnimationManager {
 
     this.currentAction = newAction;
     this.currentAnimationType = action;
-
-    console.log(`Playing animation: ${action}`);
   }
 
   /**
@@ -290,11 +264,11 @@ export class AnimationManager {
    * Will be replaced with proper lip-sync in future versions
    */
   public onSpeakStart(): void {
-    this.play(AnimationAction.TALK);
+    this.play(AnimationAction.THINKING);
   }
 
   public onSpeakEnd(): void {
-    this.play(AnimationAction.IDLE);
+    this.play(AnimationAction.RELAX);
   }
 
   /**
