@@ -11,6 +11,7 @@
  */
 
 import * as THREE from 'three';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
 export class AthenaScene {
   private scene: THREE.Scene;
@@ -19,6 +20,7 @@ export class AthenaScene {
   private clock: THREE.Clock;
   private animationFrameId: number | null = null;
   private container: HTMLDivElement | null = null;
+  private controls: OrbitControls | null = null;
   
   // Callbacks for external animation updates
   private onUpdateCallbacks: ((delta: number) => void)[] = [];
@@ -26,60 +28,107 @@ export class AthenaScene {
   constructor() {
     // Initialize scene
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x1a1a2e);
+    
+    // Create studio-quality gradient background
+    const canvas = document.createElement('canvas');
+    canvas.width = 2;
+    canvas.height = 2;
+    const ctx = canvas.getContext('2d')!;
+    const gradient = ctx.createLinearGradient(0, 0, 0, 2);
+    gradient.addColorStop(0, '#e0f2fe'); // Light blue at top
+    gradient.addColorStop(0.5, '#f8fafc'); // Near white in middle
+    gradient.addColorStop(1, '#dbeafe'); // Soft blue at bottom
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, 2, 2);
+    
+    const backgroundTexture = new THREE.CanvasTexture(canvas);
+    this.scene.background = backgroundTexture;
+    console.log('🟢 [AthenaScene] Scene background set to studio gradient');
 
     // Initialize camera
-    // Position camera at a comfortable distance for viewing a character
     this.camera = new THREE.PerspectiveCamera(
-      35, // FOV
-      window.innerWidth / window.innerHeight, // Aspect
-      0.1, // Near
-      1000 // Far
+      50, // Slightly wider FOV for better framing
+      window.innerWidth / window.innerHeight,
+      0.1,
+      1000
     );
-    this.camera.position.set(0, 1.4, 3);
-    this.camera.lookAt(0, 1.2, 0);
+    this.camera.position.set(0, 1.2, 2.5); // Optimal viewing angle
+    this.camera.lookAt(0, 1.0, 0);
+    console.log('🟢 [AthenaScene] Camera positioned at (0, 1.2, 2.5) looking at (0, 1.0, 0)');
 
     // Initialize clock for delta time
     this.clock = new THREE.Clock();
 
     // Setup lighting
     this.setupLighting();
+    
+    // Setup environment
+    this.setupEnvironment();
   }
 
   /**
    * Setup scene lighting
-   * Using a combination of directional and ambient light
-   * for a balanced, professional look
+   * Professional 3-point lighting setup with HDRI-style illumination
+   * Optimized for accurate color representation
    */
   private setupLighting(): void {
-    // Add debug helpers
-    const axesHelper = new THREE.AxesHelper(5);
-    this.scene.add(axesHelper);
-    console.log('🟢 [AthenaScene] Added axes helper (RGB = XYZ)');
-
-    const gridHelper = new THREE.GridHelper(10, 10);
-    this.scene.add(gridHelper);
-    console.log('🟢 [AthenaScene] Added grid helper');
-
-    // Ambient light for overall scene illumination
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+    // Soft ambient light for base illumination
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
     this.scene.add(ambientLight);
-    console.log('🟢 [AthenaScene] Added ambient light');
+    console.log('🟢 [AthenaScene] Added ambient light (intensity: 0.4)');
 
-    // Main directional light (key light)
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
-    directionalLight.position.set(1, 2, 1);
-    this.scene.add(directionalLight);
+    // Key light - main light source (front-right, slightly above)
+    const keyLight = new THREE.DirectionalLight(0xffffff, 1.8);
+    keyLight.position.set(3, 4, 3);
+    keyLight.castShadow = true;
+    keyLight.shadow.mapSize.width = 2048;
+    keyLight.shadow.mapSize.height = 2048;
+    keyLight.shadow.camera.near = 0.5;
+    keyLight.shadow.camera.far = 50;
+    this.scene.add(keyLight);
+    console.log('🟢 [AthenaScene] Added key light with shadows');
 
-    // Fill light (softer, from opposite side)
-    const fillLight = new THREE.DirectionalLight(0xffffff, 0.4);
-    fillLight.position.set(-1, 1, -1);
+    // Fill light - softer light from opposite side (front-left)
+    const fillLight = new THREE.DirectionalLight(0xb8d4ff, 0.8);
+    fillLight.position.set(-3, 2, 2);
     this.scene.add(fillLight);
+    console.log('🟢 [AthenaScene] Added fill light (cool tone)');
 
-    // Rim light (from behind, adds depth)
-    const rimLight = new THREE.DirectionalLight(0xffffff, 0.3);
-    rimLight.position.set(0, 1, -2);
-    this.scene.add(rimLight);
+    // Back light - rim light from behind for depth
+    const backLight = new THREE.DirectionalLight(0xffeaa7, 0.6);
+    backLight.position.set(0, 3, -4);
+    this.scene.add(backLight);
+    console.log('🟢 [AthenaScene] Added back light (warm rim)');
+
+    // Hemisphere light for natural sky/ground illumination
+    const hemiLight = new THREE.HemisphereLight(0xddeeff, 0x8899aa, 0.5);
+    this.scene.add(hemiLight);
+    console.log('🟢 [AthenaScene] Added hemisphere light for natural bounce');
+  }
+
+  /**
+   * Setup environment elements
+   * Adds subtle ground plane and atmosphere
+   */
+  private setupEnvironment(): void {
+    // Subtle circular ground plane
+    const groundGeometry = new THREE.CircleGeometry(5, 64);
+    const groundMaterial = new THREE.MeshStandardMaterial({
+      color: 0xf1f5f9,
+      roughness: 0.8,
+      metalness: 0.1,
+      side: THREE.DoubleSide,
+    });
+    const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+    ground.rotation.x = -Math.PI / 2;
+    ground.position.y = 0;
+    ground.receiveShadow = true;
+    this.scene.add(ground);
+    console.log('🟢 [AthenaScene] Added ground plane');
+
+    // Soft ambient occlusion effect with fog
+    this.scene.fog = new THREE.Fog(0xe0f2fe, 8, 15);
+    console.log('🟢 [AthenaScene] Added atmospheric fog');
   }
 
   /**
@@ -94,13 +143,15 @@ export class AthenaScene {
     // Create WebGL renderer
     this.renderer = new THREE.WebGLRenderer({
       antialias: true,
-      alpha: true,
+      alpha: false,
     });
     this.renderer.setSize(container.clientWidth, container.clientHeight);
-    this.renderer.setPixelRatio(window.devicePixelRatio);
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.0;
+    this.renderer.toneMappingExposure = 1.2;
+    this.renderer.shadowMap.enabled = true;
+    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
     console.log('🟢 [AthenaScene] Renderer created');
     console.log('🟢 [AthenaScene] Renderer size:', this.renderer.getSize(new THREE.Vector2()));
@@ -108,6 +159,18 @@ export class AthenaScene {
     // Add canvas to container
     container.appendChild(this.renderer.domElement);
     console.log('🟢 [AthenaScene] Canvas added to DOM');
+
+    // Setup orbit controls for rotating the model
+    this.controls = new OrbitControls(this.camera, this.renderer.domElement);
+    this.controls.enableDamping = true;
+    this.controls.dampingFactor = 0.05;
+    this.controls.minDistance = 1.5;
+    this.controls.maxDistance = 6;
+    this.controls.target.set(0, 1.0, 0);
+    this.controls.maxPolarAngle = Math.PI / 1.5; // Prevent camera from going below ground
+    this.controls.minPolarAngle = Math.PI / 6; // Keep camera above model
+    this.controls.update();
+    console.log('🟢 [AthenaScene] Orbit controls enabled with optimized settings');
 
     // Setup window resize handling
     this.setupResizeHandler();
@@ -151,14 +214,23 @@ export class AthenaScene {
       // Get delta time since last frame
       const delta = this.clock.getDelta();
 
-      // Log first few frames
-      if (frameCount < 3) {
-        console.log(`🎬 [AthenaScene] Frame ${frameCount}: delta=${delta.toFixed(3)}s, scene children=${this.scene.children.length}`);
+      // Log first few frames with more detail
+      if (frameCount < 5) {
+        console.log(`🎬 [AthenaScene] Frame ${frameCount}:`);
+        console.log(`   Delta: ${delta.toFixed(3)}s`);
+        console.log(`   Scene children: ${this.scene.children.length}`);
+        console.log(`   Camera position:`, this.camera.position);
+        console.log(`   Camera looking at:`, this.camera.getWorldDirection(new THREE.Vector3()));
       }
       frameCount++;
 
       // Call all registered update callbacks
       this.onUpdateCallbacks.forEach(callback => callback(delta));
+
+      // Update controls
+      if (this.controls) {
+        this.controls.update();
+      }
 
       // Render the scene
       if (this.renderer) {
@@ -232,6 +304,12 @@ export class AthenaScene {
 
     // Clear update callbacks
     this.onUpdateCallbacks = [];
+
+    // Dispose controls
+    if (this.controls) {
+      this.controls.dispose();
+      this.controls = null;
+    }
 
     // Dispose renderer
     if (this.renderer) {

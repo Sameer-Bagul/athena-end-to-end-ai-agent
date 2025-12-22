@@ -107,6 +107,23 @@ export class VRMLoaderService {
     // Scale adjustment (most VRMs are in meters, standard human ~1.6-1.8m tall)
     // Keep at 1.0 for now, adjust if needed based on your specific model
     vrm.scene.scale.setScalar(1.0);
+
+    // Add bounding box helper for debugging
+    const bbox = new THREE.Box3().setFromObject(vrm.scene);
+    const size = new THREE.Vector3();
+    bbox.getSize(size);
+    const center = new THREE.Vector3();
+    bbox.getCenter(center);
+    console.log('🔍 [VRMLoader] VRM Bounding Box:');
+    console.log('   Size:', size);
+    console.log('   Center:', center);
+    console.log('   Min:', bbox.min);
+    console.log('   Max:', bbox.max);
+
+    // Add box helper to visualize bounds
+    const boxHelper = new THREE.BoxHelper(vrm.scene, 0xff00ff);
+    vrm.scene.add(boxHelper);
+    console.log('🟢 [VRMLoader] Added bounding box helper (magenta)');
   }
 
   /**

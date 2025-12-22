@@ -11,20 +11,18 @@
  * - Clean separation of concerns
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, memo } from 'react';
 import { AthenaScene } from '../three/AthenaScene';
 import { VRMLoaderService } from '../three/VRMLoader';
-import { AnimationManager, AnimationAction } from '../three/AnimationManager';
+import { AnimationManager } from '../three/AnimationManager';
 import type { VRM } from '@pixiv/three-vrm';
 
 interface ThreeStageProps {
-  className?: string;
   onReady?: (manager: AnimationManager) => void;
   onError?: (error: Error) => void;
 }
 
-export const ThreeStage: React.FC<ThreeStageProps> = ({ 
-  className = '', 
+const ThreeStageComponent: React.FC<ThreeStageProps> = ({ 
   onReady,
   onError 
 }) => {
@@ -97,12 +95,6 @@ export const ThreeStage: React.FC<ThreeStageProps> = ({
         await animationManager.loadAllAnimations();
         console.log('✅ [ThreeStage] All animations loaded');
 
-        // Step 5: Start idle animation
-        setLoadingStatus('Starting idle animation...');
-        console.log('🔵 [ThreeStage] Step 5: Starting idle animation...');
-        animationManager.play(AnimationAction.IDLE);
-        console.log('✅ [ThreeStage] Idle animation started');
-
         // All done!
         setLoadingStatus('Ready');
         setIsLoading(false);
@@ -153,30 +145,33 @@ export const ThreeStage: React.FC<ThreeStageProps> = ({
   }, []); // Empty dependency array - only run once on mount
 
   return (
-    <div className={`relative w-full h-full overflow-hidden ${className}`}>
-      {/* Three.js canvas container */}
+    <div className="absolute inset-0 w-full h-full overflow-hidden">
       <div 
         ref={containerRef} 
-        className="absolute inset-0 w-full h-full"
+        className="absolute inset-0"
       />
 
-      {/* Loading overlay */}
       {isLoading && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="text-center">
+        <div className="absolute inset-0 flex items-center justify-center bg-black/60 backdrop-blur-md">
+          <div className="text-center px-8 py-6 bg-black/40 rounded-2xl border border-white/10">
             <div className="mb-4">
-              <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-white/20 border-t-white" />
+              <div className="inline-block animate-spin rounded-full h-16 w-16 border-4 border-purple-500/30 border-t-purple-500" />
             </div>
-            <p className="text-white text-lg font-medium">{loadingStatus}</p>
+            <p className="text-white text-xl font-semibold mb-1">{loadingStatus}</p>
+            <p className="text-white/50 text-sm">Please wait...</p>
           </div>
         </div>
       )}
 
-      {/* Error overlay */}
       {error && (
-        <div className="absolute inset-0 flex items-center justify-center bg-red-900/50 backdrop-blur-sm">
-          <div className="text-center max-w-md p-6 bg-red-950/80 rounded-lg">
-            <h3 className="text-white text-xl font-bold mb-2">Error Loading 3D Environment</h3>
+        <div className="absolute inset-0 flex items-center justify-center bg-black/60 backdrop-blur-md">
+          <div className="text-center max-w-lg px-8 py-6 bg-red-950/80 rounded-2xl border border-red-500/20">
+            <div className="mb-4">
+              <svg className="w-16 h-16 mx-auto text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+            </div>
+            <h3 className="text-white text-2xl font-bold mb-2">Error Loading 3D Environment</h3>
             <p className="text-red-200 text-sm">{error}</p>
           </div>
         </div>
@@ -185,4 +180,4 @@ export const ThreeStage: React.FC<ThreeStageProps> = ({
   );
 };
 
-export default ThreeStage;
+export default memo(ThreeStageComponent);
