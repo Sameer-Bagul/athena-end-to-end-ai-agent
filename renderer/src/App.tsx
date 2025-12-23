@@ -78,7 +78,7 @@ function App() {
       </div>
 
       {/* Sidebar Controls (Fixed width) */}
-      <div className="w-[400px] shrink-0 relative z-50 h-full">
+      <div className="w-100 shrink-0 relative z-50 h-full">
         <ControlPanel
           currentAnimation={currentAnimation}
           onAnimationChange={playAnimation}
