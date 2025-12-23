@@ -47,6 +47,7 @@ const ThreeStageComponent: React.FC<ThreeStageProps> = ({
   const [isLoading, setIsLoading] = useState(true);
   const [loadingStatus, setLoadingStatus] = useState("Initializing scene...");
   const [error, setError] = useState<string | null>(null);
+  const [isVrmReady, setIsVrmReady] = useState(false);
 
   // Initialize Scene
   useEffect(() => {
@@ -94,6 +95,7 @@ const ThreeStageComponent: React.FC<ThreeStageProps> = ({
     const loadVRM = async () => {
       try {
         setIsLoading(true);
+        setIsVrmReady(false);
         setLoadingStatus(`Loading VRM: ${vrmUrl.split('/').pop()}...`);
         setError(null);
 
@@ -142,6 +144,7 @@ const ThreeStageComponent: React.FC<ThreeStageProps> = ({
 
         sceneRef.current!.onUpdate(updateCallback);
 
+        setIsVrmReady(true);
         setLoadingStatus("Ready");
         setIsLoading(false);
         if (onReady) onReady();
@@ -151,6 +154,7 @@ const ThreeStageComponent: React.FC<ThreeStageProps> = ({
           console.error("VRM Load Error:", err);
           setError(err.message || "Failed to load VRM");
           setIsLoading(false);
+          setIsVrmReady(false);
           if (onError) onError(err.message);
         }
       }
@@ -176,7 +180,7 @@ const ThreeStageComponent: React.FC<ThreeStageProps> = ({
 
   // Handle Animation Loading
   useEffect(() => {
-    if (!animationManagerRef.current || !animationUrl) return;
+    if (!animationManagerRef.current || !animationUrl || !isVrmReady) return;
 
     const loadAnim = async () => {
       try {
@@ -189,7 +193,7 @@ const ThreeStageComponent: React.FC<ThreeStageProps> = ({
     };
 
     loadAnim();
-  }, [animationUrl]);
+  }, [animationUrl, isVrmReady]);
 
   // Handle Speech
   useEffect(() => {
