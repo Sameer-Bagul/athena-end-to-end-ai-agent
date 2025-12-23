@@ -1,6 +1,7 @@
 import { useRef, useCallback, useState } from 'react';
 import ThreeStage from './components/ThreeStage';
 import { AnimationManager, AnimationAction } from './three/AnimationManager';
+import { ControlPanel } from './components/ControlPanel';
 
 function App() {
   const animationManagerRef = useRef<AnimationManager | null>(null);
@@ -24,7 +25,7 @@ function App() {
 
   const toggleAnimation = () => {
     if (!animationManagerRef.current) return;
-    
+
     if (animationEnabled) {
       // Stop animation
       animationManagerRef.current.stop();
@@ -50,57 +51,43 @@ function App() {
     console.log(`✅ Animation changed to: ${action}`);
   };
 
+  const handleFileUpload = (file: File) => {
+    console.log('📂 File uploaded:', file);
+    // TODO: Implement VRM loading logic
+    // This would involve passing the file to the VRMLoaderService
+  };
+
   return (
-    <div className="fixed inset-0 w-screen h-screen bg-linear-to-br from-purple-950 via-black to-black overflow-hidden">
-      <ThreeStage 
-        onReady={handleReady}
-        onError={handleError}
-      />
-      
-      {/* Animation Controls */}
-      {isReady && (
-        <div className="fixed top-4 right-4 flex flex-col gap-2 max-w-xs">
-          {/* Play/Stop Button */}
-          <button
-            onClick={toggleAnimation}
-            className={`px-6 py-3 rounded-lg font-semibold text-white shadow-lg transition-all duration-200 ${
-              animationEnabled
-                ? 'bg-red-600 hover:bg-red-700'
-                : 'bg-green-600 hover:bg-green-700'
-            }`}
-          >
-            {animationEnabled ? '⏸ Stop Animation' : '▶ Play Animation'}
-          </button>
+    <div className="flex h-screen w-screen bg-black overflow-hidden font-sans text-white">
+      {/* 3D Scene Area (75% approx / Flex-1) */}
+      <div className="flex-1 relative h-full bg-linear-to-br from-purple-950 via-black to-black">
+        <ThreeStage
+          onReady={handleReady}
+          onError={handleError}
+        />
 
-          {/* Animation Selection */}
-          <div className="bg-black/60 backdrop-blur-sm border border-white/20 rounded-lg p-3 max-h-[70vh] overflow-y-auto">
-            <div className="text-white text-sm font-semibold mb-2">Select Animation:</div>
-            <div className="grid grid-cols-2 gap-2">
-              {Object.entries(AnimationAction).map(([key, value]) => (
-                <button
-                  key={value}
-                  onClick={() => playAnimation(value)}
-                  className={`px-3 py-2 rounded text-xs font-medium transition-all ${
-                    currentAnimation === value && animationEnabled
-                      ? 'bg-purple-600 text-white'
-                      : 'bg-white/10 text-white/70 hover:bg-white/20'
-                  }`}
-                >
-                  {key.charAt(0) + key.slice(1).toLowerCase().replace('_', ' ')}
-                </button>
-              ))}
+        {/* Loading Overlay for 3D Area */}
+        {!isReady && (
+          <div className="absolute inset-0 bg-black/80 backdrop-blur-sm z-40 flex items-center justify-center">
+            <div className="text-center">
+              <div className="w-12 h-12 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+              <h2 className="text-lg font-bold text-white">Initialize...</h2>
             </div>
           </div>
+        )}
+      </div>
 
-          {/* Status */}
-          <div className="px-4 py-2 rounded-lg bg-black/60 backdrop-blur-sm border border-white/20 text-white text-xs">
-            <div>Status: {animationEnabled ? 'Playing' : 'Stopped'}</div>
-            <div className="text-white/60 mt-1">
-              Current: {currentAnimation}
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Sidebar Controls (Fixed width) */}
+      <div className="w-[400px] shrink-0 relative z-50 h-full">
+        <ControlPanel
+          currentAnimation={currentAnimation}
+          onAnimationChange={playAnimation}
+          isPlaying={animationEnabled}
+          onTogglePlay={toggleAnimation}
+          isReady={isReady}
+          onFileUpload={handleFileUpload}
+        />
+      </div>
     </div>
   );
 }

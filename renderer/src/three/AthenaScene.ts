@@ -21,29 +21,17 @@ export class AthenaScene {
   private animationFrameId: number | null = null;
   private container: HTMLDivElement | null = null;
   private controls: OrbitControls | null = null;
-  
+
   // Callbacks for external animation updates
   private onUpdateCallbacks: ((delta: number) => void)[] = [];
 
   constructor() {
     // Initialize scene
     this.scene = new THREE.Scene();
-    
-    // Create studio-quality gradient background
-    const canvas = document.createElement('canvas');
-    canvas.width = 2;
-    canvas.height = 2;
-    const ctx = canvas.getContext('2d')!;
-    const gradient = ctx.createLinearGradient(0, 0, 0, 2);
-    gradient.addColorStop(0, '#e0f2fe'); // Light blue at top
-    gradient.addColorStop(0.5, '#f8fafc'); // Near white in middle
-    gradient.addColorStop(1, '#dbeafe'); // Soft blue at bottom
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, 2, 2);
-    
-    const backgroundTexture = new THREE.CanvasTexture(canvas);
-    this.scene.background = backgroundTexture;
-    console.log('🟢 [AthenaScene] Scene background set to studio gradient');
+
+    // Use a neutral dark matte color instead of gradient
+    this.scene.background = new THREE.Color(0x09090b); // zinc-950
+    console.log('🟢 [AthenaScene] Scene background set to neutral dark matte');
 
     // Initialize camera
     this.camera = new THREE.PerspectiveCamera(
@@ -61,11 +49,16 @@ export class AthenaScene {
 
     // Setup lighting
     this.setupLighting();
-    
+
     // Setup environment
     this.setupEnvironment();
   }
 
+  /**
+   * Setup scene lighting
+   * Professional 3-point lighting setup with HDRI-style illumination
+   * Optimized for accurate color representation
+   */
   /**
    * Setup scene lighting
    * Professional 3-point lighting setup with HDRI-style illumination
@@ -78,32 +71,31 @@ export class AthenaScene {
     console.log('🟢 [AthenaScene] Added ambient light (intensity: 0.4)');
 
     // Key light - main light source (front-right, slightly above)
-    const keyLight = new THREE.DirectionalLight(0xffffff, 1.8);
-    keyLight.position.set(3, 4, 3);
+    const keyLight = new THREE.DirectionalLight(0xffffff, 1.5);
+    keyLight.position.set(2, 4, 3);
     keyLight.castShadow = true;
     keyLight.shadow.mapSize.width = 2048;
     keyLight.shadow.mapSize.height = 2048;
-    keyLight.shadow.camera.near = 0.5;
-    keyLight.shadow.camera.far = 50;
+    keyLight.shadow.bias = -0.0001; // Reduce shadow acne
     this.scene.add(keyLight);
     console.log('🟢 [AthenaScene] Added key light with shadows');
 
     // Fill light - softer light from opposite side (front-left)
-    const fillLight = new THREE.DirectionalLight(0xb8d4ff, 0.8);
-    fillLight.position.set(-3, 2, 2);
+    const fillLight = new THREE.DirectionalLight(0xaaccff, 0.8);
+    fillLight.position.set(-3, 1, 2);
     this.scene.add(fillLight);
     console.log('🟢 [AthenaScene] Added fill light (cool tone)');
 
     // Back light - rim light from behind for depth
-    const backLight = new THREE.DirectionalLight(0xffeaa7, 0.6);
-    backLight.position.set(0, 3, -4);
+    const backLight = new THREE.DirectionalLight(0xffaa55, 1.0);
+    backLight.position.set(0, 3, -5);
     this.scene.add(backLight);
     console.log('🟢 [AthenaScene] Added back light (warm rim)');
 
     // Hemisphere light for natural sky/ground illumination
-    const hemiLight = new THREE.HemisphereLight(0xddeeff, 0x8899aa, 0.5);
+    const hemiLight = new THREE.HemisphereLight(0xddeeff, 0x0a0a0a, 0.3);
     this.scene.add(hemiLight);
-    console.log('🟢 [AthenaScene] Added hemisphere light for natural bounce');
+    console.log('🟢 [AthenaScene] Added hemisphere light');
   }
 
   /**
@@ -111,23 +103,33 @@ export class AthenaScene {
    * Adds subtle ground plane and atmosphere
    */
   private setupEnvironment(): void {
-    // Subtle circular ground plane
-    const groundGeometry = new THREE.CircleGeometry(5, 64);
+    // Infinite Grid Helper
+    // Create a large grid that fades into the distance
+    const gridHelper = new THREE.GridHelper(20, 40, 0x444444, 0x222222);
+    gridHelper.position.y = 0;
+    (gridHelper.material as THREE.Material).transparent = true;
+    (gridHelper.material as THREE.Material).opacity = 0.4;
+    this.scene.add(gridHelper);
+    console.log('🟢 [AthenaScene] Added grid helper');
+
+    // Subtle reflective ground plane
+    const groundGeometry = new THREE.PlaneGeometry(50, 50);
     const groundMaterial = new THREE.MeshStandardMaterial({
-      color: 0xf1f5f9,
-      roughness: 0.8,
+      color: 0x050505,
+      roughness: 0.1,
       metalness: 0.1,
-      side: THREE.DoubleSide,
+      transparent: true,
+      opacity: 0.8,
     });
     const ground = new THREE.Mesh(groundGeometry, groundMaterial);
     ground.rotation.x = -Math.PI / 2;
-    ground.position.y = 0;
+    ground.position.y = -0.01; // Slightly below grid
     ground.receiveShadow = true;
     this.scene.add(ground);
-    console.log('🟢 [AthenaScene] Added ground plane');
+    console.log('🟢 [AthenaScene] Added reflective ground plane');
 
-    // Soft ambient occlusion effect with fog
-    this.scene.fog = new THREE.Fog(0xe0f2fe, 8, 15);
+    // Add fog to blend the floor with the background
+    this.scene.fog = new THREE.FogExp2(0x09090b, 0.02);
     console.log('🟢 [AthenaScene] Added atmospheric fog');
   }
 
@@ -314,12 +316,12 @@ export class AthenaScene {
     // Dispose renderer
     if (this.renderer) {
       this.renderer.dispose();
-      
+
       // Remove canvas from DOM
       if (this.container && this.renderer.domElement.parentNode === this.container) {
         this.container.removeChild(this.renderer.domElement);
       }
-      
+
       this.renderer = null;
     }
 
@@ -327,7 +329,7 @@ export class AthenaScene {
     this.scene.traverse((object) => {
       if (object instanceof THREE.Mesh) {
         object.geometry?.dispose();
-        
+
         if (object.material) {
           if (Array.isArray(object.material)) {
             object.material.forEach(material => material.dispose());

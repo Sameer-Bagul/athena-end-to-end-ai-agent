@@ -72,7 +72,7 @@ export class AnimationManager {
   private animations: Map<AnimationAction, AnimationConfig> = new Map();
   private currentAction: THREE.AnimationAction | null = null;
   private currentAnimationType: AnimationAction = AnimationAction.RELAX;
-  
+
   // Animation settings
   private readonly CROSSFADE_DURATION = 0.5; // seconds
 
@@ -143,7 +143,7 @@ export class AnimationManager {
 
           // Create animation action
           const clipAction = this.mixer!.clipAction(clip);
-          
+
           // Configure animation
           clipAction.setLoop(THREE.LoopRepeat, Infinity);
           clipAction.clampWhenFinished = true;
@@ -176,12 +176,26 @@ export class AnimationManager {
    * Loads all defined animations in parallel
    */
   public async loadAllAnimations(): Promise<void> {
-    const loadPromises = Object.values(AnimationAction).map((action) =>
-      this.loadAnimation(action)
-    );
+    const loadPromises = Object.values(AnimationAction).map(async (action) => {
+      try {
+        await this.loadAnimation(action);
+        return { action, status: 'success' };
+      } catch (error) {
+        console.warn(`⚠️ Failed to load animation: ${action}`, error);
+        return { action, status: 'failed', error };
+      }
+    });
 
-    await Promise.all(loadPromises);
-    console.log('✅ All VRMA animations loaded successfully');
+    const results = await Promise.all(loadPromises);
+
+    const successCount = results.filter(r => r.status === 'success').length;
+    const failCount = results.filter(r => r.status === 'failed').length;
+
+    console.log(`✅ VRMA Animation Loading Complete: ${successCount} loaded, ${failCount} failed`);
+
+    if (successCount === 0) {
+      throw new Error('Failed to load any animations');
+    }
   }
 
   /**
@@ -192,7 +206,7 @@ export class AnimationManager {
    */
   public play(action: AnimationAction, fadeTime?: number): void {
     console.log(`🎯 Play request for: ${action}`);
-    
+
     const animConfig = this.animations.get(action);
 
     if (!animConfig) {
