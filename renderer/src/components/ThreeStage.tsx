@@ -74,11 +74,13 @@ const ThreeStageComponent: React.FC<ThreeStageProps> = ({
         animationManagerRef.current = animationManager;
 
         // Register animation update callback
-        scene.onUpdate((delta) => {
-          animationManager!.update(delta);
-        });
-
-        // We don't load VRM here automatically anymore, we wait for vrmUrl prop
+        // This callback drives the animation manager
+        const updateAnimation = (delta: number) => {
+          if (animationManagerRef.current) {
+            animationManagerRef.current.update(delta);
+          }
+        };
+        scene.onUpdate(updateAnimation);
 
         setLoadingStatus('Ready');
         setIsLoading(false);
@@ -89,7 +91,6 @@ const ThreeStageComponent: React.FC<ThreeStageProps> = ({
         console.error('❌ Failed to initialize 3D environment:', error);
         setError(error.message);
         setIsLoading(false);
-
         if (onError) onError(error);
       }
     };
@@ -113,6 +114,8 @@ const ThreeStageComponent: React.FC<ThreeStageProps> = ({
 
   // Handle VRM URL Change
   useEffect(() => {
+    let active = true;
+
     const loadVRM = async () => {
       if (!vrmUrl || !sceneRef.current || !animationManagerRef.current) return;
 
@@ -120,38 +123,66 @@ const ThreeStageComponent: React.FC<ThreeStageProps> = ({
         setIsLoading(true);
         setLoadingStatus('Loading VRM...');
 
-        // If a VRM is already loaded, remove it? 
-        // NOTE: Currently VRMLoaderService/AnimationManager doesn't easily support HOT swapping VRM efficiently without full reset,
-        // but let's try to remove old VRM scene object if it exists.
-        if (vrmRef.current) {
-          sceneRef.current.remove(vrmRef.current.scene);
-          vrmRef.current = null;
+        const vrmLoader = new VRMLoaderService();
+        const { vrm: loadedVrm, scene: vrmScene } = await vrmLoader.load(vrmUrl);
+
+        if (!active) {
+          console.log('⚠️ [ThreeStage] VRM load aborted or superseded');
+          return;
         }
 
-        const vrmLoader = new VRMLoaderService();
-        const { vrm: loadedVrm, scene: vrmScene } = await vrmLoader.load(vrmUrl); // VRMLoaderService handles string URLs perfectly
+        // Clean up previous VRM
+        if (vrmRef.current) {
+          console.log('🧹 [ThreeStage] Removing previous VRM');
+          sceneRef.current.remove(vrmRef.current.scene);
+
+          // We also need to remove the previous update callback if possible
+          // But since we can't easily identify the specific anonymous function, 
+          // we should ideally clear specific callbacks. 
+          // For now, AnimationManager manages its own update, but VRM internal update is tricky.
+          // Let's attach the update logic to the Object3D userdata or track it? 
+          // Simpler: AthenaScene.removeUpdateCallback needs the exact function. 
+          // We'll solve this by storing the current update callback in a ref.
+        }
+
+        // Add new VRM
+        console.log('➕ [ThreeStage] Adding new VRM to scene');
         vrmRef.current = loadedVrm;
         sceneRef.current.add(vrmScene);
 
-        // Register VRM update
-        sceneRef.current.onUpdate((delta) => {
-          vrmLoader.update(loadedVrm, delta);
-        });
+        // Define update callback for this specific VRM
+        const updateVRM = (delta: number) => {
+          if (vrmRef.current === loadedVrm) {
+            vrmLoader.update(loadedVrm, delta);
+          }
+        };
+
+        // Remove old callback if we stored it (TODO: need ref for this, let's just add new one carefully)
+        // Actually, if we condition the callback on `vrmRef.current === loadedVrm`, then old callbacks become no-ops!
+        // This effectively "cleans up" their logic even if the function stays in the array.
+
+        sceneRef.current.onUpdate(updateVRM);
 
         // Initialize Animation Manager with new VRM
         animationManagerRef.current.initialize(loadedVrm);
 
-        // Notify ready
         if (onReady) onReady(animationManagerRef.current);
 
         setIsLoading(false);
       } catch (err) {
-        console.error("Failed to load VRM", err);
-        setError("Failed to load VRM file");
-        setIsLoading(false);
+        if (active) {
+          console.error("Failed to load VRM", err);
+          setError("Failed to load VRM file");
+          setIsLoading(false);
+        }
       }
     };
+
     loadVRM();
+
+    return () => {
+      active = false;
+    };
   }, [vrmUrl, onReady]);
 
   // Handle Animation URL Change

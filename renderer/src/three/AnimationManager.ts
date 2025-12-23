@@ -366,8 +366,10 @@ export class AnimationManager {
    * Call on cleanup to prevent memory leaks
    */
   public dispose(): void {
+    console.log('🧹 [AnimationManager] Disposing animation manager resources');
     if (this.mixer) {
       this.mixer.stopAllAction();
+      this.mixer.uncacheRoot(this.mixer.getRoot());
       this.mixer = null;
     }
 
