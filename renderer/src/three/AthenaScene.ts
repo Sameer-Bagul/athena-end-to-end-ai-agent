@@ -22,6 +22,13 @@ export class AthenaScene {
   private container: HTMLDivElement | null = null;
   private controls: OrbitControls | null = null;
 
+  // Scene objects for dynamic updates
+  private ambientLight: THREE.AmbientLight | null = null;
+  private keyLight: THREE.DirectionalLight | null = null;
+  private fillLight: THREE.DirectionalLight | null = null;
+  private backLight: THREE.DirectionalLight | null = null;
+  private gridHelper: THREE.GridHelper | null = null;
+
   // Callbacks for external animation updates
   private onUpdateCallbacks: ((delta: number) => void)[] = [];
 
@@ -59,37 +66,32 @@ export class AthenaScene {
    * Professional 3-point lighting setup with HDRI-style illumination
    * Optimized for accurate color representation
    */
-  /**
-   * Setup scene lighting
-   * Professional 3-point lighting setup with HDRI-style illumination
-   * Optimized for accurate color representation
-   */
   private setupLighting(): void {
     // Soft ambient light for base illumination
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
-    this.scene.add(ambientLight);
+    this.ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+    this.scene.add(this.ambientLight);
     console.log('🟢 [AthenaScene] Added ambient light (intensity: 0.4)');
 
     // Key light - main light source (front-right, slightly above)
-    const keyLight = new THREE.DirectionalLight(0xffffff, 1.5);
-    keyLight.position.set(2, 4, 3);
-    keyLight.castShadow = true;
-    keyLight.shadow.mapSize.width = 2048;
-    keyLight.shadow.mapSize.height = 2048;
-    keyLight.shadow.bias = -0.0001; // Reduce shadow acne
-    this.scene.add(keyLight);
+    this.keyLight = new THREE.DirectionalLight(0xffffff, 1.5);
+    this.keyLight.position.set(2, 4, 3);
+    this.keyLight.castShadow = true;
+    this.keyLight.shadow.mapSize.width = 2048;
+    this.keyLight.shadow.mapSize.height = 2048;
+    this.keyLight.shadow.bias = -0.0001; // Reduce shadow acne
+    this.scene.add(this.keyLight);
     console.log('🟢 [AthenaScene] Added key light with shadows');
 
     // Fill light - softer light from opposite side (front-left)
-    const fillLight = new THREE.DirectionalLight(0xaaccff, 0.8);
-    fillLight.position.set(-3, 1, 2);
-    this.scene.add(fillLight);
+    this.fillLight = new THREE.DirectionalLight(0xaaccff, 0.8);
+    this.fillLight.position.set(-3, 1, 2);
+    this.scene.add(this.fillLight);
     console.log('🟢 [AthenaScene] Added fill light (cool tone)');
 
     // Back light - rim light from behind for depth
-    const backLight = new THREE.DirectionalLight(0xffaa55, 1.0);
-    backLight.position.set(0, 3, -5);
-    this.scene.add(backLight);
+    this.backLight = new THREE.DirectionalLight(0xffaa55, 1.0);
+    this.backLight.position.set(0, 3, -5);
+    this.scene.add(this.backLight);
     console.log('🟢 [AthenaScene] Added back light (warm rim)');
 
     // Hemisphere light for natural sky/ground illumination
@@ -105,11 +107,11 @@ export class AthenaScene {
   private setupEnvironment(): void {
     // Infinite Grid Helper
     // Create a large grid that fades into the distance
-    const gridHelper = new THREE.GridHelper(20, 40, 0x444444, 0x222222);
-    gridHelper.position.y = 0;
-    (gridHelper.material as THREE.Material).transparent = true;
-    (gridHelper.material as THREE.Material).opacity = 0.4;
-    this.scene.add(gridHelper);
+    this.gridHelper = new THREE.GridHelper(20, 40, 0x444444, 0x222222);
+    this.gridHelper.position.y = 0;
+    (this.gridHelper.material as THREE.Material).transparent = true;
+    (this.gridHelper.material as THREE.Material).opacity = 0.4;
+    this.scene.add(this.gridHelper);
     console.log('🟢 [AthenaScene] Added grid helper');
 
     // Subtle reflective ground plane
@@ -182,6 +184,45 @@ export class AthenaScene {
     console.log('🟢 [AthenaScene] Render loop started');
     console.log('🟢 [AthenaScene] Camera position:', this.camera.position);
     console.log('🟢 [AthenaScene] Scene children:', this.scene.children.length);
+  }
+
+  /**
+   * Update Light Intensity
+   * Scales the intensity of all major lights
+   */
+  public setLightIntensity(scale: number): void {
+    if (this.ambientLight) this.ambientLight.intensity = 0.4 * scale;
+    if (this.keyLight) this.keyLight.intensity = 1.5 * scale;
+    if (this.fillLight) this.fillLight.intensity = 0.8 * scale;
+    if (this.backLight) this.backLight.intensity = 1.0 * scale;
+  }
+
+  /**
+   * Set Grid Visibility
+   */
+  public setGridVisible(visible: boolean): void {
+    if (this.gridHelper) {
+      this.gridHelper.visible = visible;
+    }
+  }
+
+  /**
+   * Set Background Color
+   */
+  public setBackgroundColor(color: string): void {
+    this.scene.background = new THREE.Color(color);
+    // Also update fog to match for seamless look
+    if (this.scene.fog instanceof THREE.FogExp2) {
+      this.scene.fog.color.set(color);
+    }
+  }
+
+  /**
+   * Set Camera Field of View
+   */
+  public setCameraFov(fov: number): void {
+    this.camera.fov = fov;
+    this.camera.updateProjectionMatrix();
   }
 
   /**

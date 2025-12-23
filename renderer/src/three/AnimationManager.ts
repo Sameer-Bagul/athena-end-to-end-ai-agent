@@ -172,6 +172,68 @@ export class AnimationManager {
   }
 
   /**
+   * Load a single animation from an arbitrary URL (e.g. Blob URL)
+   * 
+   * @param url - URL to the animation file
+   */
+  public async loadAnimationFromUrl(url: string): Promise<void> {
+    if (!this.vrm || !this.mixer) {
+      throw new Error('AnimationManager not initialized. Call initialize() first.');
+    }
+
+    return new Promise((resolve, reject) => {
+      this.gltfLoader.load(
+        url,
+        (gltf) => {
+          console.log(`✅ Loaded animation from URL: ${url}`, gltf);
+
+          // Extract VRM animation data 
+          const vrmAnimations = gltf.userData.vrmAnimations;
+          if (!vrmAnimations || vrmAnimations.length === 0) {
+            reject(new Error(`No VRM animation found in URL`));
+            return;
+          }
+
+          const vrmAnimationData = vrmAnimations[0];
+          const clip = createVRMAnimationClip(vrmAnimationData, this.vrm!);
+
+          if (!clip) {
+            reject(new Error(`Failed to create animation clip from URL`));
+            return;
+          }
+
+          // Create animation action
+          const clipAction = this.mixer!.clipAction(clip);
+          clipAction.setLoop(THREE.LoopRepeat, Infinity);
+          clipAction.clampWhenFinished = true;
+
+          // Perform crossfade
+          if (this.currentAction) {
+            this.currentAction.fadeOut(this.CROSSFADE_DURATION);
+          }
+
+          console.log(`▶️ Starting custom animation`);
+          clipAction
+            .reset()
+            .setEffectiveTimeScale(1)
+            .setEffectiveWeight(1)
+            .fadeIn(this.CROSSFADE_DURATION)
+            .play();
+
+          this.currentAction = clipAction;
+
+          resolve();
+        },
+        undefined,
+        (error) => {
+          const err = error instanceof Error ? error : new Error(String(error));
+          reject(new Error(`Failed to load animation from URL: ${err.message}`));
+        }
+      );
+    });
+  }
+
+  /**
    * Load all animations
    * Loads all defined animations in parallel
    */

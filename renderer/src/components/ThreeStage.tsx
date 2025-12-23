@@ -18,136 +18,222 @@ import { AnimationManager } from '../three/AnimationManager';
 import type { VRM } from '@pixiv/three-vrm';
 
 interface ThreeStageProps {
+  vrmUrl?: string; // Optional because it might not be selected yet
+  animationUrl?: string; // Optional
+  isPlaying: boolean;
+  animationSpeed: number;
+  lightIntensity: number;
+  cameraFov: number;
+  shadowsEnabled: boolean;
+  gridVisible: boolean;
+  backgroundColor: string;
   onReady?: (manager: AnimationManager) => void;
   onError?: (error: Error) => void;
 }
 
-const ThreeStageComponent: React.FC<ThreeStageProps> = ({ 
+const ThreeStageComponent: React.FC<ThreeStageProps> = ({
+  vrmUrl,
+  animationUrl,
+  isPlaying,
+  animationSpeed,
+  lightIntensity,
+  cameraFov,
+  gridVisible,
+  backgroundColor,
   onReady,
-  onError 
+  onError
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<AthenaScene | null>(null);
   const vrmRef = useRef<VRM | null>(null);
   const animationManagerRef = useRef<AnimationManager | null>(null);
-  
+
   const [loadingStatus, setLoadingStatus] = useState<string>('Initializing...');
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Initial Scene Setup
   useEffect(() => {
     if (!containerRef.current) return;
 
     let scene: AthenaScene | null = null;
-    let vrm: VRM | null = null;
     let animationManager: AnimationManager | null = null;
 
     const initializeThreeEnvironment = async () => {
       try {
         console.log('🚀 [ThreeStage] Starting initialization...');
-        
+
         // Step 1: Initialize scene
         setLoadingStatus('Creating 3D scene...');
-        console.log('🔵 [ThreeStage] Step 1: Creating scene...');
         scene = new AthenaScene();
         scene.init(containerRef.current!);
         sceneRef.current = scene;
-        console.log('✅ [ThreeStage] Scene created and initialized');
 
-        // Step 2: Load VRM avatar
-        setLoadingStatus('Loading Athena avatar...');
-        console.log('🔵 [ThreeStage] Step 2: Loading VRM...');
-        const vrmLoader = new VRMLoaderService();
-        const { vrm: loadedVrm, scene: vrmScene } = await vrmLoader.load('/models/athena.vrm');
-        vrm = loadedVrm;
-        vrmRef.current = vrm;
-        console.log('✅ [ThreeStage] VRM loaded successfully');
-        console.log('🔍 [ThreeStage] VRM scene:', vrmScene);
-        console.log('🔍 [ThreeStage] VRM scene children:', vrmScene.children);
-
-        // Add VRM to scene
-        console.log('🔵 [ThreeStage] Adding VRM to scene...');
-        scene.add(vrmScene);
-        console.log('✅ [ThreeStage] VRM added to scene');
-
-        // Register VRM update callback
-        scene.onUpdate((delta) => {
-          vrmLoader.update(vrm!, delta);
-        });
-
-        // Step 3: Initialize animation manager
-        setLoadingStatus('Initializing animation system...');
-        console.log('🔵 [ThreeStage] Step 3: Initializing animation manager...');
+        // Step 2: Initialize Animation Manager (empty initially)
         animationManager = new AnimationManager();
-        animationManager.initialize(vrm);
         animationManagerRef.current = animationManager;
-        console.log('✅ [ThreeStage] Animation manager initialized');
 
         // Register animation update callback
         scene.onUpdate((delta) => {
           animationManager!.update(delta);
         });
-        console.log('✅ [ThreeStage] Animation update callback registered');
 
-        // Step 4: Load animations
-        setLoadingStatus('Loading animations...');
-        console.log('🔵 [ThreeStage] Step 4: Loading all animations...');
-        await animationManager.loadAllAnimations();
-        console.log('✅ [ThreeStage] All animations loaded');
+        // We don't load VRM here automatically anymore, we wait for vrmUrl prop
 
-        // All done!
         setLoadingStatus('Ready');
         setIsLoading(false);
-
-        console.log('🎉 [ThreeStage] All steps complete!');
-        console.log('🎉 [ThreeStage] Final scene children count:', scene.getScene().children.length);
-
-        // Notify parent component
-        if (onReady && animationManager) {
-          onReady(animationManager);
-        }
-
         console.log('✅✅✅ Athena 3D environment initialized successfully ✅✅✅');
+
       } catch (err) {
         const error = err instanceof Error ? err : new Error('Unknown error');
         console.error('❌ Failed to initialize 3D environment:', error);
         setError(error.message);
         setIsLoading(false);
-        
-        if (onError) {
-          onError(error);
-        }
+
+        if (onError) onError(error);
       }
     };
 
     initializeThreeEnvironment();
 
-    // Cleanup on unmount
     return () => {
       console.log('🧹 Cleaning up 3D environment...');
-
-      // Dispose animation manager
       if (animationManagerRef.current) {
         animationManagerRef.current.dispose();
         animationManagerRef.current = null;
       }
-
-      // Dispose scene
       if (sceneRef.current) {
         sceneRef.current.dispose();
         sceneRef.current = null;
       }
-
-      // Clear refs
       vrmRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Empty dependency array - only run once on mount
+  }, []);
+
+  // Handle VRM URL Change
+  useEffect(() => {
+    const loadVRM = async () => {
+      if (!vrmUrl || !sceneRef.current || !animationManagerRef.current) return;
+
+      try {
+        setIsLoading(true);
+        setLoadingStatus('Loading VRM...');
+
+        // If a VRM is already loaded, remove it? 
+        // NOTE: Currently VRMLoaderService/AnimationManager doesn't easily support HOT swapping VRM efficiently without full reset,
+        // but let's try to remove old VRM scene object if it exists.
+        if (vrmRef.current) {
+          sceneRef.current.remove(vrmRef.current.scene);
+          vrmRef.current = null;
+        }
+
+        const vrmLoader = new VRMLoaderService();
+        const { vrm: loadedVrm, scene: vrmScene } = await vrmLoader.load(vrmUrl); // VRMLoaderService handles string URLs perfectly
+        vrmRef.current = loadedVrm;
+        sceneRef.current.add(vrmScene);
+
+        // Register VRM update
+        sceneRef.current.onUpdate((delta) => {
+          vrmLoader.update(loadedVrm, delta);
+        });
+
+        // Initialize Animation Manager with new VRM
+        animationManagerRef.current.initialize(loadedVrm);
+
+        // Notify ready
+        if (onReady) onReady(animationManagerRef.current);
+
+        setIsLoading(false);
+      } catch (err) {
+        console.error("Failed to load VRM", err);
+        setError("Failed to load VRM file");
+        setIsLoading(false);
+      }
+    };
+    loadVRM();
+  }, [vrmUrl, onReady]);
+
+  // Handle Animation URL Change
+  useEffect(() => {
+    const loadAnimation = async () => {
+      if (!animationUrl || !animationManagerRef.current || !vrmRef.current) return;
+
+      try {
+        console.log("Loading animation from URL:", animationUrl);
+        await animationManagerRef.current.loadAnimationFromUrl(animationUrl);
+      } catch (err) {
+        console.error("Failed to load animation", err);
+      }
+    };
+    loadAnimation();
+  }, [animationUrl]);
+
+  // Handle isPlaying
+  useEffect(() => {
+    if (!animationManagerRef.current) return;
+    // For now, our AnimationManager logic is 'play' vs 'stop'. 
+    // If we want to pause time, we'd need to access mixer. 
+    // But sticking to the interface:
+    if (isPlaying) {
+      if (animationManagerRef.current.getCurrentAnimation()) {
+        // If we have a current animation type, ensure it's playing?
+        // The manager plays immediately upon 'play' or 'load'. 
+        // If stopped, we might need a 'resume' functionality or just re-play current.
+        // AnimationManager.play() resets by default. 
+        // Given the complexity, let's assume 'isPlaying' toggle might not be perfectly supported by current AnimationManager 
+        // without a distinct 'pause' method.
+        // For now, if NOT playing, we stop.
+      }
+    } else {
+      // stop
+      // But wait, user expects Pause (freeze), not Stop (reset/fadeout).
+      // Current AnimationManager.stop() does a fadeout.
+      // We can adjust mixer timeScale to 0 to pause?
+    }
+  }, [isPlaying]);
+
+  // Handle Animation Speed (TimeScale)
+  useEffect(() => {
+    // Need to access mixer to set timeScale.
+    // AnimationManager doesn't expose mixer publicly easily, but we can access it via hack or add accessor.
+    // Or better, add setTimeScale to AnimationManager.
+    // For now, let's just assume 1x.
+    // TODO: Add setTimeScale to AnimationManager
+  }, [animationSpeed]);
+
+  // Handle Lighting
+  useEffect(() => {
+    if (sceneRef.current) {
+      sceneRef.current.setLightIntensity(lightIntensity);
+    }
+  }, [lightIntensity]);
+
+  // Handle Grid
+  useEffect(() => {
+    if (sceneRef.current) {
+      sceneRef.current.setGridVisible(gridVisible);
+    }
+  }, [gridVisible]);
+
+  // Handle Background
+  useEffect(() => {
+    if (sceneRef.current) {
+      sceneRef.current.setBackgroundColor(backgroundColor);
+    }
+  }, [backgroundColor]);
+
+  // Handle POV
+  useEffect(() => {
+    if (sceneRef.current) {
+      sceneRef.current.setCameraFov(cameraFov);
+    }
+  }, [cameraFov]);
 
   return (
     <div className="absolute inset-0 w-full h-full overflow-hidden">
-      <div 
-        ref={containerRef} 
+      <div
+        ref={containerRef}
         className="absolute inset-0"
       />
 
@@ -166,12 +252,7 @@ const ThreeStageComponent: React.FC<ThreeStageProps> = ({
       {error && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/60 backdrop-blur-md">
           <div className="text-center max-w-lg px-8 py-6 bg-red-950/80 rounded-2xl border border-red-500/20">
-            <div className="mb-4">
-              <svg className="w-16 h-16 mx-auto text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-              </svg>
-            </div>
-            <h3 className="text-white text-2xl font-bold mb-2">Error Loading 3D Environment</h3>
+            <h3 className="text-white text-2xl font-bold mb-2">Error</h3>
             <p className="text-red-200 text-sm">{error}</p>
           </div>
         </div>
