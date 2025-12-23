@@ -8,7 +8,8 @@
     "build": "npm run build:ui && npm run build:electron",
     "build:ui": "cd renderer && npm run build",
     "build:electron": "npx tsc -p tsconfig.node.json",
-    "start": "ELECTRON_DISABLE_SANDBOX=1 npx electron ."
+    "start": "npm run build && ELECTRON_DISABLE_SANDBOX=1 npx electron .",
+    "start:prod": "ELECTRON_DISABLE_SANDBOX=1 npx electron ."
   },
   "dependencies": {
     "electron": "^39.2.7"
