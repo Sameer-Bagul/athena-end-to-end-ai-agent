@@ -1,34 +1,25 @@
-/**
- * ThreeStage.tsx
- * 
- * React component that mounts and manages the Three.js 3D environment.
- * Handles lifecycle and provides a clean interface between React and Three.js.
- * 
- * Architecture principle:
- * - React ONLY handles mounting/unmounting
- * - All Three.js logic stays in separate modules
- * - No Three.js code in component render
- * - Clean separation of concerns
- */
-
-import { useEffect, useRef, useState, memo } from 'react';
+import React, { useEffect, useRef, useState, memo } from 'react';
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { VRM, VRMLoaderPlugin, VRMUtils } from '@pixiv/three-vrm';
 import { AthenaScene } from '../three/AthenaScene';
-import { VRMLoaderService } from '../three/VRMLoader';
 import { AnimationManager } from '../three/AnimationManager';
-import type { VRM } from '@pixiv/three-vrm';
+import { LipSyncManager } from '../three/LipSyncManager';
 
 interface ThreeStageProps {
-  vrmUrl?: string; // Optional because it might not be selected yet
-  animationUrl?: string; // Optional
+  vrmUrl: string;
+  animationUrl?: string;
   isPlaying: boolean;
   animationSpeed: number;
   lightIntensity: number;
   cameraFov: number;
-  shadowsEnabled: boolean;
   gridVisible: boolean;
+  shadowsEnabled: boolean;
   backgroundColor: string;
-  onReady?: (manager: AnimationManager) => void;
-  onError?: (error: Error) => void;
+  speechText?: string;
+  cameraMode: string;
+  onReady?: () => void;
+  onError?: (error: string) => void;
 }
 
 const ThreeStageComponent: React.FC<ThreeStageProps> = ({
@@ -39,141 +30,128 @@ const ThreeStageComponent: React.FC<ThreeStageProps> = ({
   lightIntensity,
   cameraFov,
   gridVisible,
+  shadowsEnabled,
   backgroundColor,
+  speechText,
+  cameraMode,
   onReady,
   onError
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<AthenaScene | null>(null);
-  const vrmRef = useRef<VRM | null>(null);
   const animationManagerRef = useRef<AnimationManager | null>(null);
+  const lipSyncRef = useRef<LipSyncManager | null>(null);
+  const vrmRef = useRef<VRM | null>(null);
 
-  const [loadingStatus, setLoadingStatus] = useState<string>('Initializing...');
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  // State for loading
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadingStatus, setLoadingStatus] = useState("Initializing scene...");
   const [error, setError] = useState<string | null>(null);
 
-  // Initial Scene Setup
+  // Initialize Scene
   useEffect(() => {
     if (!containerRef.current) return;
 
-    let scene: AthenaScene | null = null;
-    let animationManager: AnimationManager | null = null;
+    const scene = new AthenaScene();
+    scene.init(containerRef.current);
+    sceneRef.current = scene;
 
-    const initializeThreeEnvironment = async () => {
-      try {
-        console.log('🚀 [ThreeStage] Starting initialization...');
-
-        // Step 1: Initialize scene
-        setLoadingStatus('Creating 3D scene...');
-        scene = new AthenaScene();
-        scene.init(containerRef.current!);
-        sceneRef.current = scene;
-
-        // Step 2: Initialize Animation Manager (empty initially)
-        animationManager = new AnimationManager();
-        animationManagerRef.current = animationManager;
-
-        // Register animation update callback
-        // This callback drives the animation manager
-        const updateAnimation = (delta: number) => {
-          if (animationManagerRef.current) {
-            animationManagerRef.current.update(delta);
-          }
-        };
-        scene.onUpdate(updateAnimation);
-
-        setLoadingStatus('Ready');
-        setIsLoading(false);
-        console.log('✅✅✅ Athena 3D environment initialized successfully ✅✅✅');
-
-      } catch (err) {
-        const error = err instanceof Error ? err : new Error('Unknown error');
-        console.error('❌ Failed to initialize 3D environment:', error);
-        setError(error.message);
-        setIsLoading(false);
-        if (onError) onError(error);
-      }
-    };
-
-    initializeThreeEnvironment();
+    // Managers
+    animationManagerRef.current = new AnimationManager();
+    lipSyncRef.current = new LipSyncManager();
 
     return () => {
-      console.log('🧹 Cleaning up 3D environment...');
-      if (animationManagerRef.current) {
-        animationManagerRef.current.dispose();
-        animationManagerRef.current = null;
-      }
-      if (sceneRef.current) {
-        sceneRef.current.dispose();
-        sceneRef.current = null;
-      }
-      vrmRef.current = null;
+      scene.dispose();
+      if (animationManagerRef.current) animationManagerRef.current.dispose();
+      sceneRef.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Handle VRM URL Change
+  // Use IsPlaying prop (Future impl or current if AnimationManager supports it)
   useEffect(() => {
-    let active = true;
+    // Placeholder for play/pause logic if needed
+    // if (animationManagerRef.current) ...
+  }, [isPlaying]);
+
+  // Update Animation Speed
+  useEffect(() => {
+    if (animationManagerRef.current) {
+      animationManagerRef.current.setTimeScale(animationSpeed);
+    }
+  }, [animationSpeed]);
+
+  // Update Shadows (if Scene supports execution, otherwise placeholder)
+  useEffect(() => {
+    // sceneRef.current?.setShadowsEnabled(shadowsEnabled);
+  }, [shadowsEnabled]);
+
+  // Load VRM
+  useEffect(() => {
+    if (!sceneRef.current || !vrmUrl) return;
+
+    let isCancelled = false;
 
     const loadVRM = async () => {
-      if (!vrmUrl || !sceneRef.current || !animationManagerRef.current) return;
-
       try {
         setIsLoading(true);
-        setLoadingStatus('Loading VRM...');
+        setLoadingStatus(`Loading VRM: ${vrmUrl.split('/').pop()}...`);
+        setError(null);
 
-        const vrmLoader = new VRMLoaderService();
-        const { vrm: loadedVrm, scene: vrmScene } = await vrmLoader.load(vrmUrl);
+        const loader = new GLTFLoader();
+        loader.register((parser) => new VRMLoaderPlugin(parser));
 
-        if (!active) {
-          console.log('⚠️ [ThreeStage] VRM load aborted or superseded');
+        const gltf = await loader.loadAsync(vrmUrl, (_progress) => {
+          // Progress callback
+        });
+
+        if (isCancelled) {
+          // If cancelled, dispose what we just loaded
+          VRMUtils.deepDispose(gltf.scene);
           return;
         }
 
-        // Clean up previous VRM
-        if (vrmRef.current) {
-          console.log('🧹 [ThreeStage] Removing previous VRM');
-          sceneRef.current.remove(vrmRef.current.scene);
-
-          // We also need to remove the previous update callback if possible
-          // But since we can't easily identify the specific anonymous function, 
-          // we should ideally clear specific callbacks. 
-          // For now, AnimationManager manages its own update, but VRM internal update is tricky.
-          // Let's attach the update logic to the Object3D userdata or track it? 
-          // Simpler: AthenaScene.removeUpdateCallback needs the exact function. 
-          // We'll solve this by storing the current update callback in a ref.
+        const vrm = gltf.userData.vrm as VRM;
+        if (!vrm) {
+          throw new Error("Failed to parse VRM.");
         }
 
-        // Add new VRM
-        console.log('➕ [ThreeStage] Adding new VRM to scene');
-        vrmRef.current = loadedVrm;
-        sceneRef.current.add(vrmScene);
+        // Success: Replace old model with new one in a single transaction
+        if (vrmRef.current) {
+          sceneRef.current!.remove(vrmRef.current.scene);
+          VRMUtils.deepDispose(vrmRef.current.scene);
+          vrmRef.current = null;
+        }
 
-        // Define update callback for this specific VRM
-        const updateVRM = (delta: number) => {
-          if (vrmRef.current === loadedVrm) {
-            vrmLoader.update(loadedVrm, delta);
+        vrmRef.current = vrm;
+        sceneRef.current!.add(vrm.scene);
+
+        animationManagerRef.current!.initialize(vrm);
+        lipSyncRef.current!.setVRM(vrm);
+
+        vrm.scene.rotation.y = Math.PI; // Face the camera
+
+        const updateCallback = (delta: number) => {
+          vrm.update(delta);
+          if (animationManagerRef.current) {
+            animationManagerRef.current.update(delta);
+          }
+          if (lipSyncRef.current) {
+            lipSyncRef.current.update(delta);
           }
         };
 
-        // Remove old callback if we stored it (TODO: need ref for this, let's just add new one carefully)
-        // Actually, if we condition the callback on `vrmRef.current === loadedVrm`, then old callbacks become no-ops!
-        // This effectively "cleans up" their logic even if the function stays in the array.
+        sceneRef.current!.onUpdate(updateCallback);
 
-        sceneRef.current.onUpdate(updateVRM);
-
-        // Initialize Animation Manager with new VRM
-        animationManagerRef.current.initialize(loadedVrm);
-
-        if (onReady) onReady(animationManagerRef.current);
-
+        setLoadingStatus("Ready");
         setIsLoading(false);
-      } catch (err) {
-        if (active) {
-          console.error("Failed to load VRM", err);
-          setError("Failed to load VRM file");
+        if (onReady) onReady();
+
+      } catch (err: any) {
+        if (!isCancelled) {
+          console.error("VRM Load Error:", err);
+          setError(err.message || "Failed to load VRM");
           setIsLoading(false);
+          if (onError) onError(err.message);
         }
       }
     };
@@ -181,85 +159,98 @@ const ThreeStageComponent: React.FC<ThreeStageProps> = ({
     loadVRM();
 
     return () => {
-      active = false;
+      isCancelled = true;
+      // If we have a vrmRef, do we clean it up here?
+      // NO. If we unmount, we should dispose.
+      // If we just switch URL, we do NOT want to dispose the *old* one yet? 
+      // Actually, we DO want to remove the old one immediately if we start a new load.
+      // But the new effect will handle removal of vrmRef.current.
+
+      // HOWEVER, what if the component unmounts entirely?
+      // We rely on Main useEffect's scene.dispose()! 
+      // AthenaScene.dispose() clears the scene.
+
+      // So this cleanup acts primarily as a flag to cancel pending async work.
     };
-  }, [vrmUrl, onReady]);
+  }, [vrmUrl]);
 
-  // Handle Animation URL Change
+  // Handle Animation Loading
   useEffect(() => {
-    const loadAnimation = async () => {
-      if (!animationUrl || !animationManagerRef.current || !vrmRef.current) return;
+    if (!animationManagerRef.current || !animationUrl) return;
 
+    const loadAnim = async () => {
       try {
-        console.log("Loading animation from URL:", animationUrl);
-        await animationManagerRef.current.loadAnimationFromUrl(animationUrl);
+        if (animationUrl.startsWith('/') || animationUrl.startsWith('blob:')) {
+          await animationManagerRef.current!.loadAnimationFromUrl(animationUrl);
+        }
       } catch (err) {
-        console.error("Failed to load animation", err);
+        console.error("Animation Load Error:", err);
       }
     };
-    loadAnimation();
+
+    loadAnim();
   }, [animationUrl]);
 
-  // Handle isPlaying
+  // Handle Speech
   useEffect(() => {
-    if (!animationManagerRef.current) return;
-    // For now, our AnimationManager logic is 'play' vs 'stop'. 
-    // If we want to pause time, we'd need to access mixer. 
-    // But sticking to the interface:
-    if (isPlaying) {
-      if (animationManagerRef.current.getCurrentAnimation()) {
-        // If we have a current animation type, ensure it's playing?
-        // The manager plays immediately upon 'play' or 'load'. 
-        // If stopped, we might need a 'resume' functionality or just re-play current.
-        // AnimationManager.play() resets by default. 
-        // Given the complexity, let's assume 'isPlaying' toggle might not be perfectly supported by current AnimationManager 
-        // without a distinct 'pause' method.
-        // For now, if NOT playing, we stop.
+    if (lipSyncRef.current && speechText) {
+      lipSyncRef.current.speak(speechText);
+    }
+  }, [speechText]);
+
+  // Handle Camera Mode
+  useEffect(() => {
+    if (!sceneRef.current || !vrmRef.current) return;
+
+    const headNode = vrmRef.current.humanoid.getNormalizedBoneNode('head');
+    if (!headNode) return;
+
+    const headPos = new THREE.Vector3();
+    headNode.getWorldPosition(headPos);
+
+    if (cameraMode === 'face') {
+      const targetPos = headPos.clone().add(new THREE.Vector3(0, 0.05, 0.5));
+      sceneRef.current.setCameraTarget(targetPos, headPos);
+    } else if (cameraMode === 'half') {
+      const hipsNode = vrmRef.current.humanoid.getNormalizedBoneNode('hips');
+      if (hipsNode) {
+        const hipsPos = new THREE.Vector3();
+        hipsNode.getWorldPosition(hipsPos);
+        const chestPos = headPos.clone().lerp(hipsPos, 0.5);
+        const targetPos = chestPos.clone().add(new THREE.Vector3(0, 0.1, 1.2));
+        sceneRef.current.setCameraTarget(targetPos, chestPos);
       }
     } else {
-      // stop
-      // But wait, user expects Pause (freeze), not Stop (reset/fadeout).
-      // Current AnimationManager.stop() does a fadeout.
-      // We can adjust mixer timeScale to 0 to pause?
+      sceneRef.current.setCameraTarget(
+        new THREE.Vector3(0, 1.2, 2.5),
+        new THREE.Vector3(0, 1.0, 0)
+      );
     }
-  }, [isPlaying]);
+  }, [cameraMode]);
 
-  // Handle Animation Speed (TimeScale)
+  // Update scene properties
   useEffect(() => {
-    // Need to access mixer to set timeScale.
-    // AnimationManager doesn't expose mixer publicly easily, but we can access it via hack or add accessor.
-    // Or better, add setTimeScale to AnimationManager.
-    // For now, let's just assume 1x.
-    // TODO: Add setTimeScale to AnimationManager
-  }, [animationSpeed]);
-
-  // Handle Lighting
-  useEffect(() => {
-    if (sceneRef.current) {
-      sceneRef.current.setLightIntensity(lightIntensity);
-    }
+    if (!sceneRef.current) return;
+    sceneRef.current.setLightIntensity(lightIntensity);
   }, [lightIntensity]);
 
-  // Handle Grid
   useEffect(() => {
-    if (sceneRef.current) {
-      sceneRef.current.setGridVisible(gridVisible);
-    }
+    if (!sceneRef.current) return;
+    sceneRef.current.setGridVisible(gridVisible ?? true);
   }, [gridVisible]);
 
-  // Handle Background
   useEffect(() => {
-    if (sceneRef.current) {
-      sceneRef.current.setBackgroundColor(backgroundColor);
-    }
-  }, [backgroundColor]);
-
-  // Handle POV
-  useEffect(() => {
-    if (sceneRef.current) {
+    if (!sceneRef.current) return;
+    if (typeof cameraFov === 'number') {
       sceneRef.current.setCameraFov(cameraFov);
     }
   }, [cameraFov]);
+
+  useEffect(() => {
+    if (!sceneRef.current) return;
+    sceneRef.current.setBackgroundColor(backgroundColor ?? '#0f0f1e');
+  }, [backgroundColor]);
+
 
   return (
     <div className="absolute inset-0 w-full h-full overflow-hidden">

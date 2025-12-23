@@ -226,6 +226,20 @@ export class AthenaScene {
   }
 
   /**
+   * Set Camera Target and Position
+   * Smoothly transitions (or snaps) camera to new focus point
+   */
+  public setCameraTarget(position: THREE.Vector3, target: THREE.Vector3): void {
+    if (!this.controls) return;
+
+    this.camera.position.copy(position);
+    this.controls.target.copy(target);
+    this.controls.update();
+
+    console.log(`🎥 [AthenaScene] Camera moved to:`, position);
+  }
+
+  /**
    * Handle window resize events
    * Updates camera aspect ratio and renderer size
    */

@@ -362,6 +362,16 @@ export class AnimationManager {
   }
 
   /**
+   * Set animation playback speed (time scale)
+   */
+  public setTimeScale(speed: number): void {
+    if (this.mixer) {
+      this.mixer.timeScale = speed;
+      console.log(`⏩ [AnimationManager] Time scale set to: ${speed}`);
+    }
+  }
+
+  /**
    * Dispose of all resources
    * Call on cleanup to prevent memory leaks
    */
