@@ -10,8 +10,8 @@ if (process.platform === "linux") {
 
 function createWindow() {
   const win = new BrowserWindow({
-    width: 900,
-    height: 700,
+    width: 1000,
+    height: 900,
     backgroundColor: "#0b0b0b",
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
