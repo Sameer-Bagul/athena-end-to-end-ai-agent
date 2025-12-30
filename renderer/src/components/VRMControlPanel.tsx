@@ -155,7 +155,7 @@ export function VRMControlPanel() {
                                                     key={model}
                                                     onClick={() => handleModelSelect(model)}
                                                     className={cn(
-                                                        "flex flex-col items-center gap-2 rounded-md border p-3 hover:bg-accent hover:text-accent-foreground transition-all w-[100px]",
+                                                        "flex flex-col items-center gap-2 rounded-md border p-3 hover:bg-accent hover:text-accent-foreground transition-all w-25",
                                                         vrmUrl.endsWith(model) ? "border-primary bg-accent/50 ring-1 ring-primary" : "border-border/50"
                                                     )}
                                                 >
@@ -181,7 +181,7 @@ export function VRMControlPanel() {
                                         <h3 className="text-sm font-medium flex items-center gap-2">
                                             <FileVideo className="size-4" /> Animation Library
                                         </h3>
-                                        <div className="flex items-center gap-4 min-w-[200px]">
+                                        <div className="flex items-center gap-4 min-w-50">
                                             <Label className="text-xs whitespace-nowrap">Speed: {animationSpeed[0]}x</Label>
                                             <Slider
                                                 value={animationSpeed}
@@ -200,7 +200,7 @@ export function VRMControlPanel() {
                                                     key={anim}
                                                     onClick={() => handleAnimationSelect(anim)}
                                                     className={cn(
-                                                        "flex flex-col items-center gap-2 rounded-md border p-3 hover:bg-accent hover:text-accent-foreground transition-all w-[100px]",
+                                                        "flex flex-col items-center gap-2 rounded-md border p-3 hover:bg-accent hover:text-accent-foreground transition-all w-25",
                                                         animationUrl.endsWith(anim) ? "border-primary bg-accent/50 ring-1 ring-primary" : "border-border/50"
                                                     )}
                                                 >
@@ -302,7 +302,7 @@ export function VRMControlPanel() {
                                                     placeholder="Type what you want the model to say..."
                                                     value={inputText}
                                                     onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setInputText(e.target.value)}
-                                                    className="min-h-[100px] resize-none"
+                                                    className="min-h-25 resize-none"
                                                 />
                                             </div>
                                             <Button
