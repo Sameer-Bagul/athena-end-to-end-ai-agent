@@ -182,13 +182,19 @@ const ThreeStageComponent: React.FC<ThreeStageProps> = ({
   useEffect(() => {
     if (!animationManagerRef.current || !animationUrl || !isVrmReady) return;
 
+    console.log('[ThreeStage] Animation effect triggered:', { animationUrl, isVrmReady });
+
     const loadAnim = async () => {
       try {
-        if (animationUrl.startsWith('/') || animationUrl.startsWith('blob:')) {
+        console.log('[ThreeStage] Attempting to load animation:', animationUrl);
+        if (animationUrl.startsWith('/') || animationUrl.startsWith('blob:') || animationUrl.startsWith('animations/')) {
           await animationManagerRef.current!.loadAnimationFromUrl(animationUrl);
+          console.log('[ThreeStage] Animation loaded successfully:', animationUrl);
+        } else {
+          console.warn('[ThreeStage] Animation URL does not match expected pattern:', animationUrl);
         }
       } catch (err) {
-        console.error("Animation Load Error:", err);
+        console.error('[ThreeStage] Animation Load Error:', err);
       }
     };
 

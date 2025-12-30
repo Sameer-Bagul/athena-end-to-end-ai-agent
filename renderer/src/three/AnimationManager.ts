@@ -178,18 +178,22 @@ export class AnimationManager {
    */
   public async loadAnimationFromUrl(url: string): Promise<void> {
     if (!this.vrm || !this.mixer) {
+      console.error('[AnimationManager] Not initialized. Call initialize() first.');
       throw new Error('AnimationManager not initialized. Call initialize() first.');
     }
+
+    console.log('[AnimationManager] loadAnimationFromUrl called with:', url);
 
     return new Promise((resolve, reject) => {
       this.gltfLoader.load(
         url,
         (gltf) => {
-          console.log(`✅ Loaded animation from URL: ${url}`, gltf);
+          console.log(`[AnimationManager] ✅ Loaded animation from URL: ${url}`, gltf);
 
           // Extract VRM animation data 
           const vrmAnimations = gltf.userData.vrmAnimations;
           if (!vrmAnimations || vrmAnimations.length === 0) {
+            console.error('[AnimationManager] No VRM animation found in URL:', url);
             reject(new Error(`No VRM animation found in URL`));
             return;
           }
@@ -198,6 +202,7 @@ export class AnimationManager {
           const clip = createVRMAnimationClip(vrmAnimationData, this.vrm!);
 
           if (!clip) {
+            console.error('[AnimationManager] Failed to create animation clip from URL:', url);
             reject(new Error(`Failed to create animation clip from URL`));
             return;
           }
@@ -212,7 +217,7 @@ export class AnimationManager {
             this.currentAction.fadeOut(this.CROSSFADE_DURATION);
           }
 
-          console.log(`▶️ Starting custom animation`);
+          console.log(`[AnimationManager] ▶️ Starting custom animation for URL:`, url);
           clipAction
             .reset()
             .setEffectiveTimeScale(1)
@@ -227,6 +232,7 @@ export class AnimationManager {
         undefined,
         (error) => {
           const err = error instanceof Error ? error : new Error(String(error));
+          console.error('[AnimationManager] Failed to load animation from URL:', url, err);
           reject(new Error(`Failed to load animation from URL: ${err.message}`));
         }
       );

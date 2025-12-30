@@ -39,9 +39,9 @@ import { cn } from "../lib/utils"
 
 export function VRMControlPanel() {
     const [vrmFile, setVrmFile] = React.useState<File | null>(null)
-    const [vrmUrl, setVrmUrl] = React.useState<string>("/models/athena.vrm")
+    const [vrmUrl, setVrmUrl] = React.useState<string>("models/athena.vrm")
     const [animationFile, setAnimationFile] = React.useState<File | null>(null)
-    const [animationUrl, setAnimationUrl] = React.useState<string>("/animations/Jump.vrma")
+    const [animationUrl, setAnimationUrl] = React.useState<string>("animations/Jump.vrma")
     const [isPlaying] = React.useState(false)
     const [animationSpeed, setAnimationSpeed] = React.useState([0.4])
     const [lightIntensity] = React.useState([1])
@@ -61,12 +61,12 @@ export function VRMControlPanel() {
 
     const handleModelSelect = (filename: string) => {
         setVrmFile(null)
-        setVrmUrl(`/models/${filename}`)
+        setVrmUrl(`models/${filename}`)
     }
 
     const handleAnimationSelect = (filename: string) => {
         setAnimationFile(null)
-        setAnimationUrl(`/animations/${filename}`)
+        setAnimationUrl(`animations/${filename}`)
     }
 
     const handleVRMUpload = (e: React.ChangeEvent<HTMLInputElement>) => {

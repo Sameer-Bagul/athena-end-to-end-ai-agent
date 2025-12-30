@@ -1,9 +1,10 @@
 import { app, BrowserWindow } from "electron";
 import path from "path";
+import "dotenv/config";
 
-const isDev = !app.isPackaged;
+const isDev = process.env.NODE_ENV === "development";
 
-// Disable sandbox on Linux (dev + prod)
+// Disable sandbox on Linux
 if (process.platform === "linux") {
   app.commandLine.appendSwitch("no-sandbox");
 }
@@ -23,7 +24,9 @@ function createWindow() {
     win.loadURL("http://localhost:5173");
     win.webContents.openDevTools();
   } else {
-    win.loadFile(path.join(__dirname, "../dist/index.html"));
+    win.loadFile(
+      path.join(__dirname, "../renderer/dist/index.html")
+    );
   }
 }
 

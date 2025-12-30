@@ -4,19 +4,20 @@
   "version": "1.0.0",
   "main": "dist-electron/main.js",
   "scripts": {
-    "dev": "cd renderer && npm run dev & ELECTRON_DISABLE_SANDBOX=1 npx electron .",
-    "build": "npm run build:ui && npm run build:electron",
-    "build:ui": "cd renderer && npm run build",
-    "build:electron": "npx tsc -p tsconfig.node.json",
-    "start": "npm run build && ELECTRON_DISABLE_SANDBOX=1 npx electron .",
-    "start:prod": "ELECTRON_DISABLE_SANDBOX=1 npx electron ."
-  },
+  "dev": "NODE_ENV=development cd renderer && npm run dev & ELECTRON_DISABLE_SANDBOX=1 npx electron .",
+  "build": "npm run build:ui && npm run build:electron",
+  "build:ui": "cd renderer && npm run build",
+  "build:electron": "npx tsc -p tsconfig.node.json",
+  "start": "NODE_ENV=production npm run build && ELECTRON_DISABLE_SANDBOX=1 npx electron .",
+  "start:prod": "NODE_ENV=production ELECTRON_DISABLE_SANDBOX=1 npx electron ."
+},
   "dependencies": {
+    "dotenv": "^17.2.3",
     "electron": "^39.2.7"
   },
   "devDependencies": {
-    "typescript": "^5.9.3",
+    "@types/electron": "^1.4.38",
     "@types/node": "^25.0.3",
-    "@types/electron": "^1.4.38"
+    "typescript": "^5.9.3"
   }
 }
