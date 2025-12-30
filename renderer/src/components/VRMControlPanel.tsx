@@ -126,13 +126,6 @@ export function VRMControlPanel() {
                 )}
             </main>
 
-            {/* Header */}
-            <div className="absolute top-4 left-4 z-10 pointer-events-none">
-                <div className="bg-background/80 backdrop-blur px-4 py-2 rounded-md border border-border/50 shadow-sm pointer-events-auto">
-                    <h1 className="text-lg font-bold tracking-tight text-foreground">VRM Viewer Studio</h1>
-                </div>
-            </div>
-
             {/* Bottom Drawer Trigger */}
             <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10">
                 <Drawer>
