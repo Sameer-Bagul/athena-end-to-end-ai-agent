@@ -13,10 +13,11 @@ export interface ChatMessage {
 interface ChatOverlayProps {
     messages: ChatMessage[];
     onSendMessage: (text: string) => void;
+    onClearHistory?: () => void;
     isProcessing: boolean;
 }
 
-export function ChatOverlay({ messages, onSendMessage, isProcessing }: ChatOverlayProps) {
+export function ChatOverlay({ messages, onSendMessage, onClearHistory, isProcessing }: ChatOverlayProps) {
     const [input, setInput] = React.useState("");
     const scrollRef = React.useRef<HTMLDivElement>(null);
 
@@ -48,19 +49,36 @@ export function ChatOverlay({ messages, onSendMessage, isProcessing }: ChatOverl
       ">
 
                 {/* Header */}
-                <div className="flex items-center gap-3 px-4 py-4 border-b border-cyan-500/20 bg-black/40 shrink-0">
-                    <div className="p-2 bg-cyan-500/10 rounded-lg border border-cyan-500/30">
-                        <Bot className="size-5 text-cyan-400" />
-                    </div>
-                    <div>
-                        <h3 className="font-mono font-bold text-sm text-cyan-100 tracking-wider">ATHENA AI</h3>
-                        <div className="flex items-center gap-2">
-                            <span className={cn("size-1.5 rounded-full", isProcessing ? "bg-yellow-400 animate-pulse" : "bg-green-500")} />
-                            <span className="text-[10px] text-cyan-500 font-mono uppercase">
-                                {isProcessing ? "Processing..." : "Online"}
-                            </span>
+                <div className="flex items-center justify-between px-4 py-4 border-b border-cyan-500/20 bg-black/40 shrink-0">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 bg-cyan-500/10 rounded-lg border border-cyan-500/30">
+                            <Bot className="size-5 text-cyan-400" />
+                        </div>
+                        <div>
+                            <h3 className="font-mono font-bold text-sm text-cyan-100 tracking-wider">ATHENA AI</h3>
+                            <div className="flex items-center gap-2">
+                                <span className={cn("size-1.5 rounded-full", isProcessing ? "bg-yellow-400 animate-pulse" : "bg-green-500")} />
+                                <span className="text-[10px] text-cyan-500 font-mono uppercase">
+                                    {isProcessing ? "Processing..." : "Online"}
+                                </span>
+                            </div>
                         </div>
                     </div>
+                    {/* Clear Button */}
+                    {messages.length > 1 && (
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                                if (confirm("Clear chat history?")) {
+                                    onClearHistory?.();
+                                }
+                            }}
+                            className="h-6 text-[10px] text-cyan-700 hover:text-red-400 hover:bg-red-950/30 tracking-widest"
+                        >
+                            CLEAR
+                        </Button>
+                    )}
                 </div>
 
                 {/* Message History */}

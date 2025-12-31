@@ -44,10 +44,19 @@ export function VRMControlPanel() {
   const [backgroundColor] = React.useState("#050510"); // Deep Cyber Dark
 
   // Chat State
-  const [chatMessages, setChatMessages] = React.useState<ChatMessage[]>([
-    { role: 'assistant', content: 'Greetings. I am Athena. How can I assist you today?' }
-  ]);
+  const [chatMessages, setChatMessages] = React.useState<ChatMessage[]>(() => {
+    const saved = localStorage.getItem("athena-chat-history");
+    return saved ? JSON.parse(saved) : [
+      { role: 'assistant', content: 'Greetings. I am Athena. How can I assist you today?' }
+    ];
+  });
   const [isChatProcessing, setIsChatProcessing] = React.useState(false);
+
+  // Persistence Effect
+  React.useEffect(() => {
+    localStorage.setItem("athena-chat-history", JSON.stringify(chatMessages));
+  }, [chatMessages]);
+
 
   // Refs
   const stageRef = React.useRef<ThreeStageHandle>(null);
@@ -124,6 +133,11 @@ export function VRMControlPanel() {
     }
   };
 
+  const handleClearHistory = () => {
+    setChatMessages([{ role: 'assistant', content: 'History cleared. Ready for new input.' }]);
+    localStorage.removeItem("athena-chat-history");
+  };
+
   // Cleanup blob URLs
   React.useEffect(() => {
     return () => {
@@ -168,6 +182,7 @@ export function VRMControlPanel() {
         <ChatOverlay
           messages={chatMessages}
           onSendMessage={handleChatSubmit}
+          onClearHistory={handleClearHistory}
           isProcessing={isChatProcessing}
         />
 
