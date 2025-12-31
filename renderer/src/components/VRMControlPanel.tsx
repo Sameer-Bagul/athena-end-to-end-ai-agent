@@ -174,13 +174,23 @@ export function VRMControlPanel() {
             cameraMode={cameraMode}
           />
         ) : (
-          <div className="flex h-full flex-col items-center justify-center bg-[#050510]">
-            <div className="relative">
-              <div className="absolute inset-0 bg-cyan-500 blur-[80px] opacity-20 rounded-full animate-pulse"></div>
-              <Box className="relative z-10 size-24 text-cyan-600/50 animate-bounce-slow" />
+          <div className="flex h-full flex-col items-center justify-center bg-background relative overflow-hidden">
+            {/* Background Atmosphere */}
+            <div className="absolute inset-0 bg-gradient-to-b from-primary/5 via-transparent to-secondary/5 pointer-events-none"></div>
+            <div className="absolute top-1/4 left-1/4 size-96 bg-primary/20 rounded-full blur-[120px] animate-pulse-slow"></div>
+            <div className="absolute bottom-1/4 right-1/4 size-96 bg-secondary/10 rounded-full blur-[100px] animate-pulse-slow strategy-alternate"></div>
+
+            <div className="relative z-10 p-10 glass rounded-3xl flex flex-col items-center border-white/10">
+              <Box className="size-20 text-primary animate-float drop-shadow-[0_0_15px_rgba(var(--primary),0.6)]" />
+              <h2 className="mt-6 text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-primary via-white to-secondary tracking-tight">System Standby</h2>
+              <p className="mt-2 text-muted-foreground font-light tracking-wide">Select a VRM Module to Initialize</p>
+
+              <div className="mt-8 flex gap-3">
+                <div className="size-2 bg-primary rounded-full animate-bounce delay-75"></div>
+                <div className="size-2 bg-secondary rounded-full animate-bounce delay-150"></div>
+                <div className="size-2 bg-accent rounded-full animate-bounce delay-300"></div>
+              </div>
             </div>
-            <p className="mt-6 text-xl font-mono text-cyan-400 tracking-widest uppercase">System Standby</p>
-            <p className="text-sm text-cyan-700 font-mono">Load VRM Module to Initialize</p>
           </div>
         )}
 
@@ -202,17 +212,16 @@ export function VRMControlPanel() {
               variant="outline"
               size="icon"
               className="
-                h-12 w-8 rounded-r-xl rounded-l-none border-l-0 
-                bg-black/80 backdrop-blur-md 
-                border-cyan-500/50 hover:bg-cyan-950/50 
-                hover:border-cyan-400 hover:w-10 transition-all duration-300
-                group shadow-[0_0_15px_-5px_var(--color-cyan-500)]
+                h-14 w-10 rounded-r-2xl rounded-l-none border-l-0 
+                glass hover:w-12 transition-all duration-300
+                group border-white/10
+                shadow-[0_0_20px_-5px_rgba(var(--primary),0.3)]
               "
             >
-              <div className="flex flex-col gap-1 items-center">
-                <div className="h-1.5 w-1.5 rounded-full bg-cyan-500 animate-pulse group-hover:bg-cyan-300"></div>
-                <div className="h-1.5 w-1.5 rounded-full bg-cyan-500/50 group-hover:bg-cyan-300/80"></div>
-                <div className="h-1.5 w-1.5 rounded-full bg-cyan-500/20 group-hover:bg-cyan-300/50"></div>
+              <div className="flex flex-col gap-1.5 items-center">
+                <div className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse"></div>
+                <div className="h-1.5 w-1.5 rounded-full bg-primary/60"></div>
+                <div className="h-1.5 w-1.5 rounded-full bg-primary/30"></div>
               </div>
               <span className="sr-only">Open Controls</span>
             </Button>
@@ -221,27 +230,24 @@ export function VRMControlPanel() {
           <SheetContent
             side="left"
             className="
-              min-w-[400px] sm:w-[450px] p-0 border-r border-cyan-500/30 
-              bg-black/95 backdrop-blur-xl 
-              shadow-[0_0_50px_-20px_var(--color-cyan-500)]
-              text-cyan-50
+              min-w-[400px] sm:w-[450px] p-0 border-r border-white/10 
+              glass-panel
+              text-foreground
               z-[60]
             "
           >
-            {/* Decorative Header Line */}
-            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-cyan-500 to-transparent opacity-50"></div>
-
             {/* Header */}
-            <div className="flex items-center justify-between p-4 border-b border-cyan-900/50 bg-black/50">
-              <div className="flex items-center gap-2">
-                <Monitor className="size-5 text-cyan-400" />
-                <span className="font-mono text-sm font-bold tracking-widest text-cyan-100">
-                  SYS.<span className="text-cyan-500">CONTROL</span>
+            <div className="flex items-center justify-between p-6 border-b border-white/5">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-gradient-to-br from-primary via-primary/50 to-transparent rounded-lg text-black">
+                  <Monitor className="size-5" />
+                </div>
+                <span className="font-sans text-xl font-bold tracking-tight text-foreground">
+                  Control<span className="text-secondary font-light">Panel</span>
                 </span>
               </div>
-              {/* Close is handled by Sheet primitive usually, but we can add a custom minimalist one if needed */}
-              <SheetClose className="text-cyan-700 hover:text-cyan-400 transition-colors">
-                <X className="size-4" />
+              <SheetClose className="p-2 hover:bg-white/10 rounded-full transition-colors text-muted-foreground hover:text-foreground">
+                <X className="size-5" />
               </SheetClose>
             </div>
 

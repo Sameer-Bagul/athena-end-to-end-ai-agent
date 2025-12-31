@@ -36,9 +36,9 @@ export class AthenaScene {
     // Initialize scene
     this.scene = new THREE.Scene();
 
-    // Use a neutral dark matte color instead of gradient
-    this.scene.background = new THREE.Color(0x09090b); // zinc-950
-    console.log('🟢 [AthenaScene] Scene background set to neutral dark matte');
+    // Background is set in setupEnvironment()
+    // this.scene.background = new THREE.Color(0x09090b); 
+
 
     // Initialize camera
     this.camera = new THREE.PerspectiveCamera(
@@ -66,72 +66,105 @@ export class AthenaScene {
    * Professional 3-point lighting setup with HDRI-style illumination
    * Optimized for accurate color representation
    */
+  /**
+   * Setup scene lighting
+   * Professional 3-point lighting setup with HDRI-style illumination
+   * Optimized for "Fresh" look with vibrant accents
+   */
   private setupLighting(): void {
-    // Soft ambient light for base illumination
-    this.ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+    // Soft ambient light for base illumination - Increased brightness
+    this.ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
     this.scene.add(this.ambientLight);
-    console.log('🟢 [AthenaScene] Added ambient light (intensity: 0.4)');
+    console.log('🟢 [AthenaScene] Added ambient light (intensity: 0.6)');
 
-    // Key light - main light source (front-right, slightly above)
-    this.keyLight = new THREE.DirectionalLight(0xffffff, 1.5);
+    // Key light - main light source (front-right)
+    this.keyLight = new THREE.DirectionalLight(0xffffff, 1.8); // Brighter key
     this.keyLight.position.set(2, 4, 3);
     this.keyLight.castShadow = true;
     this.keyLight.shadow.mapSize.width = 2048;
     this.keyLight.shadow.mapSize.height = 2048;
-    this.keyLight.shadow.bias = -0.0001; // Reduce shadow acne
+    this.keyLight.shadow.bias = -0.0001;
     this.scene.add(this.keyLight);
-    console.log('🟢 [AthenaScene] Added key light with shadows');
+    console.log('🟢 [AthenaScene] Added key light');
 
-    // Fill light - softer light from opposite side (front-left)
-    this.fillLight = new THREE.DirectionalLight(0xaaccff, 0.8);
+    // Fill light - Cool Blue/Cyan to match the "fresh" theme
+    this.fillLight = new THREE.DirectionalLight(0x00ffff, 1.2); // Cyan tint
     this.fillLight.position.set(-3, 1, 2);
     this.scene.add(this.fillLight);
-    console.log('🟢 [AthenaScene] Added fill light (cool tone)');
+    console.log('🟢 [AthenaScene] Added fill light (cyan tint)');
 
-    // Back light - rim light from behind for depth
-    this.backLight = new THREE.DirectionalLight(0xffaa55, 1.0);
+    // Back light - Warm/Magenta rim for contrast
+    this.backLight = new THREE.DirectionalLight(0xff00ff, 1.5); // Magenta rim
     this.backLight.position.set(0, 3, -5);
     this.scene.add(this.backLight);
-    console.log('🟢 [AthenaScene] Added back light (warm rim)');
+    console.log('🟢 [AthenaScene] Added back light (magenta rim)');
 
-    // Hemisphere light for natural sky/ground illumination
-    const hemiLight = new THREE.HemisphereLight(0xddeeff, 0x0a0a0a, 0.3);
+    // Hemisphere light - Sky (Blue) vs Ground (Purple)
+    const hemiLight = new THREE.HemisphereLight(0x00aaff, 0xff00ff, 0.4);
     this.scene.add(hemiLight);
     console.log('🟢 [AthenaScene] Added hemisphere light');
   }
 
   /**
    * Setup environment elements
-   * Adds subtle ground plane and atmosphere
+   * Adds procedural gradient sky, neon grid, and atmosphere
    */
   private setupEnvironment(): void {
-    // Infinite Grid Helper
-    // Create a large grid that fades into the distance
-    this.gridHelper = new THREE.GridHelper(20, 40, 0x444444, 0x222222);
+    // 1. Procedural Gradient Skybox using CanvasTexture
+    const canvas = document.createElement('canvas');
+    canvas.width = 2;
+    canvas.height = 512;
+    const context = canvas.getContext('2d');
+    if (context) {
+      const gradient = context.createLinearGradient(0, 0, 0, 512);
+      // Top: Deep Purple/Night
+      gradient.addColorStop(0, '#0f0c29');
+      // Middle: Vibrant Cyan/Blue (Horizon)
+      gradient.addColorStop(0.5, '#302b63');
+      // Bottom: Brighter Cyan/White glow near horizon line
+      gradient.addColorStop(1, '#24243e');
+
+      context.fillStyle = gradient;
+      context.fillRect(0, 0, 2, 512);
+
+      const texture = new THREE.CanvasTexture(canvas);
+      texture.colorSpace = THREE.SRGBColorSpace;
+      this.scene.background = texture;
+    } else {
+      // Fallback
+      this.scene.background = new THREE.Color(0x1a1a2e);
+    }
+    console.log('🟢 [AthenaScene] Added procedural gradient sky');
+
+    // 2. Neon Grid Helper
+    // Cyan center line, Deep Purple grid lines
+    this.gridHelper = new THREE.GridHelper(50, 50, 0x00ffff, 0x4b0082);
     this.gridHelper.position.y = 0;
     (this.gridHelper.material as THREE.Material).transparent = true;
-    (this.gridHelper.material as THREE.Material).opacity = 0.4;
+    (this.gridHelper.material as THREE.Material).opacity = 0.3;
     this.scene.add(this.gridHelper);
-    console.log('🟢 [AthenaScene] Added grid helper');
+    console.log('🟢 [AthenaScene] Added neon grid helper');
 
-    // Subtle reflective ground plane
-    const groundGeometry = new THREE.PlaneGeometry(50, 50);
+    // 3. Reflective Floor (Glassy)
+    const groundGeometry = new THREE.PlaneGeometry(100, 100);
     const groundMaterial = new THREE.MeshStandardMaterial({
-      color: 0x050505,
-      roughness: 0.1,
-      metalness: 0.1,
+      color: 0x050510,
+      roughness: 0.0, // Glassy
+      metalness: 0.8,
       transparent: true,
-      opacity: 0.8,
+      opacity: 0.5,
+      envMapIntensity: 1.0
     });
     const ground = new THREE.Mesh(groundGeometry, groundMaterial);
     ground.rotation.x = -Math.PI / 2;
-    ground.position.y = -0.01; // Slightly below grid
+    ground.position.y = -0.01;
     ground.receiveShadow = true;
     this.scene.add(ground);
-    console.log('🟢 [AthenaScene] Added reflective ground plane');
+    console.log('🟢 [AthenaScene] Added glassy ground plane');
 
-    // Add fog to blend the floor with the background
-    this.scene.fog = new THREE.FogExp2(0x09090b, 0.02);
+    // 4. Fog to blend floor into sky
+    // Color should match the "bottom" or "horizon" color of the sky
+    this.scene.fog = new THREE.FogExp2(0x24243e, 0.015);
     console.log('🟢 [AthenaScene] Added atmospheric fog');
   }
 
