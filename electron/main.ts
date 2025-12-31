@@ -1,6 +1,9 @@
-import { app, BrowserWindow } from "electron";
+
+import { app, BrowserWindow, ipcMain } from "electron";
 import path from "path";
 import "dotenv/config";
+import { chatWithLLM } from "../backend/llm";
+import { speak } from "../backend/tts";
 
 const isDev = process.env.NODE_ENV === "development";
 
@@ -29,5 +32,14 @@ function createWindow() {
     );
   }
 }
+
+// IPC handlers for LLM and TTS
+ipcMain.handle("llm:chat", async (_, messages) => {
+  return await chatWithLLM(messages);
+});
+
+ipcMain.handle("tts:generate", async (_, { text, voiceStyle }) => {
+  return await speak(text, voiceStyle);
+});
 
 app.whenReady().then(createWindow);

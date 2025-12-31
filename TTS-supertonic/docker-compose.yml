@@ -1,0 +1,11 @@
+version: '3.8'
+
+services:
+  tts-service:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - ORT_FORCE_CPU=1
+    volumes:
+      - ./assets:/app/assets
