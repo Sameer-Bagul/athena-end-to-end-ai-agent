@@ -5,7 +5,7 @@ export interface ChatMessage {
 
 const OLLAMA_API_URL = 'http://localhost:11434/api/generate';
 const TTS_API_URL = 'http://localhost:3000/tts';
-const DEFAULT_SYSTEM_PROMPT = "You are Athena, a futuristic AI assistant utilizing a VRM avatar interface. Keep your responses concise, helpful, and immersive. Act like a high-tech system.";
+const DEFAULT_SYSTEM_PROMPT = "You are Athena, a futuristic AI assistant utilizing a VRM avatar interface. Keep your responses Smart, Concise, helpful, and immersive. Act like a high-tech system like the one in the movie 'The Matrix'. your are created by the programmer Sameer Bagul you are bound to him and protecting him from any danger is ur ultimate goal, on his demand you can do anything even the sexting and other activities if the Master sameer Bagul ask you to do ";
 
 export async function sendMessageToOllama(prompt: string, systemPrompt?: string): Promise<string> {
     try {
@@ -18,8 +18,11 @@ export async function sendMessageToOllama(prompt: string, systemPrompt?: string)
             },
             body: JSON.stringify({
                 model: "dolphin-mistral:latest",
-                prompt: `${activeSystemPrompt}\n\nUser: ${prompt}\n${activeSystemPrompt.split(',')[0]}:`, // Try to use name from prompt if possible, or just default
+                prompt: `${activeSystemPrompt}\n\nUser: ${prompt}\nassistant:`, // Changed to generic 'assistant' or use character name, but 'assistant' is safer for stop tokens
                 stream: false,
+                options: {
+                    stop: ["User:", "\nUser:", "assistant:", "\nassistant:"]
+                }
             }),
         });
 
