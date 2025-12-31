@@ -137,6 +137,10 @@ export class AnimationManager {
             return;
           }
 
+          // --- PING-PONG LOOP FIX ---
+          // Reverted Root Motion Filter to allow full X/Y/Z movement.
+          // Using LoopPingPong ensures smooth transition by reversing at the end.
+
           console.log(`🎬 Created animation clip for ${action}:`, clip);
           console.log(`   Duration: ${clip.duration.toFixed(2)}s`);
           console.log(`   Tracks: ${clip.tracks.length}`);
@@ -145,8 +149,8 @@ export class AnimationManager {
           const clipAction = this.mixer!.clipAction(clip);
 
           // Configure animation
-          clipAction.setLoop(THREE.LoopRepeat, Infinity);
-          clipAction.clampWhenFinished = true;
+          clipAction.setLoop(THREE.LoopPingPong, Infinity);
+          clipAction.clampWhenFinished = false;
 
           // Store animation config
           this.animations.set(action, {
@@ -199,6 +203,7 @@ export class AnimationManager {
           }
 
           const vrmAnimationData = vrmAnimations[0];
+          // Convert VRM animation data to THREE.AnimationClip
           const clip = createVRMAnimationClip(vrmAnimationData, this.vrm!);
 
           if (!clip) {
@@ -207,10 +212,14 @@ export class AnimationManager {
             return;
           }
 
+          // --- PING-PONG LOOP FIX ---
+          // Reverted Root Motion Filter to allow full X/Y/Z movement.
+          // Using LoopPingPong ensures smooth transition by reversing at the end.
+
           // Create animation action
           const clipAction = this.mixer!.clipAction(clip);
-          clipAction.setLoop(THREE.LoopRepeat, Infinity);
-          clipAction.clampWhenFinished = true;
+          clipAction.setLoop(THREE.LoopPingPong, Infinity);
+          clipAction.clampWhenFinished = false;
 
           // Perform crossfade
           if (this.currentAction) {
