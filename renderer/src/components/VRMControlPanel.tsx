@@ -26,8 +26,10 @@ import { AnimationAction } from "../three/AnimationManager";
 
 export function VRMControlPanel() {
   // --- State ---
+  const [selectedCharacter, setSelectedCharacter] = React.useState(AVAILABLE_MODELS[0]);
+
   const [vrmFile, setVrmFile] = React.useState<File | null>(null);
-  const [vrmUrl, setVrmUrl] = React.useState<string>("models/athena.vrm");
+  const [vrmUrl, setVrmUrl] = React.useState<string>(`models/${AVAILABLE_MODELS[0].file}`);
   const [animationFile, setAnimationFile] = React.useState<File | null>(null);
   const [animationUrl, setAnimationUrl] = React.useState<string>("animations/Jump.vrma");
 
@@ -68,9 +70,13 @@ export function VRMControlPanel() {
     }
   };
 
-  const handleModelSelect = (filename: string) => {
-    setVrmFile(null);
-    setVrmUrl(`models/${filename}`);
+  const handleModelSelect = (profileId: string) => {
+    const profile = AVAILABLE_MODELS.find(p => p.id === profileId);
+    if (profile) {
+      setSelectedCharacter(profile);
+      setVrmFile(null);
+      setVrmUrl(`models/${profile.file}`);
+    }
   };
 
   const handleAnimationSelect = (filename: string) => {
@@ -109,7 +115,7 @@ export function VRMControlPanel() {
       stageRef.current?.playAnimationAction(AnimationAction.THINKING);
 
       // 3. Call LLM
-      const responseText = await sendMessageToOllama(text);
+      const responseText = await sendMessageToOllama(text, selectedCharacter.systemPrompt); // Use character Prompt
 
       const aiMsg: ChatMessage = { role: 'assistant', content: responseText };
       setChatMessages(prev => [...prev, aiMsg]);
@@ -119,7 +125,7 @@ export function VRMControlPanel() {
       // Usually better to go to neutral/idle for talking so hands don't block face
       stageRef.current?.playAnimationAction(AnimationAction.RELAX);
 
-      const audioBlob = await generateSpeech(responseText);
+      const audioBlob = await generateSpeech(responseText, selectedCharacter.voiceStyle); // Use character Voice
 
       // 5. Play Audio (which drives lip sync)
       stageRef.current?.playAudio(audioBlob);
@@ -328,8 +334,8 @@ export function VRMControlPanel() {
 
                       <div className="h-48 w-full">
                         <Carousel3D
-                          items={AVAILABLE_MODELS.map(m => ({ id: m, label: m.replace(".vrm", "") }))}
-                          selectedId={vrmUrl.split('/').pop() || ""}
+                          items={AVAILABLE_MODELS.map(m => ({ id: m.id, label: m.name, description: m.description }))}
+                          selectedId={selectedCharacter.id}
                           onSelect={handleModelSelect}
                           type="model"
                         />

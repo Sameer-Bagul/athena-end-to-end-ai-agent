@@ -5,10 +5,12 @@ export interface ChatMessage {
 
 const OLLAMA_API_URL = 'http://localhost:11434/api/generate';
 const TTS_API_URL = 'http://localhost:3000/tts';
-const SYSTEM_PROMPT = "You are Athena, a futuristic AI assistant utilizing a VRM avatar interface. Keep your responses concise, helpful, and immersive. Act like a high-tech system.";
+const DEFAULT_SYSTEM_PROMPT = "You are Athena, a futuristic AI assistant utilizing a VRM avatar interface. Keep your responses concise, helpful, and immersive. Act like a high-tech system.";
 
-export async function sendMessageToOllama(prompt: string): Promise<string> {
+export async function sendMessageToOllama(prompt: string, systemPrompt?: string): Promise<string> {
     try {
+        const activeSystemPrompt = systemPrompt || DEFAULT_SYSTEM_PROMPT;
+
         const response = await fetch(OLLAMA_API_URL, {
             method: "POST",
             headers: {
@@ -16,7 +18,7 @@ export async function sendMessageToOllama(prompt: string): Promise<string> {
             },
             body: JSON.stringify({
                 model: "dolphin-mistral:latest",
-                prompt: `${SYSTEM_PROMPT}\n\nUser: ${prompt}\nAthena:`,
+                prompt: `${activeSystemPrompt}\n\nUser: ${prompt}\n${activeSystemPrompt.split(',')[0]}:`, // Try to use name from prompt if possible, or just default
                 stream: false,
             }),
         });
@@ -34,15 +36,15 @@ export async function sendMessageToOllama(prompt: string): Promise<string> {
     }
 }
 
-export async function generateSpeech(text: string): Promise<Blob> {
+export async function generateSpeech(text: string, voiceStyle: string = 'F1', speed: number = 1.05): Promise<Blob> {
     try {
         const response = await fetch(TTS_API_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 text: text,
-                voiceStyle: 'M1', // Default style
-                speed: 1.05
+                voiceStyle: voiceStyle,
+                speed: speed
             })
         });
 
