@@ -1,144 +1,116 @@
 import { VRM } from '@pixiv/three-vrm';
 
-// Phoneme types mapping to VRM BlendShape Presets
-type Viseme = 'aa' | 'ih' | 'ou' | 'ee' | 'oh' | 'sil';
-
-// Mapping basic characters/sounds to VRM Vowels
-const CHAR_TO_VISEME: Record<string, Viseme> = {
-    a: 'aa',
-    e: 'ee',
-    i: 'ih',
-    o: 'oh',
-    u: 'ou',
-    y: 'ih',
-    w: 'ou',
-    r: 'oh',
-    b: 'sil', p: 'sil', m: 'sil',
-    f: 'ih', v: 'ih',
-    th: 'ih', s: 'ih', z: 'ih',
-    d: 'ih', t: 'ih', n: 'ih',
-    l: 'ih',
-    k: 'aa', g: 'aa',
-    h: 'aa',
-};
-
-interface VisemeKeyframe {
-    time: number;
-    viseme: Viseme;
-    duration: number;
-}
-
 export class LipSyncManager {
     private vrm: VRM | null = null;
-    private isSpeaking: boolean = false;
-    private keyframes: VisemeKeyframe[] = [];
-    private startTime: number = 0;
-    private synthesis: SpeechSynthesis;
-    private utterance: SpeechSynthesisUtterance | null = null;
+    private audioContext: AudioContext | null = null;
+    private analyser: AnalyserNode | null = null;
+    private source: AudioBufferSourceNode | null = null;
+    private isPlaying: boolean = false;
+    private dataArray: Uint8Array | null = null;
 
     constructor() {
-        this.synthesis = window.speechSynthesis;
+        // Initialize AudioContext on user interaction usually, but here we prep it
+        // We'll lazy init in playAudio to handle browser autoplay policies
     }
 
     public setVRM(vrm: VRM) {
         this.vrm = vrm;
     }
 
-    public speak(text: string) {
-        if (!text || !this.vrm) return;
+    public async playAudio(audioBlob: Blob) {
+        if (!this.vrm) return;
 
-        if (this.synthesis.speaking) {
-            this.synthesis.cancel();
+        // Lazy Init AudioContext
+        if (!this.audioContext) {
+            this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
         }
 
-        this.isSpeaking = true;
-        this.startTime = performance.now() / 1000;
+        // Resume if suspended (browser policy)
+        if (this.audioContext.state === 'suspended') {
+            await this.audioContext.resume();
+        }
 
-        this.keyframes = this.generateVisemes(text);
+        // Stop previous audio
+        this.stop();
 
-        this.utterance = new SpeechSynthesisUtterance(text);
-        this.utterance.rate = 1.0;
-        this.utterance.pitch = 1.2;
-        this.utterance.volume = 1.0;
+        try {
+            const arrayBuffer = await audioBlob.arrayBuffer();
+            const audioBuffer = await this.audioContext.decodeAudioData(arrayBuffer);
 
-        this.utterance.onend = () => {
-            this.isSpeaking = false;
-            this.resetMouth();
-        };
+            this.source = this.audioContext.createBufferSource();
+            this.source.buffer = audioBuffer;
 
-        this.synthesis.speak(this.utterance);
+            this.analyser = this.audioContext.createAnalyser();
+            this.analyser.fftSize = 256;
+            // We want time domain or frequency? Frequency is good for volume.
+            // fftSize 256 gives 128 data points.
+
+            this.source.connect(this.analyser);
+            this.analyser.connect(this.audioContext.destination);
+
+            this.dataArray = new Uint8Array(this.analyser.frequencyBinCount);
+
+            this.source.onended = () => {
+                this.isPlaying = false;
+                this.resetMouth();
+            };
+
+            this.source.start(0);
+            this.isPlaying = true;
+
+        } catch (error) {
+            console.error("Error playing audio:", error);
+            this.isPlaying = false;
+        }
     }
 
     public stop() {
-        this.synthesis.cancel();
-        this.isSpeaking = false;
-        this.resetMouth();
-    }
-
-    private generateVisemes(text: string): VisemeKeyframe[] {
-        const frames: VisemeKeyframe[] = [];
-        let currentTime = 0;
-        const CHAR_DURATION = 0.08;
-        const cleanText = text.toLowerCase();
-
-        for (let i = 0; i < cleanText.length; i++) {
-            const char = cleanText[i];
-            if (char === ' ' || char === '.' || char === ',') {
-                currentTime += CHAR_DURATION;
-                continue;
+        if (this.source) {
+            try {
+                this.source.stop();
+            } catch (e) {
+                // ignore if already stopped
             }
-            let viseme: Viseme = 'ih';
-            if (CHAR_TO_VISEME[char]) {
-                viseme = CHAR_TO_VISEME[char];
-            }
-            frames.push({
-                time: currentTime,
-                viseme: viseme,
-                duration: CHAR_DURATION * 1.5,
-            });
-            currentTime += CHAR_DURATION;
+            this.source.disconnect();
+            this.source = null;
         }
-        return frames;
+        this.isPlaying = false;
+        this.resetMouth();
     }
 
     public update(_delta: number) {
-        if (!this.vrm || !this.isSpeaking) return;
+        if (!this.vrm || !this.isPlaying || !this.analyser || !this.dataArray) return;
 
-        const now = performance.now() / 1000;
-        const timeElapsed = now - this.startTime;
+        // Get volume data
+        this.analyser.getByteFrequencyData(this.dataArray as any);
 
-        this.resetMouth();
-
-        let activeVisemeFound = false;
-
-        for (const frame of this.keyframes) {
-            if (timeElapsed >= frame.time && timeElapsed < frame.time + frame.duration) {
-                const progress = (timeElapsed - frame.time) / frame.duration;
-                const weight = Math.sin(progress * Math.PI);
-                this.setVisemeWeight(frame.viseme, weight);
-                activeVisemeFound = true;
-            }
+        // Calculate average volume
+        let sum = 0;
+        for (let i = 0; i < this.dataArray.length; i++) {
+            sum += this.dataArray[i];
         }
+        const average = sum / this.dataArray.length;
 
-        if (!activeVisemeFound && timeElapsed > (this.keyframes[this.keyframes.length - 1]?.time || 0) + 1.0) {
-            // End logic handled by onend usually
-        }
+        // Map average volume (0-255) to mouth weight (0.0-1.0)
+        // Adjust sensitivity as needed. 
+        // Typically speech average might be around 30-100?
+        // Let's normalize.
+        const sensitivity = 2.5; // Multiplier to make mouth open more
+        const normalizedVolume = Math.min((average / 128) * sensitivity, 1.0);
+
+        // Apply smooth transition if needed, or direct mapping for crisp response
+        // For basic talking, mapping 'aa' is mostly sufficient
+        this.setMouthOpen(normalizedVolume);
     }
 
-    private setVisemeWeight(viseme: Viseme, weight: number) {
+    private setMouthOpen(weight: number) {
         if (!this.vrm || !this.vrm.expressionManager) return;
-        let expressionName = '';
-        switch (viseme) {
-            case 'aa': expressionName = 'aa'; break;
-            case 'ih': expressionName = 'ih'; break;
-            case 'ou': expressionName = 'ou'; break;
-            case 'ee': expressionName = 'ee'; break;
-            case 'oh': expressionName = 'oh'; break;
-            case 'sil': return;
-        }
-        if (expressionName) {
-            this.vrm.expressionManager.setValue(expressionName, weight);
-        }
+
+        // Blend shape 'aa' is the most common "mouth open" shape
+        this.vrm.expressionManager.setValue('aa', weight);
+
+        // Optionally add a little 'ih' or 'oh' for variety if we had frequency analysis
+        // For simple volume sync, 'aa' is standard.
     }
 
     private resetMouth() {

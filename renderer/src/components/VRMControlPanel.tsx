@@ -5,7 +5,6 @@ import { Input } from "./ui/input";
 import { Textarea } from "./ui/textarea";
 import { Separator } from "./ui/separator";
 import { Label } from "./ui/label";
-import { Badge } from "./ui/badge";
 import { ScrollArea } from "./ui/scroll-area";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "./ui/tabs";
 import {
@@ -15,10 +14,15 @@ import {
   SheetClose,
 } from "./ui/sheet";
 import ThreeStage from "./ThreeStage";
+import type { ThreeStageHandle } from "./ThreeStage";
 import { AVAILABLE_MODELS } from "../lib/models";
 import { AVAILABLE_ANIMATIONS } from "../lib/animations";
 import { cn } from "../lib/utils";
 import { Carousel3D } from "./ui/Carousel3D";
+import { ChatOverlay } from "./ChatOverlay";
+import type { ChatMessage } from "./ChatOverlay";
+import { sendMessageToOllama, generateSpeech } from "../lib/api";
+import { AnimationAction } from "../three/AnimationManager";
 
 export function VRMControlPanel() {
   // --- State ---
@@ -38,6 +42,15 @@ export function VRMControlPanel() {
   const [gridVisible] = React.useState(true);
   const [shadowsEnabled] = React.useState(true);
   const [backgroundColor] = React.useState("#050510"); // Deep Cyber Dark
+
+  // Chat State
+  const [chatMessages, setChatMessages] = React.useState<ChatMessage[]>([
+    { role: 'assistant', content: 'Greetings. I am Athena. How can I assist you today?' }
+  ]);
+  const [isChatProcessing, setIsChatProcessing] = React.useState(false);
+
+  // Refs
+  const stageRef = React.useRef<ThreeStageHandle>(null);
 
   // --- Handlers ---
   const handleSpeak = () => {
@@ -76,6 +89,41 @@ export function VRMControlPanel() {
 
   const togglePlay = () => setIsPlaying(!isPlaying);
 
+  const handleChatSubmit = async (text: string) => {
+    // 1. Add User Message
+    const userMsg: ChatMessage = { role: 'user', content: text };
+    setChatMessages(prev => [...prev, userMsg]);
+    setIsChatProcessing(true);
+
+    try {
+      // 2. Trigger Thinking Animation
+      stageRef.current?.playAnimationAction(AnimationAction.THINKING);
+
+      // 3. Call LLM
+      const responseText = await sendMessageToOllama(text);
+
+      const aiMsg: ChatMessage = { role: 'assistant', content: responseText };
+      setChatMessages(prev => [...prev, aiMsg]);
+
+      // 4. Generate Speech
+      // Switch to relaxed/idle before talking, or keep thinking? 
+      // Usually better to go to neutral/idle for talking so hands don't block face
+      stageRef.current?.playAnimationAction(AnimationAction.RELAX);
+
+      const audioBlob = await generateSpeech(responseText);
+
+      // 5. Play Audio (which drives lip sync)
+      stageRef.current?.playAudio(audioBlob);
+
+    } catch (error) {
+      console.error("Chat Error:", error);
+      setChatMessages(prev => [...prev, { role: 'assistant', content: "[SYSTEM ERROR: Connection Lost]" }]);
+      stageRef.current?.playAnimationAction(AnimationAction.SAD); // Error state
+    } finally {
+      setIsChatProcessing(false);
+    }
+  };
+
   // Cleanup blob URLs
   React.useEffect(() => {
     return () => {
@@ -92,6 +140,7 @@ export function VRMControlPanel() {
         {/* Cyber Grid Background Overlay (Optional CSS effect can go here) */}
         {vrmUrl ? (
           <ThreeStage
+            ref={stageRef}
             vrmUrl={vrmUrl}
             animationUrl={animationUrl}
             isPlaying={isPlaying}
@@ -114,6 +163,14 @@ export function VRMControlPanel() {
             <p className="text-sm text-cyan-700 font-mono">Load VRM Module to Initialize</p>
           </div>
         )}
+
+        {/* --- Chat Overlay --- */}
+        <ChatOverlay
+          messages={chatMessages}
+          onSendMessage={handleChatSubmit}
+          isProcessing={isChatProcessing}
+        />
+
       </main>
 
       {/* --- Left Control Panel Trigger --- */}
@@ -216,23 +273,21 @@ export function VRMControlPanel() {
                       </div>
                     </div>
 
-                    {/* Speech Module */}
-                    <section className="space-y-3">
+                    {/* Speech Module (Original) */}
+                    <section className="space-y-3 opacity-50 hover:opacity-100 transition-opacity">
                       <div className="flex items-center justify-between">
                         <Label className="text-[10px] font-mono uppercase tracking-widest text-cyan-600 flex items-center gap-2">
-                          <Mic className="size-3" /> Voice Synth
+                          <Mic className="size-3" /> Manual Override
                         </Label>
-                        {speechText && <Badge variant="outline" className="text-[10px] h-4 border-cyan-800 text-cyan-500">Speaking</Badge>}
                       </div>
 
                       <div className="relative group">
-                        <div className="absolute -inset-0.5 bg-gradient-to-r from-cyan-500 to-blue-600 rounded-lg blur opacity-20 group-hover:opacity-40 transition duration-500"></div>
                         <div className="relative bg-black rounded-lg border border-cyan-900/50 p-1">
                           <Textarea
-                            placeholder="Enter vocalization protocols..."
+                            placeholder="Manual TTS injection..."
                             value={inputText}
                             onChange={(e) => setInputText(e.target.value)}
-                            className="min-h-[80px] bg-transparent border-none text-xs font-mono text-cyan-100 placeholder:text-cyan-900/50 focus-visible:ring-0 resize-none"
+                            className="min-h-[40px] bg-transparent border-none text-xs font-mono text-cyan-100 placeholder:text-cyan-900/50 focus-visible:ring-0 resize-none"
                           />
                           <div className="flex justify-end p-1 border-t border-cyan-950">
                             <Button
@@ -241,7 +296,7 @@ export function VRMControlPanel() {
                               disabled={!inputText.trim()}
                               className="h-6 text-[10px] bg-cyan-900/30 text-cyan-400 hover:bg-cyan-500 hover:text-black border border-cyan-800/50 hover:border-cyan-400 transition-all uppercase tracking-wider"
                             >
-                              Execute
+                              Speak
                             </Button>
                           </div>
                         </div>
@@ -371,7 +426,9 @@ export function VRMControlPanel() {
                       <div className="space-y-1">
                         <div className="flex justify-between text-[10px] font-mono text-cyan-900">
                           <span>LLM_BRIDGE</span>
-                          <span className="text-green-500">ACTIVE</span>
+                          <span className={isChatProcessing ? "text-yellow-500 animate-pulse" : "text-green-500"}>
+                            {isChatProcessing ? "PROCESSING" : "STANDBY"}
+                          </span>
                         </div>
                         <div className="flex justify-between text-[10px] font-mono text-cyan-900">
                           <span>TTS_ENGINE</span>

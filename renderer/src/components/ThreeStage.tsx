@@ -1,14 +1,19 @@
-import React, { useEffect, useRef, useState, memo } from 'react';
+import { useEffect, useRef, useState, memo, useImperativeHandle, forwardRef } from 'react';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { VRM, VRMLoaderPlugin, VRMUtils } from '@pixiv/three-vrm';
 import { AthenaScene } from '../three/AthenaScene';
-import { AnimationManager } from '../three/AnimationManager';
+import { AnimationManager, AnimationAction } from '../three/AnimationManager';
 import { LipSyncManager } from '../three/LipSyncManager';
+
+export interface ThreeStageHandle {
+  playAudio: (blob: Blob) => void;
+  playAnimationAction: (action: AnimationAction) => void;
+}
 
 interface ThreeStageProps {
   vrmUrl: string;
-  animationUrl?: string;
+  animationUrl?: string; // Legacy/File-based animation
   isPlaying: boolean;
   animationSpeed: number;
   lightIntensity: number;
@@ -22,7 +27,7 @@ interface ThreeStageProps {
   onError?: (error: string) => void;
 }
 
-const ThreeStageComponent: React.FC<ThreeStageProps> = ({
+const ThreeStageComponent = forwardRef<ThreeStageHandle, ThreeStageProps>(({
   vrmUrl,
   animationUrl,
   isPlaying,
@@ -36,7 +41,7 @@ const ThreeStageComponent: React.FC<ThreeStageProps> = ({
   cameraMode,
   onReady,
   onError
-}) => {
+}, ref) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<AthenaScene | null>(null);
   const animationManagerRef = useRef<AnimationManager | null>(null);
@@ -48,6 +53,20 @@ const ThreeStageComponent: React.FC<ThreeStageProps> = ({
   const [loadingStatus, setLoadingStatus] = useState("Initializing scene...");
   const [error, setError] = useState<string | null>(null);
   const [isVrmReady, setIsVrmReady] = useState(false);
+
+  // Expose methods to parent
+  useImperativeHandle(ref, () => ({
+    playAudio: (blob: Blob) => {
+      if (lipSyncRef.current) {
+        lipSyncRef.current.playAudio(blob);
+      }
+    },
+    playAnimationAction: (action: AnimationAction) => {
+      if (animationManagerRef.current) {
+        animationManagerRef.current.play(action);
+      }
+    }
+  }));
 
   // Initialize Scene
   useEffect(() => {
@@ -147,6 +166,13 @@ const ThreeStageComponent: React.FC<ThreeStageProps> = ({
         animationManagerRef.current!.initialize(vrm);
         lipSyncRef.current!.setVRM(vrm);
 
+        // Preload standard animations
+        try {
+          await animationManagerRef.current!.loadAllAnimations();
+        } catch (e) {
+          console.warn("Failed to load standard animations", e);
+        }
+
         vrm.scene.rotation.y = Math.PI; // Face the camera
 
         // NOTE: We do NOT register a new onUpdate callback here.
@@ -195,11 +221,12 @@ const ThreeStageComponent: React.FC<ThreeStageProps> = ({
     loadAnim();
   }, [animationUrl, isVrmReady]);
 
-  // Handle Speech
+  // Handle Speech (Legacy prop)
   useEffect(() => {
-    if (lipSyncRef.current && speechText) {
-      lipSyncRef.current.speak(speechText);
-    }
+    // Legacy support or removal? 
+    // LipSyncManager now expects playAudio(blob). 
+    // If speechText is still passed, we might ignore it or try to fetch?
+    // For now, let's ignore it as we are moving to blob based flow.
   }, [speechText]);
 
   // Handle Camera Mode
@@ -285,6 +312,6 @@ const ThreeStageComponent: React.FC<ThreeStageProps> = ({
       )}
     </div>
   );
-};
+});
 
 export default memo(ThreeStageComponent);
