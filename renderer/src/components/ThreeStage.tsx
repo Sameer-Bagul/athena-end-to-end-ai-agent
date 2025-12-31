@@ -104,11 +104,20 @@ const ThreeStageComponent = forwardRef<ThreeStageHandle, ThreeStageProps>(({
     };
   }, []);
 
-  // Use IsPlaying prop (Future impl or current if AnimationManager supports it)
+  // Handle Play/Pause (Switch to Idle vs Custom)
   useEffect(() => {
-    // Placeholder for play/pause logic if needed
-    // if (animationManagerRef.current) ...
-  }, [isPlaying]);
+    if (!animationManagerRef.current || !isVrmReady) return;
+
+    if (isPlaying) {
+      // PLAY: Resume/Replay the custom animation
+      if (animationUrl) {
+        animationManagerRef.current.loadAnimationFromUrl(animationUrl).catch(e => console.error("Resume Anim Error:", e));
+      }
+    } else {
+      // STOP: Switch to Static Stand Pose (User Request)
+      animationManagerRef.current.resetToStandPose();
+    }
+  }, [isPlaying, isVrmReady]); // Trigger when Play state toggles
 
   // Update Animation Speed
   useEffect(() => {
@@ -116,8 +125,6 @@ const ThreeStageComponent = forwardRef<ThreeStageHandle, ThreeStageProps>(({
       animationManagerRef.current.setTimeScale(animationSpeed);
     }
   }, [animationSpeed]);
-
-  // Update Shadows (if Scene supports execution, otherwise placeholder)
   useEffect(() => {
     // sceneRef.current?.setShadowsEnabled(shadowsEnabled);
   }, [shadowsEnabled]);

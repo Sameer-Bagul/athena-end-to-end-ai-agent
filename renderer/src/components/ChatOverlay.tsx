@@ -3,7 +3,6 @@ import { Send, Bot, User, Sparkles, MessageSquare } from "lucide-react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { cn } from "../lib/utils";
-import { ScrollArea } from "./ui/scroll-area";
 
 export interface ChatMessage {
     role: 'user' | 'assistant';
@@ -82,53 +81,51 @@ export function ChatOverlay({ messages, onSendMessage, onClearHistory, isProcess
                 </div>
 
                 {/* Message History */}
-                <ScrollArea className="flex-1 w-full bg-transparent">
-                    <div className="p-4 space-y-6">
-                        {messages.length === 0 && (
-                            <div className="flex flex-col items-center justify-center text-center py-10 opacity-50 space-y-2">
-                                <MessageSquare className="size-8 text-cyan-800" />
-                                <p className="text-cyan-800 text-xs font-mono">
-                                    System Ready.
-                                </p>
-                            </div>
-                        )}
+                <div className="flex-1 w-full overflow-y-auto p-4 space-y-6 scrollbar-thin">
+                    {messages.length === 0 && (
+                        <div className="flex flex-col items-center justify-center text-center py-10 opacity-50 space-y-2">
+                            <MessageSquare className="size-8 text-cyan-800" />
+                            <p className="text-cyan-800 text-xs font-mono">
+                                System Ready.
+                            </p>
+                        </div>
+                    )}
 
-                        {messages.map((msg, idx) => (
-                            <div
-                                key={idx}
-                                className={cn(
-                                    "flex flex-col gap-1 max-w-full",
-                                    msg.role === "user" ? "items-end" : "items-start"
-                                )}
-                            >
-                                {/* Avatar/Label Row */}
+                    {messages.map((msg, idx) => (
+                        <div
+                            key={idx}
+                            className={cn(
+                                "flex flex-col gap-1 max-w-full",
+                                msg.role === "user" ? "items-end" : "items-start"
+                            )}
+                        >
+                            {/* Avatar/Label Row */}
+                            <div className={cn(
+                                "flex items-center gap-2 text-[10px] font-mono uppercase tracking-wider opacity-70",
+                                msg.role === "user" ? "flex-row-reverse text-cyan-400" : "flex-row text-cyan-300"
+                            )}>
                                 <div className={cn(
-                                    "flex items-center gap-2 text-[10px] font-mono uppercase tracking-wider opacity-70",
-                                    msg.role === "user" ? "flex-row-reverse text-cyan-400" : "flex-row text-cyan-300"
+                                    "size-5 rounded-full flex items-center justify-center border",
+                                    msg.role === "user" ? "border-cyan-700 bg-cyan-950" : "border-cyan-500 bg-cyan-900/30"
                                 )}>
-                                    <div className={cn(
-                                        "size-5 rounded-full flex items-center justify-center border",
-                                        msg.role === "user" ? "border-cyan-700 bg-cyan-950" : "border-cyan-500 bg-cyan-900/30"
-                                    )}>
-                                        {msg.role === "user" ? <User className="size-3" /> : <Sparkles className="size-3" />}
-                                    </div>
-                                    <span>{msg.role === "user" ? "User" : "Athena"}</span>
+                                    {msg.role === "user" ? <User className="size-3" /> : <Sparkles className="size-3" />}
                                 </div>
-
-                                {/* Bubble */}
-                                <div className={cn(
-                                    "rounded-2xl px-4 py-3 text-sm leading-relaxed max-w-[95%] break-words whitespace-pre-wrap shadow-lg",
-                                    msg.role === "user"
-                                        ? "bg-cyan-950 text-cyan-50 border border-cyan-800/50 rounded-tr-none"
-                                        : "bg-black/60 text-cyan-100 border border-cyan-500/20 rounded-tl-none shadow-[0_0_15px_-5px_var(--color-cyan-900)]"
-                                )}>
-                                    {msg.content}
-                                </div>
+                                <span>{msg.role === "user" ? "User" : "Athena"}</span>
                             </div>
-                        ))}
-                        <div ref={scrollRef} />
-                    </div>
-                </ScrollArea>
+
+                            {/* Bubble */}
+                            <div className={cn(
+                                "rounded-2xl px-4 py-3 text-sm leading-relaxed max-w-[95%] break-words whitespace-pre-wrap shadow-lg",
+                                msg.role === "user"
+                                    ? "bg-cyan-950 text-cyan-50 border border-cyan-800/50 rounded-tr-none"
+                                    : "bg-black/60 text-cyan-100 border border-cyan-500/20 rounded-tl-none shadow-[0_0_15px_-5px_var(--color-cyan-900)]"
+                            )}>
+                                {msg.content}
+                            </div>
+                        </div>
+                    ))}
+                    <div ref={scrollRef} />
+                </div>
 
                 {/* Input Area */}
                 <div className="p-4 border-t border-cyan-500/20 bg-black/60 shrink-0">

@@ -323,6 +323,40 @@ export class AnimationManager {
   }
 
   /**
+   * Reset the avatar to a natural standing pose (Static, No Animation)
+   * This effectively stops the mixer and manually sets bone rotations to A-pose.
+   */
+  public resetToStandPose(): void {
+    // 1. Stop all animations
+    this.stop();
+    if (this.mixer) {
+      this.mixer.stopAllAction();
+    }
+
+    // 2. Manually set A-Pose (Arms down 45 deg)
+    if (this.vrm && this.vrm.humanoid) {
+      const lArm = this.vrm.humanoid.getNormalizedBoneNode('leftUpperArm');
+      const rArm = this.vrm.humanoid.getNormalizedBoneNode('rightUpperArm');
+
+      if (lArm && rArm) {
+        // Reset rotations first (T-pose)
+        lArm.rotation.set(0, 0, 0);
+        rArm.rotation.set(0, 0, 0);
+
+        // Apply natural hang (approx 70-80 degrees down Z-axis for VRM)
+        // VRM coords: +Z is forward? No, VRM humanoid bones are usually +Y down? 
+        // Usually Unity/VRM convention: T-pose.
+        // Left Arm: +Z Rotation moves arm down (towards body)?
+        // Let's try 75 degrees (1.3 radians) on Z.
+
+        lArm.rotation.z = 1.3;
+        rArm.rotation.z = -1.3;
+      }
+    }
+    console.log('🧘 [AnimationManager] Reset to static stand pose');
+  }
+
+  /**
    * Get current playing animation type
    */
   public getCurrentAnimation(): AnimationAction {
