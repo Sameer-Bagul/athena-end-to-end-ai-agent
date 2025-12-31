@@ -61,7 +61,24 @@ const ThreeStageComponent: React.FC<ThreeStageProps> = ({
     animationManagerRef.current = new AnimationManager();
     lipSyncRef.current = new LipSyncManager();
 
+    // Register ONE stable update callback
+    const updateCallback = (delta: number) => {
+      // Update VRM if loaded
+      if (vrmRef.current) {
+        vrmRef.current.update(delta);
+      }
+      // Update Managers (they persist across models)
+      if (animationManagerRef.current) {
+        animationManagerRef.current.update(delta);
+      }
+      if (lipSyncRef.current) {
+        lipSyncRef.current.update(delta);
+      }
+    };
+    scene.onUpdate(updateCallback);
+
     return () => {
+      scene.removeUpdateCallback(updateCallback);
       scene.dispose();
       if (animationManagerRef.current) animationManagerRef.current.dispose();
       sceneRef.current = null;
@@ -132,17 +149,8 @@ const ThreeStageComponent: React.FC<ThreeStageProps> = ({
 
         vrm.scene.rotation.y = Math.PI; // Face the camera
 
-        const updateCallback = (delta: number) => {
-          vrm.update(delta);
-          if (animationManagerRef.current) {
-            animationManagerRef.current.update(delta);
-          }
-          if (lipSyncRef.current) {
-            lipSyncRef.current.update(delta);
-          }
-        };
-
-        sceneRef.current!.onUpdate(updateCallback);
+        // NOTE: We do NOT register a new onUpdate callback here.
+        // The main scene loop handles vrmRef.current directly.
 
         setIsVrmReady(true);
         setLoadingStatus("Ready");
@@ -164,34 +172,20 @@ const ThreeStageComponent: React.FC<ThreeStageProps> = ({
 
     return () => {
       isCancelled = true;
-      // If we have a vrmRef, do we clean it up here?
-      // NO. If we unmount, we should dispose.
-      // If we just switch URL, we do NOT want to dispose the *old* one yet? 
-      // Actually, we DO want to remove the old one immediately if we start a new load.
-      // But the new effect will handle removal of vrmRef.current.
-
-      // HOWEVER, what if the component unmounts entirely?
-      // We rely on Main useEffect's scene.dispose()! 
-      // AthenaScene.dispose() clears the scene.
-
-      // So this cleanup acts primarily as a flag to cancel pending async work.
     };
   }, [vrmUrl]);
 
   // Handle Animation Loading
   useEffect(() => {
+    // Animation loading logic needs to re-run when animationUrl changes OR when vrm becomes ready
     if (!animationManagerRef.current || !animationUrl || !isVrmReady) return;
-
-    console.log('[ThreeStage] Animation effect triggered:', { animationUrl, isVrmReady });
 
     const loadAnim = async () => {
       try {
-        console.log('[ThreeStage] Attempting to load animation:', animationUrl);
         if (animationUrl.startsWith('/') || animationUrl.startsWith('blob:') || animationUrl.startsWith('animations/')) {
+          // We might want to ensure we don't load if it's already same?
+          // AnimationManager might handle it, but for safety:
           await animationManagerRef.current!.loadAnimationFromUrl(animationUrl);
-          console.log('[ThreeStage] Animation loaded successfully:', animationUrl);
-        } else {
-          console.warn('[ThreeStage] Animation URL does not match expected pattern:', animationUrl);
         }
       } catch (err) {
         console.error('[ThreeStage] Animation Load Error:', err);
