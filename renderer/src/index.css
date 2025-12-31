@@ -1,12 +1,9 @@
 @import "tailwindcss";
 
-
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  /* Fresh & Glassy Light Mode (Deep Navy Base even for "light" to keep cyber feel, or true light?) 
-     Let's keep it Dark-First as per requirements, but define variables for flexibility.
-  */
+  /* Fresh & Glassy Light Mode (Deep Navy Base) */
   --background: oklch(0.15 0.05 260);
   /* Deep Blue-Purple */
   --foreground: oklch(0.98 0.01 240);
@@ -118,23 +115,76 @@
   }
 }
 
-/* Glass Utilities */
-.glass {
-  @apply bg-white/5 backdrop-blur-xl border border-white/10 shadow-lg;
+/* --- Layout System --- */
+
+.app-layout {
+  display: grid;
+  grid-template-columns: 25% 50% 25%;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+  background-color: transparent;
+  /* Let body bg shine through */
 }
 
-.glass-panel {
-  @apply bg-black/40 backdrop-blur-2xl border-l border-white/10 shadow-2xl;
+/* Glass Panel Standard */
+.panel-glass {
+  @apply bg-black/30 backdrop-blur-2xl border-white/10 shadow-xl;
+  border-left: 1px solid rgba(255, 255, 255, 0.05);
+  border-right: 1px solid rgba(255, 255, 255, 0.05);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  position: relative;
 }
 
+/* Panel Header */
+.panel-header {
+  @apply flex items-center justify-between px-6 py-5 border-b border-white/5 bg-white/5 backdrop-blur-md shrink-0;
+  min-height: 4.5rem;
+}
+
+.panel-title {
+  @apply font-sans font-bold text-sm tracking-wide text-foreground uppercase flex items-center gap-2;
+}
+
+/* Panel Content */
+.panel-content {
+  @apply flex-1 overflow-y-auto p-6 space-y-8;
+}
+
+/* Section Styling */
+.panel-section {
+  @apply space-y-4;
+}
+
+.section-label {
+  @apply text-[10px] font-mono uppercase tracking-[0.2em] text-primary/80 flex items-center gap-2 mb-3 opacity-70;
+}
+
+/* Form Elements */
+.input-glass {
+  @apply bg-black/20 border-white/10 text-foreground focus-visible:ring-1 focus-visible:ring-primary/50 focus-visible:border-primary/50 placeholder:text-muted-foreground/50 rounded-xl transition-all;
+}
+
+.btn-glass {
+  @apply bg-white/5 hover:bg-white/10 text-foreground border border-white/5 transition-all active:scale-95 rounded-lg;
+}
+
+.btn-primary-glass {
+  @apply bg-primary/20 text-primary hover:bg-primary hover:text-black border border-primary/20 hover:border-primary shadow-lg shadow-primary/10 transition-all rounded-lg;
+}
+
+/* Helpers */
 .text-glow {
   text-shadow: 0 0 10px var(--primary);
 }
 
-/* Custom Scrollbar */
+/* Scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 4px;
+  height: 4px;
 }
 
 ::-webkit-scrollbar-track {
@@ -144,7 +194,7 @@
 ::-webkit-scrollbar-thumb {
   background: var(--muted-foreground);
   border-radius: 9999px;
-  opacity: 0.5;
+  opacity: 0.3;
 }
 
 ::-webkit-scrollbar-thumb:hover {

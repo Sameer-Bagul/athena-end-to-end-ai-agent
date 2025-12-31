@@ -24,7 +24,7 @@ export async function sendMessageToOllama(prompt: string, systemPrompt?: string)
                     stop: ["User:", "\nUser:", "assistant:", "\nassistant:"]
                 }
             }),
-        });
+        }); 
 
         if (!response.ok) {
             // If Ollama is not running or CORS fails
