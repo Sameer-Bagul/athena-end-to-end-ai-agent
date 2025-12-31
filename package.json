@@ -14,7 +14,8 @@
   "dependencies": {
     "dotenv": "^17.2.3",
     "electron": "^39.2.7",
-    "node-fetch": "^3.3.2"
+    "node-fetch": "^3.3.2",
+    "vaul": "^1.1.2"
   },
   "devDependencies": {
     "@types/electron": "^1.4.38",

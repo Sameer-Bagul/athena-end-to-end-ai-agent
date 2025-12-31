@@ -1,4 +1,7 @@
-import { VRMControlPanel } from './components/VRMControlPanel';
+
+
+
+import { VRMControlPanel } from "./components/VRMControlPanel";
 
 function App() {
   return (
