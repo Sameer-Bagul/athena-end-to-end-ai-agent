@@ -276,20 +276,54 @@ export class AthenaScene {
    * Handle window resize events
    * Updates camera aspect ratio and renderer size
    */
+  /**
+   * Handle component resize events using ResizeObserver
+   * Updates camera aspect ratio and renderer size reliably for any layout change
+   */
   private setupResizeHandler(): void {
-    const handleResize = () => {
-      if (!this.container || !this.renderer) return;
+    if (!this.container) return;
 
-      const width = this.container.clientWidth;
-      const height = this.container.clientHeight;
+    const resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        if (!this.container || !this.renderer) return;
 
-      this.camera.aspect = width / height;
-      this.camera.updateProjectionMatrix();
+        // Use contentRect for precise fractional pixels
+        const { width, height } = entry.contentRect;
 
-      this.renderer.setSize(width, height);
-    };
+        // Prevent 0-size errors which might occur on initial unmount/remount
+        if (width === 0 || height === 0) return;
 
-    window.addEventListener('resize', handleResize);
+        console.log(`📐 [AthenaScene] Resize detected: ${width.toFixed(1)} x ${height.toFixed(1)}`);
+
+        // Update Camera
+        this.camera.aspect = width / height;
+        this.camera.updateProjectionMatrix();
+
+        // Update Renderer
+        this.renderer.setSize(width, height); // Default is true, updates canvas style
+
+        // Also ensure pixel ratio is maintained if window moved to different screen?
+        // this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); 
+        // (Expensive to do on every resize frame, maybe debounce?)
+      }
+    });
+
+    resizeObserver.observe(this.container);
+
+    // Store observer to disconnect later (we need to modify class property)
+    // For now, attaching to the instance strictly requires adding a property or using a closure if cleanup needed.
+    // The current class doesn't have a property for ResizeObserver. 
+    // I need to add it to the class via 'private resizeObserver: ResizeObserver | null = null;' in the property list?
+    // Or simpler: Just store it on the instance if I can edit the whole file or add the property.
+    // Since I'm using replace_file_content on a chunk, I can't easily add a property to the class definition at the top.
+
+    // WORKAROUND: Attach it to the container as a custom property or just don't initiate cleanup? 
+    // NO, lack of cleanup is a memory leak.
+    // I MUST add the property definition.
+    // OR I can use a monkey-patch style on the container.
+    // Best practice: Add the property. I will do a multi-replace to add the property AND the method.
+
+    (this as any).resizeObserver = resizeObserver;
   }
 
   /**
@@ -385,11 +419,54 @@ export class AthenaScene {
    * Clean up all resources
    * MUST be called on component unmount to prevent memory leaks
    */
+  /**
+   * Capture Screenshot
+   * Returns a base64 encoded PNG of the current canvas state
+   */
+  public captureScreenshot(): string {
+    if (!this.renderer) return '';
+
+    // Render one frame specifically for the screenshot to ensure buffers are fresh
+    this.renderer.render(this.scene, this.camera);
+
+    // Get full res data
+    const fullData = this.renderer.domElement.toDataURL("image/png");
+
+    // Resize to thumbnail (128x128 or similar aspect)
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return fullData;
+
+    // Use a fixed small width, maintain aspect ratio
+    const width = 256;
+    const height = 256; // Square thumbnails look best in carousel
+    canvas.width = width;
+    canvas.height = height;
+
+    // Draw image to canvas
+    const img = new Image();
+    img.src = fullData;
+
+    // Synchronous return is tricky with Image loading. 
+    // Since toDataURL is synchronous, we can try to draw the renderer canvas directly if context allows?
+    // Actually, renderer.domElement is a canvas.
+    ctx.drawImage(this.renderer.domElement, 0, 0, width, height);
+
+    // Return compressed JPEG for smaller size
+    return canvas.toDataURL("image/jpeg", 0.7);
+  }
+
   public dispose(): void {
     // Stop render loop
     if (this.animationFrameId !== null) {
       cancelAnimationFrame(this.animationFrameId);
       this.animationFrameId = null;
+    }
+
+    // Stop ResizeObserver
+    if ((this as any).resizeObserver) {
+      ((this as any).resizeObserver as ResizeObserver).disconnect();
+      (this as any).resizeObserver = null;
     }
 
     // Clear update callbacks

@@ -25,6 +25,7 @@ interface ThreeStageProps {
   cameraMode: string;
   onReady?: () => void;
   onError?: (error: string) => void;
+  onThumbnailGenerated?: (image: string) => void;
 }
 
 const ThreeStageComponent = forwardRef<ThreeStageHandle, ThreeStageProps>(({
@@ -40,7 +41,8 @@ const ThreeStageComponent = forwardRef<ThreeStageHandle, ThreeStageProps>(({
   speechText,
   cameraMode,
   onReady,
-  onError
+  onError,
+  onThumbnailGenerated
 }, ref) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<AthenaScene | null>(null);
@@ -129,15 +131,24 @@ const ThreeStageComponent = forwardRef<ThreeStageHandle, ThreeStageProps>(({
     // sceneRef.current?.setShadowsEnabled(shadowsEnabled);
   }, [shadowsEnabled]);
 
+  // Debug: specific log to see WHY this effect runs
+  useEffect(() => {
+    console.log("[ThreeStage] VRM Load Effect Triggered");
+    console.log(" - vrmUrl:", vrmUrl);
+    console.log(" - onThumbnailGenerated changed?", onThumbnailGenerated);
+  }, [vrmUrl, onThumbnailGenerated]);
+
   // Load VRM
   useEffect(() => {
     if (!sceneRef.current || !vrmUrl) return;
 
     let isCancelled = false;
+    console.log(`[ThreeStage] Starting VRM Load: ${vrmUrl}`);
 
     const loadVRM = async () => {
       try {
         setIsLoading(true);
+        // ... (rest of function)
         setIsVrmReady(false);
         setLoadingStatus(`Loading VRM: ${vrmUrl.split('/').pop()}...`);
         setError(null);
@@ -182,6 +193,38 @@ const ThreeStageComponent = forwardRef<ThreeStageHandle, ThreeStageProps>(({
 
         vrm.scene.rotation.y = Math.PI; // Face the camera
 
+        // --- Auto-Thumbnail Generation ---
+        // 1. Position camera to face
+        const headNode = vrm.humanoid.getNormalizedBoneNode('head');
+        if (headNode) {
+          const headPos = new THREE.Vector3();
+          headNode.getWorldPosition(headPos);
+          const targetPos = headPos.clone().add(new THREE.Vector3(0, 0.05, 0.5)); // Close up
+          sceneRef.current!.setCameraTarget(targetPos, headPos);
+
+          // 2. Force Render & Capture
+          // Add a small delay to ensure textures/shaders are fully ready on GPU
+          setTimeout(() => {
+            if (!sceneRef.current || !vrm) return;
+
+            // Ensure transforms
+            vrm.update(0.016);
+
+            // Capture
+            const screenshot = sceneRef.current.captureScreenshot();
+            if (onThumbnailGenerated && screenshot) {
+              onThumbnailGenerated(screenshot);
+            }
+
+            // 3. Reset Camera
+            sceneRef.current.setCameraTarget(
+              new THREE.Vector3(0, 1.2, 2.5),
+              new THREE.Vector3(0, 1.0, 0)
+            );
+          }, 150);
+        }
+        // ---------------------------------
+
         // NOTE: We do NOT register a new onUpdate callback here.
         // The main scene loop handles vrmRef.current directly.
 
@@ -206,7 +249,7 @@ const ThreeStageComponent = forwardRef<ThreeStageHandle, ThreeStageProps>(({
     return () => {
       isCancelled = true;
     };
-  }, [vrmUrl]);
+  }, [vrmUrl, onThumbnailGenerated]);
 
   // Handle Animation Loading
   useEffect(() => {

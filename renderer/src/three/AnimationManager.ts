@@ -103,7 +103,7 @@ export class AnimationManager {
    */
   public async loadAnimation(
     action: AnimationAction,
-    basePath: string = '/animations/'
+    basePath: string = 'animations/'
   ): Promise<void> {
     if (!this.vrm || !this.mixer) {
       throw new Error('AnimationManager not initialized. Call initialize() first.');
@@ -149,7 +149,7 @@ export class AnimationManager {
           const clipAction = this.mixer!.clipAction(clip);
 
           // Configure animation
-          clipAction.setLoop(THREE.LoopPingPong, Infinity);
+          clipAction.setLoop(THREE.LoopRepeat, Infinity);
           clipAction.clampWhenFinished = false;
 
           // Store animation config
@@ -426,14 +426,23 @@ export class AnimationManager {
    */
   public dispose(): void {
     console.log('🧹 [AnimationManager] Disposing animation manager resources');
+    if (this.currentAction) {
+      this.currentAction.stop();
+      this.currentAction = null;
+    }
+
     if (this.mixer) {
       this.mixer.stopAllAction();
       this.mixer.uncacheRoot(this.mixer.getRoot());
       this.mixer = null;
     }
 
+    this.animations.forEach(config => {
+      config.clipAction.stop();
+      // Optional: uncache clips if needed, but usually mixer.uncacheRoot handles it
+    });
     this.animations.clear();
-    this.currentAction = null;
+
     this.vrm = null;
   }
 }

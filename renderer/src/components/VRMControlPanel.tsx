@@ -15,11 +15,16 @@ export function VRMControlPanel() {
 
   const [vrmFile, setVrmFile] = React.useState<File | null>(null);
   const [vrmUrl, setVrmUrl] = React.useState<string>(`models/${AVAILABLE_MODELS[0].file}`);
+  const [vrmThumbnail, setVrmThumbnail] = React.useState<string | null>(null);
+
+  // Thumbnail Cache
+  const [thumbnailCache, setThumbnailCache] = React.useState<Record<string, string>>(() => {
+    const saved = localStorage.getItem("athena-thumbnail-cache");
+    return saved ? JSON.parse(saved) : {};
+  });
+
   const [animationFile, setAnimationFile] = React.useState<File | null>(null);
   const [animationUrl, setAnimationUrl] = React.useState<string>("animations/Jump.vrma");
-
-  const [inputText, setInputText] = React.useState("");
-  const [speechText, setSpeechText] = React.useState("");
 
   const [cameraMode, setCameraMode] = React.useState("full");
   const [isPlaying, setIsPlaying] = React.useState(false);
@@ -30,7 +35,7 @@ export function VRMControlPanel() {
   const [cameraFov] = React.useState([50]);
   const [gridVisible] = React.useState(true);
   const [shadowsEnabled] = React.useState(true);
-  const [backgroundColor] = React.useState("#050510"); // NOTE: Scene overrides this with gradient now
+  const [backgroundColor] = React.useState("#050510");
 
   // Chat State
   const [chatMessages, setChatMessages] = React.useState<ChatMessage[]>(() => {
@@ -46,22 +51,25 @@ export function VRMControlPanel() {
     localStorage.setItem("athena-chat-history", JSON.stringify(chatMessages));
   }, [chatMessages]);
 
+  React.useEffect(() => {
+    try {
+      localStorage.setItem("athena-thumbnail-cache", JSON.stringify(thumbnailCache));
+    } catch (e) {
+      console.warn("Failed to save thumbnail cache", e);
+    }
+  }, [thumbnailCache]);
+
 
   // Refs
   const stageRef = React.useRef<ThreeStageHandle>(null);
 
   // --- Handlers ---
-  const handleSpeak = () => {
-    if (inputText.trim()) {
-      setSpeechText(inputText);
-    }
-  };
-
   const handleModelSelect = (profileId: string) => {
     const profile = AVAILABLE_MODELS.find(p => p.id === profileId);
     if (profile) {
       setSelectedCharacter(profile);
       setVrmFile(null);
+      setVrmThumbnail(null); // Reset custom thumbnail for presets
       setVrmUrl(`models/${profile.file}`);
     }
   };
@@ -75,10 +83,25 @@ export function VRMControlPanel() {
     const file = e.target.files?.[0];
     if (file) {
       setVrmFile(file);
+      setVrmThumbnail(null);
       const url = URL.createObjectURL(file);
       setVrmUrl(url);
     }
   };
+
+  const handleThumbnailGenerated = React.useCallback((image: string) => {
+    console.log("Thumbnail generated for:", vrmFile ? "Custom VRM" : selectedCharacter.name);
+    if (vrmFile) {
+      // Active model is a custom upload
+      setVrmThumbnail(image);
+    } else {
+      // Active model is a preset
+      setThumbnailCache(prev => ({
+        ...prev,
+        [selectedCharacter.id]: image
+      }));
+    }
+  }, [vrmFile, selectedCharacter]);
 
   const handleAnimationUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -138,7 +161,7 @@ export function VRMControlPanel() {
     <div className="app-layout font-sans">
 
       {/* --- Link SidePanel (Left) --- */}
-      <aside className="h-full z-10 glass-panel">
+      <aside className="h-full z-10">
         <SidePanel
           selectedCharacter={selectedCharacter}
           onModelSelect={handleModelSelect}
@@ -146,12 +169,11 @@ export function VRMControlPanel() {
           onAnimationSelect={handleAnimationSelect}
           isPlaying={isPlaying}
           onTogglePlay={togglePlay}
-          inputText={inputText}
-          setInputText={setInputText}
-          onSpeak={handleSpeak}
           cameraMode={cameraMode}
           onCameraModeChange={setCameraMode}
           vrmFile={vrmFile}
+          customVrmThumbnail={vrmThumbnail}
+          thumbnailCache={thumbnailCache}
           onVrmUpload={handleVRMUpload}
           animationFile={animationFile}
           onAnimationUpload={handleAnimationUpload}
@@ -174,8 +196,8 @@ export function VRMControlPanel() {
             shadowsEnabled={shadowsEnabled}
             gridVisible={gridVisible}
             backgroundColor={backgroundColor}
-            speechText={speechText}
             cameraMode={cameraMode}
+            onThumbnailGenerated={handleThumbnailGenerated}
           />
         ) : (
           <div className="flex h-full flex-col items-center justify-center relative">

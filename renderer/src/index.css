@@ -152,6 +152,7 @@
 /* Panel Content */
 .panel-content {
   @apply flex-1 overflow-y-auto p-6 space-y-8;
+  min-height: 0;
 }
 
 /* Section Styling */

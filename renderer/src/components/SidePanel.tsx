@@ -1,11 +1,10 @@
 import * as React from "react";
-import { Mic, User, Activity, Settings, Save, Play, Pause, Cpu, Monitor } from "lucide-react";
+import { User, Activity, Settings, Save, Play, Pause, Monitor } from "lucide-react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
-import { Textarea } from "./ui/textarea";
 import { Separator } from "./ui/separator";
 import { Label } from "./ui/label";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "./ui/tabs";
+
 import { cn } from "../lib/utils";
 import { Carousel3D } from "./ui/Carousel3D";
 import { AVAILABLE_MODELS } from "../lib/models";
@@ -19,12 +18,11 @@ interface SidePanelProps {
     onAnimationSelect: (filename: string) => void;
     isPlaying: boolean;
     onTogglePlay: () => void;
-    inputText: string;
-    setInputText: (val: string) => void;
-    onSpeak: () => void;
     cameraMode: string;
     onCameraModeChange: (mode: string) => void;
     vrmFile: File | null;
+    customVrmThumbnail: string | null;
+    thumbnailCache: Record<string, string>;
     onVrmUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
     animationFile: File | null;
     onAnimationUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
@@ -38,12 +36,11 @@ export function SidePanel({
     onAnimationSelect,
     isPlaying,
     onTogglePlay,
-    inputText,
-    setInputText,
-    onSpeak,
     cameraMode,
     onCameraModeChange,
     vrmFile,
+    customVrmThumbnail,
+    thumbnailCache,
     onVrmUpload,
     animationFile,
     onAnimationUpload,
@@ -63,211 +60,198 @@ export function SidePanel({
                 </div>
             </div>
 
-            <Tabs defaultValue="main" className="flex-1 flex flex-col overflow-hidden">
-                <div className="px-6 pt-4 shrink-0">
-                    <TabsList className="w-full grid grid-cols-2 bg-black/20 border border-white/5 p-1 rounded-xl">
-                        <TabsTrigger
-                            value="main"
-                            className="
-                      data-[state=active]:bg-primary/20 
-                      data-[state=active]:text-primary 
-                      data-[state=active]:border-primary/50
-                      data-[state=active]:border
-                      text-muted-foreground font-mono text-xs uppercase tracking-wider
-                      rounded-lg transition-all
-                    "
-                        >
-                            Main
-                        </TabsTrigger>
-                        <TabsTrigger
-                            value="system"
-                            className="
-                      data-[state=active]:bg-primary/20 
-                      data-[state=active]:text-primary
-                      data-[state=active]:border-primary/50
-                      data-[state=active]:border
-                      text-muted-foreground font-mono text-xs uppercase tracking-wider
-                      rounded-lg transition-all
-                    "
-                        >
-                            System
-                        </TabsTrigger>
-                    </TabsList>
+            <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
+
+                {/* Status Bar - Minimal */}
+                <div className="flex items-center justify-between px-2 py-1.5 bg-black/20 rounded-lg border border-white/5">
+                    <div className="flex items-center gap-2">
+                        <div className="size-1.5 rounded-full bg-accent animate-pulse" />
+                        <span className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider">System Online</span>
+                    </div>
+                    <span className="text-[9px] font-mono text-primary/70">WEBGL</span>
                 </div>
 
-                {/* === MAIN TAB === */}
-                <TabsContent value="main" className="panel-content data-[state=active]:flex flex-col">
-
-                    {/* Status Display */}
-                    <div className="grid grid-cols-2 gap-3 mb-2">
-                        <div className="p-3 bg-white/5 border border-white/10 rounded-xl flex flex-col items-center justify-center gap-1">
-                            <span className="text-[10px] text-muted-foreground font-mono uppercase">Status</span>
-                            <span className="text-xs font-bold text-accent">ONLINE</span>
-                        </div>
-                        <div className="p-3 bg-white/5 border border-white/10 rounded-xl flex flex-col items-center justify-center gap-1">
-                            <span className="text-[10px] text-muted-foreground font-mono uppercase">Engine</span>
-                            <span className="text-xs font-bold text-primary">WEBGL</span>
-                        </div>
+                {/* Avatar Core */}
+                <div className="space-y-2">
+                    <Label className="section-label justify-center text-[9px] mb-1">
+                        <User className="size-3 mr-1" /> Avatar
+                    </Label>
+                    <div className="h-32 w-full -mx-1">
+                        <Carousel3D
+                            items={[
+                                ...AVAILABLE_MODELS.map(m => ({
+                                    id: m.id,
+                                    label: m.name,
+                                    description: m.description,
+                                    image: thumbnailCache[m.id] || m.image
+                                })),
+                                ...(vrmFile ? [{
+                                    id: 'custom',
+                                    label: 'Custom',
+                                    description: vrmFile.name,
+                                    image: customVrmThumbnail || undefined,
+                                    icon: <User />
+                                }] : [])
+                            ]}
+                            selectedId={vrmFile ? 'custom' : selectedCharacter.id}
+                            onSelect={(id) => {
+                                if (id === 'custom') {
+                                    // Already selected via upload, arguably no-op or re-trigger
+                                } else {
+                                    onModelSelect(id);
+                                }
+                            }}
+                            type="model"
+                        />
                     </div>
+                </div>
 
-                    {/* Speech Module */}
-                    <div className="panel-section">
-                        <Label className="section-label">
-                            <Mic className="size-3" /> Manual Override
+                <Separator className="bg-white/5" />
+
+                {/* Motion */}
+                <div className="space-y-2">
+                    <div className="flex items-center justify-between px-1">
+                        <Label className="section-label mb-0 text-[9px]">
+                            <Activity className="size-3 mr-1" /> Motion
                         </Label>
-
-                        <div className="relative group p-1 bg-black/20 rounded-xl border border-white/5 transition-colors hover:border-white/10">
-                            <Textarea
-                                placeholder="TTS injection..."
-                                value={inputText}
-                                onChange={(e) => setInputText(e.target.value)}
-                                className="min-h-[60px] bg-transparent border-none text-xs font-mono text-foreground placeholder:text-muted-foreground/40 focus-visible:ring-0 resize-none"
-                            />
-                            <div className="flex justify-end p-2 border-t border-white/5">
-                                <Button
-                                    size="sm"
-                                    onClick={onSpeak}
-                                    disabled={!inputText.trim()}
-                                    className="h-7 text-[10px] btn-primary-glass uppercase tracking-wider px-4"
-                                >
-                                    Speak
-                                </Button>
-                            </div>
-                        </div>
+                        <Button
+                            size="icon"
+                            variant="ghost"
+                            className="size-6 text-primary hover:text-white border border-white/10 hover:bg-white/10 rounded-full"
+                            onClick={onTogglePlay}
+                        >
+                            {isPlaying ? <Pause className="size-3 fill-current" /> : <Play className="size-3 fill-current" />}
+                        </Button>
                     </div>
-
-                    <Separator className="bg-white/10" />
-
-                    {/* Models Module */}
-                    <div className="panel-section overflow-visible">
-                        <Label className="section-label justify-center">
-                            <User className="size-3" /> Avatar Core
-                        </Label>
-                        <div className="h-40 w-full">
-                            <Carousel3D
-                                items={AVAILABLE_MODELS.map(m => ({ id: m.id, label: m.name, description: m.description }))}
-                                selectedId={selectedCharacter.id}
-                                onSelect={onModelSelect}
-                                type="model"
-                            />
-                        </div>
+                    <div className="h-28 w-full -mx-1">
+                        <Carousel3D
+                            items={AVAILABLE_ANIMATIONS.map(a => ({ id: a, label: a.replace(".vrma", "").replace(".fbx", "") }))}
+                            selectedId={animationUrl.split('/').pop() || ""}
+                            onSelect={onAnimationSelect}
+                            type="animation"
+                        />
                     </div>
+                </div>
 
-                    <Separator className="bg-white/10" />
+                <Separator className="bg-white/5" />
 
-                    {/* Animations Module */}
-                    <div className="panel-section overflow-visible">
-                        <div className="flex items-center justify-between px-1 mb-2">
-                            <Label className="section-label mb-0">
-                                <Activity className="size-3" /> Motion
-                            </Label>
-                            <Button
-                                size="icon"
-                                variant="ghost"
-                                className="h-8 w-8 text-primary hover:text-white border border-white/10 hover:bg-white/10 rounded-full"
-                                onClick={onTogglePlay}
+                {/* Optical Sensors (Camera) */}
+                <div className="space-y-2">
+                    <Label className="section-label text-[9px] mb-1">
+                        <Settings className="size-3 mr-1" /> Camera
+                    </Label>
+                    <div className="grid grid-cols-3 gap-1">
+                        {['face', 'half', 'full'].map((mode) => (
+                            <button
+                                key={mode}
+                                onClick={() => onCameraModeChange(mode)}
+                                className={cn(
+                                    "px-1 py-1.5 rounded-md border text-[9px] font-mono uppercase transition-all",
+                                    cameraMode === mode
+                                        ? "bg-primary/20 border-primary text-primary"
+                                        : "bg-transparent border-white/5 text-muted-foreground/60 hover:text-foreground hover:bg-white/5"
+                                )}
                             >
-                                {isPlaying ? <Pause className="size-3 fill-current" /> : <Play className="size-3 fill-current" />}
-                            </Button>
-                        </div>
-                        <div className="h-40 w-full">
-                            <Carousel3D
-                                items={AVAILABLE_ANIMATIONS.map(a => ({ id: a, label: a.replace(".vrma", "").replace(".fbx", "") }))}
-                                selectedId={animationUrl.split('/').pop() || ""}
-                                onSelect={onAnimationSelect}
-                                type="animation"
+                                {mode}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                <div className="space-y-2 mt-2">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full text-[9px] h-6 border-red-500/20 text-red-400 hover:bg-red-500/10 hover:text-red-300"
+                        onClick={() => {
+                            localStorage.removeItem("athena-thumbnail-cache");
+                            window.location.reload();
+                        }}
+                    >
+                        Reset UI Cache
+                    </Button>
+                </div>
+
+                <Separator className="bg-white/5" />
+
+                {/* Data Ingestion - Compact */}
+                {/* Data Ingestion - Upload Cards */}
+                <div className="space-y-2">
+                    <Label className="section-label text-[9px] mb-2">
+                        <Save className="size-3 mr-1" /> Import Assets
+                    </Label>
+
+                    <div className="grid grid-cols-2 gap-3">
+                        {/* VRM Upload Card */}
+                        <div className="relative group aspect-square rounded-xl border border-dashed border-white/20 bg-white/5 hover:bg-white/10 hover:border-primary/50 transition-all duration-300 flex flex-col items-center justify-center cursor-pointer overflow-hidden">
+                            <Input
+                                type="file"
+                                accept=".vrm"
+                                onChange={onVrmUpload}
+                                className="absolute inset-0 opacity-0 cursor-pointer z-10 w-full h-full"
                             />
+
+                            <div className="relative z-10 flex flex-col items-center justify-center p-2 text-center space-y-2 pointer-events-none transition-transform group-hover:scale-105">
+                                <div className={cn(
+                                    "p-3 rounded-full transition-colors backdrop-blur-sm shadow-xl",
+                                    vrmFile ? "bg-primary/80 text-black border border-primary" : "bg-white/5 text-muted-foreground group-hover:text-primary border border-white/10"
+                                )}>
+                                    <User className="size-6" />
+                                </div>
+                                <div className="space-y-0.5">
+                                    <p className="text-[10px] font-bold uppercase tracking-wider text-foreground drop-shadow-md">
+                                        {vrmFile ? "VRM Loaded" : "Upload VRM"}
+                                    </p>
+                                    <p className="text-[8px] text-muted-foreground font-mono truncate max-w-[80px] drop-shadow-md">
+                                        {vrmFile ? vrmFile.name : ".VRM Models"}
+                                    </p>
+                                </div>
+                            </div>
+                            {/* Glow effect on hover */}
+                            <div className="absolute inset-0 bg-primary/20 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+                        </div>
+
+                        {/* Motion Upload Card */}
+                        <div className="relative group aspect-square rounded-xl border border-dashed border-white/20 bg-white/5 hover:bg-white/10 hover:border-secondary/50 transition-all duration-300 flex flex-col items-center justify-center cursor-pointer overflow-hidden">
+                            <Input
+                                type="file"
+                                accept=".vrma,.fbx,.bvh,.glb"
+                                onChange={onAnimationUpload}
+                                className="absolute inset-0 opacity-0 cursor-pointer z-10 w-full h-full"
+                            />
+                            <div className="flex flex-col items-center justify-center p-2 text-center space-y-2 pointer-events-none transition-transform group-hover:scale-105">
+                                <div className={cn(
+                                    "p-3 rounded-full transition-colors",
+                                    animationFile ? "bg-secondary/20 text-secondary" : "bg-white/5 text-muted-foreground group-hover:text-secondary"
+                                )}>
+                                    <Activity className="size-6" />
+                                </div>
+                                <div className="space-y-0.5">
+                                    <p className="text-[10px] font-bold uppercase tracking-wider text-foreground">
+                                        {animationFile ? "Anim Ready" : "Add Motion"}
+                                    </p>
+                                    <p className="text-[8px] text-muted-foreground font-mono truncate max-w-[80px]">
+                                        {animationFile ? animationFile.name : ".VRMA .FBX"}
+                                    </p>
+                                </div>
+                            </div>
+                            {/* Glow effect on hover */}
+                            <div className="absolute inset-0 bg-secondary/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
                         </div>
                     </div>
+                </div>
 
-                </TabsContent>
-
-                {/* === SYSTEM TAB === */}
-                <TabsContent value="system" className="panel-content data-[state=active]:flex flex-col">
-
-                    {/* Camera Controls */}
-                    <div className="panel-section">
-                        <Label className="section-label">
-                            <Settings className="size-3" /> Optical Sensors
-                        </Label>
-                        <div className="grid grid-cols-3 gap-2">
-                            {['face', 'half', 'full'].map((mode) => (
-                                <button
-                                    key={mode}
-                                    onClick={() => onCameraModeChange(mode)}
-                                    className={cn(
-                                        "px-3 py-2 rounded-lg border text-[10px] font-mono uppercase transition-all",
-                                        cameraMode === mode
-                                            ? "bg-primary/20 border-primary text-primary shadow-[0_0_10px_-4px_var(--color-primary)]"
-                                            : "bg-transparent border-white/10 text-muted-foreground hover:border-white/30 hover:text-foreground"
-                                    )}
-                                >
-                                    {mode}
-                                </button>
-                            ))}
+                <div className="mt-auto pt-4">
+                    <div className="p-3 rounded-lg bg-black/40 border border-white/5 space-y-2">
+                        <div className="flex items-center justify-between text-[9px] font-mono text-muted-foreground/60">
+                            <span>LLM</span>
+                            <span className={isChatProcessing ? "text-accent animate-pulse" : "text-primary/50"}>
+                                {isChatProcessing ? "BUSY" : "IDLE"}
+                            </span>
                         </div>
                     </div>
-
-                    <Separator className="bg-white/10" />
-
-                    {/* File I/O */}
-                    <div className="panel-section">
-                        <Label className="section-label">
-                            <Save className="size-3" /> Data Ingestion
-                        </Label>
-
-                        <div className="space-y-3">
-                            <div className="space-y-1">
-                                <Label className="text-[9px] text-muted-foreground uppercase pl-1">Custom VRM</Label>
-                                <Input
-                                    type="file"
-                                    accept=".vrm"
-                                    onChange={onVrmUpload}
-                                    className="h-9 text-[10px] file:text-[10px] file:h-full bg-black/20 border-white/10 text-foreground file:bg-white/10 file:text-primary file:border-0 hover:file:bg-white/20 transition-all rounded-lg"
-                                />
-                                {vrmFile && <p className="text-[9px] text-primary font-mono truncate pl-1">Loaded: {vrmFile.name}</p>}
-                            </div>
-
-                            <div className="space-y-1">
-                                <Label className="text-[9px] text-muted-foreground uppercase pl-1">Custom Motion</Label>
-                                <Input
-                                    type="file"
-                                    accept=".vrma,.fbx,.bvh,.glb"
-                                    onChange={onAnimationUpload}
-                                    className="h-9 text-[10px] file:text-[10px] file:h-full bg-black/20 border-white/10 text-foreground file:bg-white/10 file:text-primary file:border-0 hover:file:bg-white/20 transition-all rounded-lg"
-                                />
-                                {animationFile && <p className="text-[9px] text-primary font-mono truncate pl-1">Loaded: {animationFile.name}</p>}
-                            </div>
-                        </div>
-                    </div>
-
-                    <Separator className="bg-white/10" />
-
-                    {/* Debug Info */}
-                    <div className="p-4 rounded-xl bg-black/30 border border-white/5 space-y-3">
-                        <div className="flex items-center gap-2 text-primary text-[10px] font-mono uppercase">
-                            <Cpu className="size-3" /> Diagnostics
-                        </div>
-                        <div className="space-y-2">
-                            <div className="flex justify-between text-[10px] font-mono text-muted-foreground">
-                                <span>LLM_BRIDGE</span>
-                                <span className={isChatProcessing ? "text-accent animate-pulse" : "text-primary"}>
-                                    {isChatProcessing ? "PROCESSING" : "STANDBY"}
-                                </span>
-                            </div>
-                            <div className="flex justify-between text-[10px] font-mono text-muted-foreground">
-                                <span>TTS_ENGINE</span>
-                                <span className="text-secondary">READY</span>
-                            </div>
-                            <div className="flex justify-between text-[10px] font-mono text-muted-foreground">
-                                <span>RENDERER</span>
-                                <span className="text-primary">WEBGL2</span>
-                            </div>
-                        </div>
-                    </div>
-
-                </TabsContent>
-            </Tabs>
+                </div>
+            </div>
         </div>
     );
 }

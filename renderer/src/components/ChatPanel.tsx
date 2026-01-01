@@ -100,9 +100,8 @@ export function ChatPanel({ messages, onSendMessage, onClearHistory, isProcessin
                             {msg.role === "user" ? <User className="size-3" /> : <Sparkles className="size-3" />}
                         </div>
 
-                        {/* Bubble */}
                         <div className={cn(
-                            "rounded-2xl px-5 py-4 text-sm leading-relaxed max-w-[95%] break-words shadow-sm backdrop-blur-sm",
+                            "rounded-2xl px-5 py-4 text-sm leading-relaxed max-w-[95%] break-words break-all shadow-sm backdrop-blur-sm",
                             msg.role === "user"
                                 ? "bg-gradient-to-br from-secondary/80 to-purple-600/80 text-white rounded-tr-sm border border-white/10"
                                 : "bg-white/5 text-foreground border border-white/5 rounded-tl-sm shadow-inner"
@@ -116,24 +115,20 @@ export function ChatPanel({ messages, onSendMessage, onClearHistory, isProcessin
 
             {/* Input Area */}
             <div className="p-6 border-t border-white/5 bg-black/20 shrink-0 backdrop-blur-md">
-                <form onSubmit={handleSubmit} className="relative group">
-                    <div className="absolute inset-0 bg-gradient-to-r from-primary/20 via-secondary/20 to-primary/20 rounded-xl blur opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                <form onSubmit={handleSubmit} className="relative flex gap-2">
                     <Input
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
                         placeholder="Type command..."
-                        className="input-glass h-12 pr-12 pl-4 shadow-inner"
+                        className="input-glass h-12 flex-1 shadow-sm focus-visible:ring-primary/30"
                     />
                     <Button
                         type="submit"
                         size="icon"
                         disabled={!input.trim() || isProcessing}
-                        className="
-                            absolute right-1.5 top-1.5 bottom-1.5 h-auto aspect-square
-                            btn-primary-glass rounded-lg
-                        "
+                        className="h-12 w-12 btn-primary-glass rounded-xl shrink-0"
                     >
-                        <Send className="size-4" />
+                        <Send className="size-5" />
                     </Button>
                 </form>
                 <div className="mt-3 flex justify-center gap-4 opacity-30 text-[9px] font-mono tracking-[0.2em] uppercase">
@@ -142,6 +137,6 @@ export function ChatPanel({ messages, onSendMessage, onClearHistory, isProcessin
                     <span>V.2.0.0</span>
                 </div>
             </div>
-        </div>
+        </div >
     );
 }
