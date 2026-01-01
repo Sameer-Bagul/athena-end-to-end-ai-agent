@@ -1,5 +1,5 @@
 import * as React from "react";
-import { User, Activity, Settings, Save, Play, Pause, Monitor } from "lucide-react";
+import { User, Activity, Save, Play, Pause, Monitor, Settings, LayoutGrid } from "lucide-react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Separator } from "./ui/separator";
@@ -26,7 +26,10 @@ interface SidePanelProps {
     onVrmUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
     animationFile: File | null;
     onAnimationUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
-    isChatProcessing: boolean;
+    // isChatProcessing is removed from destructuring but kept in type for compat
+    isChatProcessing?: boolean;
+    onOpenSettings: () => void;
+    onOpenExhibition: () => void;
 }
 
 export function SidePanel({
@@ -44,12 +47,13 @@ export function SidePanel({
     onVrmUpload,
     animationFile,
     onAnimationUpload,
-    isChatProcessing
+    onOpenSettings,
+    onOpenExhibition
 }: SidePanelProps) {
     return (
         <div className="panel-glass border-r">
             {/* Header */}
-            <div className="panel-header">
+            {/* <div className="panel-header">
                 <div className="flex items-center gap-3">
                     <div className="p-2 bg-gradient-to-br from-primary via-primary/50 to-transparent rounded-lg text-black">
                         <Monitor className="size-5" />
@@ -58,25 +62,28 @@ export function SidePanel({
                         Control<span className="text-secondary font-light">Panel</span>
                     </span>
                 </div>
-            </div>
+            </div> */}
 
             <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
 
-                {/* Status Bar - Minimal */}
-                <div className="flex items-center justify-between px-2 py-1.5 bg-black/20 rounded-lg border border-white/5">
-                    <div className="flex items-center gap-2">
-                        <div className="size-1.5 rounded-full bg-accent animate-pulse" />
-                        <span className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider">System Online</span>
+                {/* Status Bar - Minimal Pill */}
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 px-3 py-1 bg-green-500/10 border border-green-500/20 rounded-full">
+                        <div className="size-1.5 rounded-full bg-green-500 animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.5)]" />
+                        <span className="text-[9px] font-mono text-green-500/90 font-bold uppercase tracking-wider">System Online</span>
                     </div>
-                    <span className="text-[9px] font-mono text-primary/70">WEBGL</span>
+                    <div className="px-2 py-1 bg-white/5 rounded-md border border-white/5">
+                        <span className="text-[8px] font-mono text-muted-foreground">V 1.0.0</span>
+                    </div>
                 </div>
 
                 {/* Avatar Core */}
-                <div className="space-y-2">
-                    <Label className="section-label justify-center text-[9px] mb-1">
-                        <User className="size-3 mr-1" /> Avatar
+                <div className="space-y-3">
+                    <Label className="section-label justify-center text-[10px] mb-2 text-primary/80">
+                        <User className="size-3 mr-1.5" /> Identity Module
                     </Label>
-                    <div className="h-32 w-full -mx-1">
+                    {/* Increased Height for better visibility */}
+                    <div className="h-48 w-full -mx-1">
                         <Carousel3D
                             items={[
                                 ...AVAILABLE_MODELS.map(m => ({
@@ -95,15 +102,20 @@ export function SidePanel({
                             ]}
                             selectedId={vrmFile ? 'custom' : selectedCharacter.id}
                             onSelect={(id) => {
-                                if (id === 'custom') {
-                                    // Already selected via upload, arguably no-op or re-trigger
-                                } else {
-                                    onModelSelect(id);
-                                }
+                                if (id !== 'custom') onModelSelect(id);
                             }}
                             type="model"
                         />
                     </div>
+                    {/* Exhibition Trigger */}
+                    <Button
+                        variant="ghost"
+                        className="w-full mt-2 h-8 text-[10px] uppercase tracking-wider border border-primary/20 hover:bg-primary/10 hover:text-primary transition-all group"
+                        onClick={onOpenExhibition}
+                    >
+                        <LayoutGrid className="size-3 mr-2 group-hover:scale-110 transition-transform" />
+                        Enter Exhibition
+                    </Button>
                 </div>
 
                 <Separator className="bg-white/5" />
@@ -111,16 +123,21 @@ export function SidePanel({
                 {/* Motion */}
                 <div className="space-y-2">
                     <div className="flex items-center justify-between px-1">
-                        <Label className="section-label mb-0 text-[9px]">
-                            <Activity className="size-3 mr-1" /> Motion
+                        <Label className="section-label mb-0 text-[10px] text-secondary/80">
+                            <Activity className="size-3 mr-1.5" /> Motion Protocol
                         </Label>
                         <Button
                             size="icon"
                             variant="ghost"
-                            className="size-6 text-primary hover:text-white border border-white/10 hover:bg-white/10 rounded-full"
+                            className={cn(
+                                "size-6 rounded-full border transition-all duration-300",
+                                isPlaying
+                                    ? "bg-secondary text-black border-secondary shadow-[0_0_10px_rgba(236,72,153,0.3)] hover:bg-secondary/90"
+                                    : "bg-transparent text-secondary border-secondary/30 hover:bg-secondary/10"
+                            )}
                             onClick={onTogglePlay}
                         >
-                            {isPlaying ? <Pause className="size-3 fill-current" /> : <Play className="size-3 fill-current" />}
+                            {isPlaying ? <Pause className="size-3 fill-current" /> : <Play className="size-3 fill-current ml-0.5" />}
                         </Button>
                     </div>
                     <div className="h-28 w-full -mx-1">
@@ -135,24 +152,28 @@ export function SidePanel({
 
                 <Separator className="bg-white/5" />
 
-                {/* Optical Sensors (Camera) */}
+                {/* Optical Sensors (Camera) - Segmented Control */}
                 <div className="space-y-2">
-                    <Label className="section-label text-[9px] mb-1">
-                        <Settings className="size-3 mr-1" /> Camera
+                    <Label className="section-label text-[10px] mb-2">
+                        <Monitor className="size-3 mr-1.5" /> Optical Sensors
                     </Label>
-                    <div className="grid grid-cols-3 gap-1">
-                        {['face', 'half', 'full'].map((mode) => (
+                    <div className="p-1 bg-black/40 rounded-lg border border-white/5 grid grid-cols-3 gap-1">
+                        {[
+                            { id: 'face', label: 'FACE' },
+                            { id: 'half', label: 'BODY' }, // Changed 'half' to 'BODY' for better UX
+                            { id: 'full', label: 'WIDE' }  // Changed 'full' to 'WIDE'
+                        ].map((mode) => (
                             <button
-                                key={mode}
-                                onClick={() => onCameraModeChange(mode)}
+                                key={mode.id}
+                                onClick={() => onCameraModeChange(mode.id)}
                                 className={cn(
-                                    "px-1 py-1.5 rounded-md border text-[9px] font-mono uppercase transition-all",
-                                    cameraMode === mode
-                                        ? "bg-primary/20 border-primary text-primary"
-                                        : "bg-transparent border-white/5 text-muted-foreground/60 hover:text-foreground hover:bg-white/5"
+                                    "py-1.5 rounded-md text-[9px] font-bold tracking-wider transition-all duration-300 relative overflow-hidden",
+                                    cameraMode === mode.id
+                                        ? "bg-primary text-black shadow-lg"
+                                        : "text-muted-foreground hover:text-white hover:bg-white/5"
                                 )}
                             >
-                                {mode}
+                                {mode.label}
                             </button>
                         ))}
                     </div>
@@ -160,95 +181,87 @@ export function SidePanel({
 
                 <div className="space-y-2 mt-2">
                     <Button
-                        variant="outline"
+                        variant="ghost"
                         size="sm"
-                        className="w-full text-[9px] h-6 border-red-500/20 text-red-400 hover:bg-red-500/10 hover:text-red-300"
+                        className="w-full text-[9px] h-7 text-muted-foreground hover:text-red-400 hover:bg-red-500/5 transition-colors"
                         onClick={() => {
                             localStorage.removeItem("athena-thumbnail-cache");
                             window.location.reload();
                         }}
                     >
-                        Reset UI Cache
+                        Reset Cache
                     </Button>
                 </div>
 
                 <Separator className="bg-white/5" />
 
-                {/* Data Ingestion - Compact */}
-                {/* Data Ingestion - Upload Cards */}
+                {/* Settings Trigger */}
                 <div className="space-y-2">
-                    <Label className="section-label text-[9px] mb-2">
-                        <Save className="size-3 mr-1" /> Import Assets
+                    <Button
+                        variant="outline"
+                        className="w-full h-9 border-white/5 bg-white/5 text-muted-foreground hover:text-white hover:bg-white/10 hover:border-white/10 justify-start"
+                        onClick={onOpenSettings}
+                    >
+                        <Settings className="size-3.5 mr-2" />
+                        <span className="text-[10px] font-medium uppercase tracking-wider">Configure System</span>
+                    </Button>
+                </div>
+
+                <Separator className="bg-white/5" />
+
+                {/* Data Ingestion - Compact Cards */}
+                <div className="space-y-2">
+                    <Label className="section-label text-[10px] mb-2">
+                        <Save className="size-3 mr-1.5" /> Import
                     </Label>
 
-                    <div className="grid grid-cols-2 gap-3">
-                        {/* VRM Upload Card */}
-                        <div className="relative group aspect-square rounded-xl border border-dashed border-white/20 bg-white/5 hover:bg-white/10 hover:border-primary/50 transition-all duration-300 flex flex-col items-center justify-center cursor-pointer overflow-hidden">
+                    <div className="grid grid-cols-2 gap-2">
+                        {/* VRM Upload Card - Compact */}
+                        <div className="relative group h-20 rounded-lg border border-dashed border-white/10 bg-white/5 hover:bg-white/10 hover:border-primary/30 transition-all cursor-pointer overflow-hidden flex flex-col items-center justify-center gap-1">
                             <Input
                                 type="file"
                                 accept=".vrm"
                                 onChange={onVrmUpload}
-                                className="absolute inset-0 opacity-0 cursor-pointer z-10 w-full h-full"
+                                className="absolute inset-0 opacity-0 cursor-pointer z-10"
                             />
-
-                            <div className="relative z-10 flex flex-col items-center justify-center p-2 text-center space-y-2 pointer-events-none transition-transform group-hover:scale-105">
-                                <div className={cn(
-                                    "p-3 rounded-full transition-colors backdrop-blur-sm shadow-xl",
-                                    vrmFile ? "bg-primary/80 text-black border border-primary" : "bg-white/5 text-muted-foreground group-hover:text-primary border border-white/10"
-                                )}>
-                                    <User className="size-6" />
-                                </div>
-                                <div className="space-y-0.5">
-                                    <p className="text-[10px] font-bold uppercase tracking-wider text-foreground drop-shadow-md">
-                                        {vrmFile ? "VRM Loaded" : "Upload VRM"}
-                                    </p>
-                                    <p className="text-[8px] text-muted-foreground font-mono truncate max-w-[80px] drop-shadow-md">
-                                        {vrmFile ? vrmFile.name : ".VRM Models"}
-                                    </p>
-                                </div>
+                            <div className={cn(
+                                "size-8 rounded-full flex items-center justify-center transition-colors shadow-lg text-[10px]",
+                                vrmFile ? "bg-primary text-black" : "bg-black/20 text-muted-foreground group-hover:text-primary"
+                            )}>
+                                <User className="size-4" />
                             </div>
-                            {/* Glow effect on hover */}
-                            <div className="absolute inset-0 bg-primary/20 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+                            <span className="text-[9px] font-medium text-muted-foreground/80 uppercase tracking-wide group-hover:text-white transition-colors">
+                                {vrmFile ? "Loaded" : "VRM"}
+                            </span>
                         </div>
 
-                        {/* Motion Upload Card */}
-                        <div className="relative group aspect-square rounded-xl border border-dashed border-white/20 bg-white/5 hover:bg-white/10 hover:border-secondary/50 transition-all duration-300 flex flex-col items-center justify-center cursor-pointer overflow-hidden">
+                        {/* Motion Upload Card - Compact */}
+                        <div className="relative group h-20 rounded-lg border border-dashed border-white/10 bg-white/5 hover:bg-white/10 hover:border-secondary/30 transition-all cursor-pointer overflow-hidden flex flex-col items-center justify-center gap-1">
                             <Input
                                 type="file"
                                 accept=".vrma,.fbx,.bvh,.glb"
                                 onChange={onAnimationUpload}
-                                className="absolute inset-0 opacity-0 cursor-pointer z-10 w-full h-full"
+                                className="absolute inset-0 opacity-0 cursor-pointer z-10"
                             />
-                            <div className="flex flex-col items-center justify-center p-2 text-center space-y-2 pointer-events-none transition-transform group-hover:scale-105">
-                                <div className={cn(
-                                    "p-3 rounded-full transition-colors",
-                                    animationFile ? "bg-secondary/20 text-secondary" : "bg-white/5 text-muted-foreground group-hover:text-secondary"
-                                )}>
-                                    <Activity className="size-6" />
-                                </div>
-                                <div className="space-y-0.5">
-                                    <p className="text-[10px] font-bold uppercase tracking-wider text-foreground">
-                                        {animationFile ? "Anim Ready" : "Add Motion"}
-                                    </p>
-                                    <p className="text-[8px] text-muted-foreground font-mono truncate max-w-[80px]">
-                                        {animationFile ? animationFile.name : ".VRMA .FBX"}
-                                    </p>
-                                </div>
+                            <div className={cn(
+                                "size-8 rounded-full flex items-center justify-center transition-colors shadow-lg text-[10px]",
+                                animationFile ? "bg-secondary text-black" : "bg-black/20 text-muted-foreground group-hover:text-secondary"
+                            )}>
+                                <Activity className="size-4" />
                             </div>
-                            {/* Glow effect on hover */}
-                            <div className="absolute inset-0 bg-secondary/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+                            <span className="text-[9px] font-medium text-muted-foreground/80 uppercase tracking-wide group-hover:text-white transition-colors">
+                                {animationFile ? "Ready" : "Motion"}
+                            </span>
                         </div>
                     </div>
                 </div>
 
-                <div className="mt-auto pt-4">
-                    <div className="p-3 rounded-lg bg-black/40 border border-white/5 space-y-2">
-                        <div className="flex items-center justify-between text-[9px] font-mono text-muted-foreground/60">
-                            <span>LLM</span>
-                            <span className={isChatProcessing ? "text-accent animate-pulse" : "text-primary/50"}>
-                                {isChatProcessing ? "BUSY" : "IDLE"}
-                            </span>
-                        </div>
+                <div className="mt-auto pt-2">
+                    {/* Tiny Footer */}
+                    <div className="flex items-center justify-center gap-2 opacity-30 hover:opacity-100 transition-opacity">
+                        <div className="size-1 bg-white rounded-full" />
+                        <span className="text-[8px] uppercase tracking-[0.2em]">Athena OS</span>
+                        <div className="size-1 bg-white rounded-full" />
                     </div>
                 </div>
             </div>

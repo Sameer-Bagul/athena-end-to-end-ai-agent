@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Box } from "lucide-react";
+import { Box, LayoutGrid } from "lucide-react";
 import ThreeStage from "./ThreeStage";
 import type { ThreeStageHandle } from "./ThreeStage";
 import { AVAILABLE_MODELS } from "../lib/models";
@@ -8,10 +8,24 @@ import type { ChatMessage } from "./ChatPanel";
 import { SidePanel } from "./SidePanel";
 import { sendMessageToOllama, generateSpeech } from "../lib/api";
 import { AnimationAction } from "../three/AnimationManager";
+import { ExhibitionPage } from "./ExhibitionPage";
+import { SettingsModal } from "./SettingsModal";
+import type { AIConfig } from "./SettingsModal";
 
 export function VRMControlPanel() {
   // --- State ---
   const [selectedCharacter, setSelectedCharacter] = React.useState(AVAILABLE_MODELS[0]);
+  const [isSettingsOpen, setIsSettingsOpen] = React.useState(false);
+
+  const [aiConfig, setAiConfig] = React.useState<AIConfig>(() => {
+    const saved = localStorage.getItem("athena-ai-config");
+    return saved ? JSON.parse(saved) : {
+      provider: 'ollama',
+      apiKey: '',
+      model: 'dolphin-mistral:latest',
+      endpoint: 'http://localhost:11434'
+    };
+  });
 
   const [vrmFile, setVrmFile] = React.useState<File | null>(null);
   const [vrmUrl, setVrmUrl] = React.useState<string>(`models/${AVAILABLE_MODELS[0].file}`);
@@ -45,6 +59,8 @@ export function VRMControlPanel() {
     ];
   });
   const [isChatProcessing, setIsChatProcessing] = React.useState(false);
+
+  const [viewMode, setViewMode] = React.useState<'chat' | 'exhibition'>('chat');
 
   // Persistence
   React.useEffect(() => {
@@ -158,7 +174,19 @@ export function VRMControlPanel() {
   }, [vrmUrl, animationUrl]);
 
   return (
-    <div className="app-layout font-sans">
+    <div className="app-layout font-sans relative">
+
+      {/* Exhibition Overlay */}
+      {viewMode === 'exhibition' && (
+        <ExhibitionPage
+          initialModelId={selectedCharacter.id}
+          onSelect={(modelId) => {
+            handleModelSelect(modelId);
+            setViewMode('chat');
+          }}
+          onCancel={() => setViewMode('chat')}
+        />
+      )}
 
       {/* --- Link SidePanel (Left) --- */}
       <aside className="h-full z-10">
@@ -178,8 +206,17 @@ export function VRMControlPanel() {
           animationFile={animationFile}
           onAnimationUpload={handleAnimationUpload}
           isChatProcessing={isChatProcessing}
+          onOpenSettings={() => setIsSettingsOpen(true)}
+          onOpenExhibition={() => setViewMode('exhibition')}
         />
       </aside>
+
+      <SettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        config={aiConfig}
+        onSave={setAiConfig}
+      />
 
       {/* --- Center 3D Stage (50%) --- */}
       <main className="h-full relative overflow-hidden bg-black/50 z-0 border-x border-white/5">
@@ -209,6 +246,17 @@ export function VRMControlPanel() {
             </div>
           </div>
         )}
+
+        {/* View Mode Toggle (Floating) */}
+        <div className="absolute top-4 right-4 z-20">
+          <button
+            onClick={() => setViewMode('exhibition')}
+            className="flex items-center gap-2 px-3 py-2 rounded-full bg-black/40 border border-white/10 text-xs font-mono uppercase text-muted-foreground hover:text-white hover:bg-white/10 hover:border-white/20 transition-all backdrop-blur-sm group"
+          >
+            <LayoutGrid className="size-4 group-hover:text-primary transition-colors" />
+            <span>Exhibition Mode</span>
+          </button>
+        </div>
       </main>
 
       {/* --- Right Chat Panel (25%) --- */}
