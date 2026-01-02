@@ -24,10 +24,11 @@ export class SpeechRecognitionManager {
     private recordingLength: number = 0;
 
     // Configuration
-    private readonly VAD_THRESHOLD = 20; // 0-255 (Analysed Byte Data)
+    private readonly VAD_THRESHOLD = 45; // 0-255 (Analysed Byte Data) - Increased to filter noise
     private readonly SILENCE_DURATION = 1500; // ms
     private readonly SAMPLE_RATE = 16000; // Whisper requires 16k
     private readonly CHECK_INTERVAL = 100; // VAD check interval
+    private readonly MIN_SPEECH_SAMPLES = 8000; // 0.5s @ 16kHz
 
     // Callbacks
     private onResultCallback: ((text: string) => void) | null = null;
@@ -55,6 +56,7 @@ export class SpeechRecognitionManager {
                 if (this.onStatusChangeCallback) this.onStatusChangeCallback('ready');
             }
             if (status === 'complete') {
+                console.log('📝 [STT Result]:', text);
                 if (this.onStatusChangeCallback) this.onStatusChangeCallback('processing');
                 if (text && text.trim().length > 0) {
                     if (this.onResultCallback) this.onResultCallback(text);
@@ -179,6 +181,12 @@ export class SpeechRecognitionManager {
 
     private processAudio() {
         if (this.recordingLength === 0 || !this.worker) return;
+
+        // Filter short bursts (noise)
+        if (this.recordingLength < this.MIN_SPEECH_SAMPLES) {
+            console.log(`🎤 [VAD] Ignored short speech (${(this.recordingLength / this.SAMPLE_RATE).toFixed(2)}s)`);
+            return;
+        }
 
         if (this.onStatusChangeCallback) this.onStatusChangeCallback('processing');
 

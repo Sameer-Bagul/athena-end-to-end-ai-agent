@@ -2,7 +2,7 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 export default defineConfig({
-  base: './', 
+  base: './',
   plugins: [react(), tailwindcss()],
   server: {
     port: 5173,
@@ -10,6 +10,15 @@ export default defineConfig({
   },
   build: {
     outDir: "dist",
-    emptyOutDir: true
+    emptyOutDir: true,
+    commonjsOptions: {
+      include: [/onnxruntime-web/, /node_modules/]
+    }
+  },
+  optimizeDeps: {
+    exclude: ["onnxruntime-web"]
+  },
+  worker: {
+    format: "es"
   }
 });
