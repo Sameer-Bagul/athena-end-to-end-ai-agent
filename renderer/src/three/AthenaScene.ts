@@ -442,8 +442,8 @@ export class AthenaScene {
       this.renderer.getSize(originalSize);
       const originalAspect = this.camera.aspect;
 
-      // Resize
-      this.renderer.setSize(targetWidth, targetHeight);
+      // Resize (updateStyle = false to prevent DOM layout thrashing)
+      this.renderer.setSize(targetWidth, targetHeight, false);
       this.camera.aspect = targetWidth / targetHeight;
       this.camera.updateProjectionMatrix();
 
@@ -454,7 +454,7 @@ export class AthenaScene {
       const dataUrl = this.renderer.domElement.toDataURL("image/png", 1.0);
 
       // Restore
-      this.renderer.setSize(originalSize.width, originalSize.height);
+      this.renderer.setSize(originalSize.width, originalSize.height, false);
       this.camera.aspect = originalAspect;
       this.camera.updateProjectionMatrix();
       this.renderer.render(this.scene, this.camera); // Prevent flicker

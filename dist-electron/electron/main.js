@@ -16,10 +16,10 @@ if (process.platform === "linux") {
 }
 function createWindow() {
     const win = new electron_1.BrowserWindow({
-        width: 1000,
-        height: 900,
+        width: 1920,
+        height: 1080,
         backgroundColor: "#0b0b0b",
-        icon: path_1.default.join(__dirname, isDev ? "../renderer/public/icon.png" : "../renderer/dist/icon.png"),
+        icon: path_1.default.join(__dirname, isDev ? "../../renderer/public/icon.png" : "../../renderer/dist/icon.png"),
         webPreferences: {
             preload: path_1.default.join(__dirname, "preload.js"),
             sandbox: false
@@ -30,7 +30,7 @@ function createWindow() {
         win.webContents.openDevTools();
     }
     else {
-        win.loadFile(path_1.default.join(__dirname, "../renderer/dist/index.html"));
+        win.loadFile(path_1.default.join(__dirname, "../../renderer/dist/index.html"));
     }
 }
 // IPC handlers for LLM and TTS

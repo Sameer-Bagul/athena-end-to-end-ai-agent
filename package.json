@@ -2,7 +2,7 @@
   "name": "athena",
   "private": true,
   "version": "1.0.0",
-  "main": "dist-electron/main.js",
+  "main": "dist-electron/electron/main.js",
   "scripts": {
     "dev": "NODE_ENV=development cd renderer && npm run dev & ELECTRON_DISABLE_SANDBOX=1 npx electron .",
     "build": "npm run build:ui && npm run build:electron",

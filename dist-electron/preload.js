@@ -2,6 +2,8 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const electron_1 = require("electron");
 electron_1.contextBridge.exposeInMainWorld("athena", {
-    send: (channel, data) => electron_1.ipcRenderer.send(channel, data),
-    on: (channel, cb) => electron_1.ipcRenderer.on(channel, (_, data) => cb(data))
+    chat: (messages) => electron_1.ipcRenderer.invoke("llm:chat", messages),
+    tts: (text, voiceStyle = "M1") => electron_1.ipcRenderer.invoke("tts:generate", { text, voiceStyle }),
+    saveHistory: (history) => electron_1.ipcRenderer.invoke("chat:save-history", history),
+    loadHistory: () => electron_1.ipcRenderer.invoke("chat:load-history")
 });
