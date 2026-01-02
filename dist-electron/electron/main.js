@@ -43,12 +43,6 @@ electron_1.ipcMain.handle("tts:generate", async (_, { text, voiceStyle }) => {
 // Chat History Persistence
 const CHAT_FILE = path_1.default.join(electron_1.app.getPath("userData"), "chat-history.json");
 console.log("Chat History Path:", CHAT_FILE);
-try {
-    fs_1.default.writeFileSync(path_1.default.join(__dirname, "../../debug-path.txt"), CHAT_FILE);
-}
-catch (e) {
-    console.error("Failed to write debug path:", e);
-}
 electron_1.ipcMain.handle("chat:save-history", async (_, history) => {
     try {
         fs_1.default.writeFileSync(CHAT_FILE, JSON.stringify(history, null, 2));

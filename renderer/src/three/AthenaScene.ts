@@ -180,7 +180,8 @@ export class AthenaScene {
     // Create WebGL renderer
     this.renderer = new THREE.WebGLRenderer({
       antialias: true,
-      alpha: false,
+      alpha: true, // Allow transparency
+      preserveDrawingBuffer: true // Required for screenshot/canvas capture
     });
     this.renderer.setSize(container.clientWidth, container.clientHeight);
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -189,6 +190,8 @@ export class AthenaScene {
     this.renderer.toneMappingExposure = 1.2;
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    // Set clear color to transparent by default
+    this.renderer.setClearColor(0x000000, 0);
 
     console.log('🟢 [AthenaScene] Renderer created');
     console.log('🟢 [AthenaScene] Renderer size:', this.renderer.getSize(new THREE.Vector2()));
@@ -243,10 +246,17 @@ export class AthenaScene {
    * Set Background Color
    */
   public setBackgroundColor(color: string): void {
-    this.scene.background = new THREE.Color(color);
-    // Also update fog to match for seamless look
-    if (this.scene.fog instanceof THREE.FogExp2) {
-      this.scene.fog.color.set(color);
+    if (color === 'transparent') {
+      this.scene.background = null;
+      if (this.renderer) this.renderer.setClearColor(0x000000, 0);
+    } else {
+      this.scene.background = new THREE.Color(color);
+      if (this.renderer) this.renderer.setClearColor(new THREE.Color(color), 1);
+
+      // Also update fog to match for seamless look if not transparent
+      if (this.scene.fog instanceof THREE.FogExp2) {
+        this.scene.fog.color.set(color);
+      }
     }
   }
 
@@ -423,36 +433,56 @@ export class AthenaScene {
    * Capture Screenshot
    * Returns a base64 encoded PNG of the current canvas state
    */
-  public captureScreenshot(): string {
+  public captureScreenshot(targetWidth?: number, targetHeight?: number): string {
     if (!this.renderer) return '';
 
-    // Render one frame specifically for the screenshot to ensure buffers are fresh
-    this.renderer.render(this.scene, this.camera);
+    // If High Res requested
+    if (targetWidth && targetHeight) {
+      const originalSize = new THREE.Vector2();
+      this.renderer.getSize(originalSize);
+      const originalAspect = this.camera.aspect;
 
-    // Get full res data
+      // Resize
+      this.renderer.setSize(targetWidth, targetHeight);
+      this.camera.aspect = targetWidth / targetHeight;
+      this.camera.updateProjectionMatrix();
+
+      // Render
+      this.renderer.render(this.scene, this.camera);
+
+      // Capture
+      const dataUrl = this.renderer.domElement.toDataURL("image/png", 1.0);
+
+      // Restore
+      this.renderer.setSize(originalSize.width, originalSize.height);
+      this.camera.aspect = originalAspect;
+      this.camera.updateProjectionMatrix();
+      this.renderer.render(this.scene, this.camera); // Prevent flicker
+
+      return dataUrl;
+    }
+
+    // Default / Thumbnail logic (256x256)
+    this.renderer.render(this.scene, this.camera);
     const fullData = this.renderer.domElement.toDataURL("image/png");
 
-    // Resize to thumbnail (128x128 or similar aspect)
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
     if (!ctx) return fullData;
 
-    // Use a fixed small width, maintain aspect ratio
     const width = 256;
-    const height = 256; // Square thumbnails look best in carousel
+    const height = 256;
     canvas.width = width;
     canvas.height = height;
 
-    // Draw image to canvas
     const img = new Image();
     img.src = fullData;
 
-    // Synchronous return is tricky with Image loading. 
-    // Since toDataURL is synchronous, we can try to draw the renderer canvas directly if context allows?
-    // Actually, renderer.domElement is a canvas.
+    // We need to wait for image to load to draw it? 
+    // Actually toDataURL is synchronous but loading it into Image is not. 
+    // However, drawing the renderer canvas directly IS synchronous and safe.
     ctx.drawImage(this.renderer.domElement, 0, 0, width, height);
 
-    // Return compressed JPEG for smaller size
     return canvas.toDataURL("image/jpeg", 0.7);
   }
 
