@@ -81,7 +81,7 @@ export class LipSyncManager {
             try {
                 this.source.stop();
             } catch (e) {
-                // ignore if already stopped
+                // ignore if already stopped or not started
             }
             this.source.disconnect();
             this.source = null;

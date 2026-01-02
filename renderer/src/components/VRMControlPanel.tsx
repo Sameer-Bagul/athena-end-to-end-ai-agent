@@ -11,6 +11,7 @@ import { AnimationAction } from "../three/AnimationManager";
 import { ExhibitionPage } from "./ExhibitionPage";
 import { SettingsModal } from "./SettingsModal";
 import type { AIConfig } from "./SettingsModal";
+import { SpeechRecognitionManager } from "../lib/SpeechRecognition";
 
 // Extend Window interface for our preload API
 declare global {
@@ -54,6 +55,9 @@ export function VRMControlPanel() {
 
   const [cameraMode, setCameraMode] = React.useState("full");
   const [isPlaying, setIsPlaying] = React.useState(false);
+  const [isListening, setIsListening] = React.useState(false);
+  const [voiceStatus, setVoiceStatus] = React.useState<string>("idle");
+  const [currentTranscript, setCurrentTranscript] = React.useState("");
 
   // Three.js Config
   const [animationSpeed] = React.useState([0.4]);
@@ -124,6 +128,16 @@ export function VRMControlPanel() {
 
   // Refs
   const stageRef = React.useRef<ThreeStageHandle>(null);
+  const speechManagerRef = React.useRef<SpeechRecognitionManager | null>(null);
+  const abortControllerRef = React.useRef<AbortController | null>(null);
+
+  // Initialize Speech Manager
+  React.useEffect(() => {
+    speechManagerRef.current = new SpeechRecognitionManager();
+    return () => {
+      if (speechManagerRef.current) speechManagerRef.current.stop();
+    }
+  }, []);
 
   // --- Handlers ---
   const handleModelSelect = (profileId: string) => {
@@ -176,33 +190,140 @@ export function VRMControlPanel() {
 
   const togglePlay = () => setIsPlaying(!isPlaying);
 
+  const handleInterrupt = () => {
+    console.log("🛑 [Interrupt] User started speaking. Stopping AI.");
+    if (stageRef.current) {
+      stageRef.current.stopAudio();
+    }
+    // Cancel any ongoing LLM request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+  };
+
+  const handleSpeechResult = (text: string) => {
+    console.log("🗣️ [Voice] User said:", text);
+    setCurrentTranscript("");
+    // Treat as a new message
+    handleChatSubmit(text); // Pass directly to existing submit handler
+  };
+
+  const handleInterimResult = (text: string) => {
+    setCurrentTranscript(text);
+  };
+
+  const toggleListening = () => {
+    if (!speechManagerRef.current) return;
+
+    if (isListening) {
+      speechManagerRef.current.stop();
+      setIsListening(false);
+      setCurrentTranscript("");
+      setVoiceStatus("idle");
+    } else {
+      speechManagerRef.current.start({
+        onResult: handleSpeechResult,
+        onSpeechStart: handleInterrupt,
+        onInterimResult: handleInterimResult,
+        onStatusChange: setVoiceStatus,
+        onError: (err: any) => setVoiceStatus(`error: ${err}`)
+      });
+      setIsListening(true);
+    }
+  };
+
   const handleChatSubmit = async (text: string) => {
+    if (!text.trim()) return;
+
+    // Interrupt previous if any
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     // 1. Add User Message
     const userMsg: ChatMessage = { role: 'user', content: text };
     setChatMessages(prev => [...prev, userMsg]);
     setIsChatProcessing(true);
 
     try {
-      // 2. Trigger Thinking Animation
+      // 2. Trigger Thinking & Add Placeholder AI Message
       stageRef.current?.playAnimationAction(AnimationAction.THINKING);
 
-      // 3. Call LLM
-      const responseText = await sendMessageToOllama(text, selectedCharacter.systemPrompt);
+      // Add empty assistant message for streaming
+      setChatMessages(prev => [...prev, { role: 'assistant', content: '' }]);
 
-      const aiMsg: ChatMessage = { role: 'assistant', content: responseText };
-      setChatMessages(prev => [...prev, aiMsg]);
+      let streamBuffer = "";
 
-      // 4. Generate Speech & Animation
+      // 3. Call LLM (Streaming)
+      const responseText = await sendMessageToOllama(
+        text,
+        selectedCharacter.systemPrompt,
+        (token) => {
+          streamBuffer += token;
+          setChatMessages(prev => {
+            const newHistory = [...prev];
+            // Update the last message (which is our assistant placeholder)
+            const lastIndex = newHistory.length - 1;
+            if (lastIndex >= 0 && newHistory[lastIndex].role === 'assistant') {
+              newHistory[lastIndex] = {
+                ...newHistory[lastIndex],
+                content: streamBuffer
+              };
+            }
+            return newHistory;
+          });
+        },
+        controller.signal
+      );
+
+      // 4. Generate Speech & Animation (Full sentence for now)
+      // Check if aborted logic: try/catch handles AbortError usually?
+
       stageRef.current?.playAnimationAction(AnimationAction.RELAX);
-      const audioBlob = await generateSpeech(responseText, selectedCharacter.voiceStyle);
-      stageRef.current?.playAudio(audioBlob);
 
-    } catch (error) {
+      // Only speak if we have text (and wasn't interrupted/empty)
+      if (responseText && responseText.trim() && !controller.signal.aborted) {
+        const audioBlob = await generateSpeech(responseText, selectedCharacter.voiceStyle);
+        // Double check before playing
+        if (!controller.signal.aborted) {
+          stageRef.current?.playAudio(audioBlob);
+        }
+      }
+
+    } catch (error: any) {
+      if (error.name === 'AbortError') {
+        console.log("✋ [Chat] Request aborted (Interruption)");
+        // Optionally mark message as interrupted or just leave partial
+        setIsChatProcessing(false);
+        return;
+      }
       console.error("Chat Error:", error);
-      setChatMessages(prev => [...prev, { role: 'assistant', content: "[SYSTEM ERROR: Connection Lost]" }]);
+      // Remove the empty message if it failed, or update it
+      setChatMessages(prev => {
+        const newHistory = [...prev];
+        const lastIndex = newHistory.length - 1;
+        if (newHistory[lastIndex].role === 'assistant' && !newHistory[lastIndex].content) {
+          newHistory[lastIndex].content = "[SYSTEM ERROR: Connection Lost]";
+        } else {
+          newHistory.push({ role: 'assistant', content: "[SYSTEM ERROR: Connection Lost]" });
+        }
+        return newHistory;
+      });
       stageRef.current?.playAnimationAction(AnimationAction.SAD);
     } finally {
-      setIsChatProcessing(false);
+      // Only reset processing if we are truly done (not just aborted to start new one? 
+      // Actually new one sets processing true. 
+      // Races shouldn't happen inside single thread JS but React state...
+      // If we aborted *for new chat*, `handleChatSubmit` sets `true` at top.
+      // This `finally` runs for the *old* call. We should ensure we don't clobber the new state?
+      // With `abortControllerRef`, we can check:
+      if (abortControllerRef.current === controller) {
+        setIsChatProcessing(false);
+        abortControllerRef.current = null;
+      }
     }
   };
 
@@ -255,6 +376,9 @@ export function VRMControlPanel() {
           isChatProcessing={isChatProcessing}
           onOpenSettings={() => setIsSettingsOpen(true)}
           onOpenExhibition={() => setViewMode('exhibition')}
+          isListening={isListening}
+          onToggleListening={toggleListening}
+          voiceStatus={voiceStatus}
         />
       </aside>
 
@@ -313,6 +437,7 @@ export function VRMControlPanel() {
           onSendMessage={handleChatSubmit}
           onClearHistory={handleClearHistory}
           isProcessing={isChatProcessing}
+          currentTranscript={currentTranscript}
         />
       </aside>
 

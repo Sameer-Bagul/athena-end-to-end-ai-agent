@@ -1,5 +1,5 @@
 import * as React from "react";
-import { User, Activity, Save, Play, Pause, Monitor, Settings, LayoutGrid } from "lucide-react";
+import { User, Activity, Save, Play, Pause, Monitor, Settings, LayoutGrid, Mic, MicOff } from "lucide-react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Separator } from "./ui/separator";
@@ -27,9 +27,12 @@ interface SidePanelProps {
     animationFile: File | null;
     onAnimationUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
     // isChatProcessing is removed from destructuring but kept in type for compat
-    isChatProcessing?: boolean;
+    isChatProcessing: boolean;
     onOpenSettings: () => void;
     onOpenExhibition: () => void;
+    isListening: boolean;
+    onToggleListening: () => void;
+    voiceStatus?: string;
 }
 
 export function SidePanel({
@@ -47,8 +50,12 @@ export function SidePanel({
     onVrmUpload,
     animationFile,
     onAnimationUpload,
+    isChatProcessing,
     onOpenSettings,
-    onOpenExhibition
+    onOpenExhibition,
+    isListening,
+    onToggleListening,
+    voiceStatus
 }: SidePanelProps) {
     return (
         <div className="panel-glass border-r">
@@ -148,6 +155,49 @@ export function SidePanel({
                             type="animation"
                         />
                     </div>
+                </div>
+
+                <Separator className="bg-white/5" />
+
+                {/* Voice Uplink */}
+                <div className="space-y-2">
+                    <Label className="section-label mb-0 text-[10px] text-blue-400/80">
+                        <Mic className="size-3 mr-1.5" /> Voice Uplink
+                    </Label>
+                    <Button
+                        variant="ghost"
+                        disabled={isChatProcessing && !isListening}
+                        className={cn(
+                            "w-full h-9 border font-mono text-[10px] uppercase tracking-wider transition-all duration-300",
+                            isListening
+                                ? "bg-red-500/10 text-red-400 border-red-500/30 hover:bg-red-500/20"
+                                : "bg-black/20 text-muted-foreground border-white/5 hover:text-white hover:bg-white/5"
+                        )}
+                        onClick={onToggleListening}
+                    >
+                        {isListening ? (
+                            <>
+                                <span className="mr-2 relative flex h-2 w-2">
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                                </span>
+                                Listening...
+                            </>
+                        ) : (
+                            <>
+                                <MicOff className="size-3 mr-2" />
+                                Voice Integration Offline
+                            </>
+                        )}
+                    </Button>
+                    {voiceStatus && (
+                        <div className={cn(
+                            "text-[9px] font-mono text-center tracking-wider uppercase mt-1 truncate",
+                            voiceStatus.includes('error') ? "text-red-500" : "text-muted-foreground/60"
+                        )}>
+                            [{voiceStatus}]
+                        </div>
+                    )}
                 </div>
 
                 <Separator className="bg-white/5" />

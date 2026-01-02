@@ -50,7 +50,10 @@ export function ExhibitionPage({ onSelect, onCancel, initialModelId }: Exhibitio
     };
 
     const handleTakePhoto = () => {
-        playClick();
+        const audio = new Audio("sounds/cameraClick.mp3");
+        audio.volume = 0.5;
+        audio.play().catch(e => console.warn("Camera sound failed", e));
+
         if (threeStageRef.current) {
             // Request 4K resolution (3840 x 2160)
             const dataUrl = threeStageRef.current.captureScreenshot(3840, 2160);

@@ -10,6 +10,8 @@ require("dotenv/config");
 const llm_1 = require("../backend/llm");
 const tts_1 = require("../backend/tts");
 const isDev = process.env.NODE_ENV === "development";
+// Hack to try and unblock Google Speech API in Electron
+process.env.GOOGLE_API_KEY = "ignore";
 // Disable sandbox on Linux
 if (process.platform === "linux") {
     electron_1.app.commandLine.appendSwitch("no-sandbox");
@@ -32,6 +34,17 @@ function createWindow() {
     else {
         win.loadFile(path_1.default.join(__dirname, "../../renderer/dist/index.html"));
     }
+    // Grant microphone permission
+    win.webContents.session.setPermissionRequestHandler((webContents, permission, callback) => {
+        if (permission === 'media') {
+            callback(true);
+        }
+        else {
+            callback(false);
+        }
+    });
+    // Enable Web Speech API in Electron?
+    // Usually works out of the box in newer Electron versions if env is not completely stripped.
 }
 // IPC handlers for LLM and TTS
 electron_1.ipcMain.handle("llm:chat", async (_, messages) => {
@@ -66,4 +79,7 @@ electron_1.ipcMain.handle("chat:load-history", async () => {
         return null;
     }
 });
+// Bypass microphone permission prompts and enable speech API
+electron_1.app.commandLine.appendSwitch("use-fake-ui-for-media-stream");
+electron_1.app.commandLine.appendSwitch("enable-speech-dispatcher");
 electron_1.app.whenReady().then(createWindow);

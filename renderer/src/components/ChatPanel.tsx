@@ -14,9 +14,10 @@ interface ChatPanelProps {
     onSendMessage: (text: string) => void;
     onClearHistory?: () => void;
     isProcessing: boolean;
+    currentTranscript?: string;
 }
 
-export function ChatPanel({ messages, onSendMessage, onClearHistory, isProcessing }: ChatPanelProps) {
+export function ChatPanel({ messages, onSendMessage, onClearHistory, isProcessing, currentTranscript }: ChatPanelProps) {
     const [input, setInput] = React.useState("");
     const scrollRef = React.useRef<HTMLDivElement>(null);
     const messagesEndRef = React.useRef<HTMLDivElement>(null);
@@ -129,6 +130,15 @@ export function ChatPanel({ messages, onSendMessage, onClearHistory, isProcessin
                         </div>
                     </div>
                 ))}
+
+                {/* Live Transcript */}
+                {currentTranscript && (
+                    <div className="flex justify-end animate-in fade-in slide-in-from-bottom-2 duration-300">
+                        <div className="bg-primary/20 text-primary-foreground/80 border border-primary/20 rounded-2xl rounded-tr-none px-4 py-3 max-w-[85%] italic">
+                            <span className="animate-pulse">{currentTranscript}</span> ...
+                        </div>
+                    </div>
+                )}
 
                 {/* Invisible element to scroll to */}
                 <div ref={messagesEndRef} className="h-px w-full" />

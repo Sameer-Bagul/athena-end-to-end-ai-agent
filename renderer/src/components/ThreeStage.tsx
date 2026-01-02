@@ -8,6 +8,7 @@ import { LipSyncManager } from '../three/LipSyncManager';
 
 export interface ThreeStageHandle {
   playAudio: (blob: Blob) => void;
+  stopAudio: () => void;
   playAnimationAction: (action: AnimationAction) => void;
   captureScreenshot: (width?: number, height?: number) => string;
 }
@@ -62,6 +63,11 @@ const ThreeStageComponent = forwardRef<ThreeStageHandle, ThreeStageProps>(({
     playAudio: (blob: Blob) => {
       if (lipSyncRef.current) {
         lipSyncRef.current.playAudio(blob);
+      }
+    },
+    stopAudio: () => {
+      if (lipSyncRef.current) {
+        lipSyncRef.current.stop();
       }
     },
     playAnimationAction: (action: AnimationAction) => {
