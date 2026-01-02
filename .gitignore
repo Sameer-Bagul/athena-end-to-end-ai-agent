@@ -54,3 +54,7 @@ tmp/
 # OS
 Thumbs.db
 .DS_Store
+
+
+# Python
+services/stt-env/

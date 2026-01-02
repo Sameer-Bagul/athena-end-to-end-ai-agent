@@ -2,9 +2,11 @@
 import { app, BrowserWindow, ipcMain } from "electron";
 import path from "path";
 import fs from "fs";
+import { spawn } from "child_process";
 import "dotenv/config";
 import { chatWithLLM } from "../backend/llm";
 import { speak } from "../backend/tts";
+import { transcribe } from "../backend/stt";
 
 const isDev = process.env.NODE_ENV === "development";
 
@@ -14,6 +16,48 @@ process.env.GOOGLE_API_KEY = "ignore";
 // Disable sandbox on Linux
 if (process.platform === "linux") {
   app.commandLine.appendSwitch("no-sandbox");
+}
+
+let pythonServerProcess: any = null;
+
+function startPythonServer() {
+  const projectRoot = app.getAppPath();
+  const pythonBin = path.join(projectRoot, "services", "stt-env", "bin", "python");
+  const scriptPath = path.join(projectRoot, "services", "whisper-fast", "server.py");
+
+  console.log("🚀 [Electron] Starting Python Server...");
+  console.log("   Bin:", pythonBin);
+  console.log("   Script:", scriptPath);
+
+  if (!fs.existsSync(pythonBin)) {
+    console.error("❌ [Electron] Python executable not found at:", pythonBin);
+    return;
+  }
+  if (!fs.existsSync(scriptPath)) {
+    console.error("❌ [Electron] Python script not found at:", scriptPath);
+    return;
+  }
+
+  pythonServerProcess = spawn(pythonBin, [scriptPath], {
+    stdio: "pipe",
+    cwd: path.join(projectRoot, "services")
+  });
+
+  pythonServerProcess.stdout.on("data", (data: any) => {
+    console.log(`🐍 [Python] ${data.toString().trim()}`);
+  });
+
+  pythonServerProcess.stderr.on("data", (data: any) => {
+    console.error(`🐍 [Python ERROR] ${data.toString().trim()}`);
+  });
+
+  pythonServerProcess.on("close", (code: any) => {
+    console.log(`🛑 [Electron] Python server exited with code ${code}`);
+  });
+
+  pythonServerProcess.on("error", (err: any) => {
+    console.error("❌ [Electron] Failed to start Python server:", err);
+  });
 }
 
 function createWindow() {
@@ -59,6 +103,10 @@ ipcMain.handle("tts:generate", async (_, { text, voiceStyle }) => {
   return await speak(text, voiceStyle);
 });
 
+ipcMain.handle("stt:transcribe", async (_, buffer: Buffer) => {
+  return await transcribe(buffer);
+});
+
 // Chat History Persistence
 const CHAT_FILE = path.join(app.getPath("userData"), "chat-history.json");
 console.log("Chat History Path:", CHAT_FILE);
@@ -90,4 +138,14 @@ ipcMain.handle("chat:load-history", async () => {
 app.commandLine.appendSwitch("use-fake-ui-for-media-stream");
 app.commandLine.appendSwitch("enable-speech-dispatcher");
 
-app.whenReady().then(createWindow);
+app.whenReady().then(() => {
+  startPythonServer();
+  createWindow();
+});
+
+app.on("before-quit", () => {
+  if (pythonServerProcess) {
+    console.log("Killing Python server...");
+    pythonServerProcess.kill();
+  }
+});

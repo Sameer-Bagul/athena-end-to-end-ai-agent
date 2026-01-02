@@ -14,16 +14,7 @@ import type { AIConfig } from "./SettingsModal";
 import { SpeechRecognitionManager } from "../lib/SpeechRecognition";
 
 // Extend Window interface for our preload API
-declare global {
-  interface Window {
-    athena: {
-      chat: (messages: any[]) => Promise<string>;
-      tts: (text: string, voiceStyle?: string) => Promise<Blob>;
-      saveHistory: (history: ChatMessage[]) => Promise<boolean>;
-      loadHistory: () => Promise<ChatMessage[] | null>;
-    };
-  }
-}
+
 
 export function VRMControlPanel() {
   // --- State ---
@@ -204,6 +195,7 @@ export function VRMControlPanel() {
 
   const handleSpeechResult = (text: string) => {
     console.log("🗣️ [Voice] User said:", text);
+    console.log("🗣️ [Voice] Submitting to chat...");
     setCurrentTranscript("");
     // Treat as a new message
     handleChatSubmit(text); // Pass directly to existing submit handler
@@ -217,11 +209,14 @@ export function VRMControlPanel() {
     if (!speechManagerRef.current) return;
 
     if (isListening) {
-      speechManagerRef.current.stop();
+      console.log("🛑 [ControlPanel] Toggling OFF listening");
+      // Stop without aborting
+      speechManagerRef.current.stop(false);
       setIsListening(false);
       setCurrentTranscript("");
       setVoiceStatus("idle");
     } else {
+      console.log("▶️ [ControlPanel] Toggling ON listening");
       speechManagerRef.current.start({
         onResult: handleSpeechResult,
         onSpeechStart: handleInterrupt,
@@ -234,7 +229,11 @@ export function VRMControlPanel() {
   };
 
   const handleChatSubmit = async (text: string) => {
-    if (!text.trim()) return;
+    if (!text.trim()) {
+      console.warn("⚠️ [Chat] Empty text, ignoring submit");
+      return;
+    }
+    console.log("📩 [Chat] Submitting message:", text);
 
     // Interrupt previous if any
     if (abortControllerRef.current) {

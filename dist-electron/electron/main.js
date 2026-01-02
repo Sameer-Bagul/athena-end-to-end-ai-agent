@@ -6,15 +6,50 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const electron_1 = require("electron");
 const path_1 = __importDefault(require("path"));
 const fs_1 = __importDefault(require("fs"));
+const child_process_1 = require("child_process");
 require("dotenv/config");
 const llm_1 = require("../backend/llm");
 const tts_1 = require("../backend/tts");
+const stt_1 = require("../backend/stt");
 const isDev = process.env.NODE_ENV === "development";
 // Hack to try and unblock Google Speech API in Electron
 process.env.GOOGLE_API_KEY = "ignore";
 // Disable sandbox on Linux
 if (process.platform === "linux") {
     electron_1.app.commandLine.appendSwitch("no-sandbox");
+}
+let pythonServerProcess = null;
+function startPythonServer() {
+    const projectRoot = electron_1.app.getAppPath();
+    const pythonBin = path_1.default.join(projectRoot, "services", "stt-env", "bin", "python");
+    const scriptPath = path_1.default.join(projectRoot, "services", "whisper-fast", "server.py");
+    console.log("🚀 [Electron] Starting Python Server...");
+    console.log("   Bin:", pythonBin);
+    console.log("   Script:", scriptPath);
+    if (!fs_1.default.existsSync(pythonBin)) {
+        console.error("❌ [Electron] Python executable not found at:", pythonBin);
+        return;
+    }
+    if (!fs_1.default.existsSync(scriptPath)) {
+        console.error("❌ [Electron] Python script not found at:", scriptPath);
+        return;
+    }
+    pythonServerProcess = (0, child_process_1.spawn)(pythonBin, [scriptPath], {
+        stdio: "pipe",
+        cwd: path_1.default.join(projectRoot, "services")
+    });
+    pythonServerProcess.stdout.on("data", (data) => {
+        console.log(`🐍 [Python] ${data.toString().trim()}`);
+    });
+    pythonServerProcess.stderr.on("data", (data) => {
+        console.error(`🐍 [Python ERROR] ${data.toString().trim()}`);
+    });
+    pythonServerProcess.on("close", (code) => {
+        console.log(`🛑 [Electron] Python server exited with code ${code}`);
+    });
+    pythonServerProcess.on("error", (err) => {
+        console.error("❌ [Electron] Failed to start Python server:", err);
+    });
 }
 function createWindow() {
     const win = new electron_1.BrowserWindow({
@@ -53,6 +88,9 @@ electron_1.ipcMain.handle("llm:chat", async (_, messages) => {
 electron_1.ipcMain.handle("tts:generate", async (_, { text, voiceStyle }) => {
     return await (0, tts_1.speak)(text, voiceStyle);
 });
+electron_1.ipcMain.handle("stt:transcribe", async (_, buffer) => {
+    return await (0, stt_1.transcribe)(buffer);
+});
 // Chat History Persistence
 const CHAT_FILE = path_1.default.join(electron_1.app.getPath("userData"), "chat-history.json");
 console.log("Chat History Path:", CHAT_FILE);
@@ -82,4 +120,13 @@ electron_1.ipcMain.handle("chat:load-history", async () => {
 // Bypass microphone permission prompts and enable speech API
 electron_1.app.commandLine.appendSwitch("use-fake-ui-for-media-stream");
 electron_1.app.commandLine.appendSwitch("enable-speech-dispatcher");
-electron_1.app.whenReady().then(createWindow);
+electron_1.app.whenReady().then(() => {
+    startPythonServer();
+    createWindow();
+});
+electron_1.app.on("before-quit", () => {
+    if (pythonServerProcess) {
+        console.log("Killing Python server...");
+        pythonServerProcess.kill();
+    }
+});

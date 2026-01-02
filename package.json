@@ -12,8 +12,10 @@
     "start:prod": "NODE_ENV=production ELECTRON_DISABLE_SANDBOX=1 npx electron ."
   },
   "dependencies": {
+    "axios": "^1.13.2",
     "dotenv": "^17.2.3",
     "electron": "^39.2.7",
+    "form-data": "^4.0.5",
     "node-fetch": "^3.3.2",
     "vaul": "^1.1.2"
   },
