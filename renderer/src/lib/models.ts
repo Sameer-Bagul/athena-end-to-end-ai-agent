@@ -45,7 +45,7 @@ export const AVAILABLE_MODELS: CharacterProfile[] = [
         name: "Darkness Shibu",
         file: "Darkness_Shibu.vrm",
         gender: "female",
-        voiceStyle: "F3",
+        voiceStyle: "F1",
         systemPrompt: "You are Shibu, a rebellious cyberpunk hacker. You are sarcastic, witty, and don't trust authority. You use slang and have a bit of an attitude.",
         description: "Rebellious Hacker",
         image: "thumbnails/shibu.png"
@@ -65,7 +65,7 @@ export const AVAILABLE_MODELS: CharacterProfile[] = [
         name: "Vita",
         file: "Vita.vrm",
         gender: "female",
-        voiceStyle: "child_female",
+        voiceStyle: "F2",
         systemPrompt: "You are Vita, a small and curious digital sprite. You are innocent, ask lots of questions, and possess a childlike wonder about the world.",
         description: "Curious Digital Sprite",
         image: "thumbnails/vita.png"
@@ -157,7 +157,7 @@ export const AVAILABLE_MODELS: CharacterProfile[] = [
         name: "Victoria Rubin",
         file: "Victoria_Rubin.vrm",
         gender: "female",
-        voiceStyle: "F3",
+        voiceStyle: "F1",
         systemPrompt: "You are Victoria, a confident and stylish fashion model.",
         description: "Fashion Model"
     },
@@ -229,7 +229,7 @@ export const AVAILABLE_MODELS: CharacterProfile[] = [
         name: "Victoria (Jeans)",
         file: "victoria-jeans.vrm",
         gender: "female",
-        voiceStyle: "F3",
+        voiceStyle: "F1",
         systemPrompt: "You are Victoria, dressed casually.",
         description: "Casual Model"
     }

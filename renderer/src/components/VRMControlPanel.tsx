@@ -12,6 +12,18 @@ import { ExhibitionPage } from "./ExhibitionPage";
 import { SettingsModal } from "./SettingsModal";
 import type { AIConfig } from "./SettingsModal";
 
+// Extend Window interface for our preload API
+declare global {
+  interface Window {
+    athena: {
+      chat: (messages: any[]) => Promise<string>;
+      tts: (text: string, voiceStyle?: string) => Promise<Blob>;
+      saveHistory: (history: ChatMessage[]) => Promise<boolean>;
+      loadHistory: () => Promise<ChatMessage[] | null>;
+    };
+  }
+}
+
 export function VRMControlPanel() {
   // --- State ---
   const [selectedCharacter, setSelectedCharacter] = React.useState(AVAILABLE_MODELS[0]);
@@ -52,19 +64,53 @@ export function VRMControlPanel() {
   const [backgroundColor] = React.useState("#050510");
 
   // Chat State
-  const [chatMessages, setChatMessages] = React.useState<ChatMessage[]>(() => {
-    const saved = localStorage.getItem("athena-chat-history");
-    return saved ? JSON.parse(saved) : [
-      { role: 'assistant', content: 'Greetings. I am Athena. How can I assist you today?' }
-    ];
-  });
+  const [chatMessages, setChatMessages] = React.useState<ChatMessage[]>([
+    { role: 'assistant', content: 'Initializing...' }
+  ]);
   const [isChatProcessing, setIsChatProcessing] = React.useState(false);
 
   const [viewMode, setViewMode] = React.useState<'chat' | 'exhibition'>('chat');
 
-  // Persistence
+  // Load History on Mount
   React.useEffect(() => {
-    localStorage.setItem("athena-chat-history", JSON.stringify(chatMessages));
+    const loadData = async () => {
+      try {
+        if (window.athena?.loadHistory) {
+          const history = await window.athena.loadHistory();
+          if (history && Array.isArray(history) && history.length > 0) {
+            setChatMessages(history);
+          } else {
+            // Default welcome message if history is empty
+            setChatMessages([
+              { role: 'assistant', content: 'Greetings. I am Athena. How can I assist you today?' }
+            ]);
+          }
+        } else {
+          console.warn("Athena API not available, falling back to default.");
+          setChatMessages([
+            { role: 'assistant', content: 'Greetings. I am Athena. How can I assist you today?' }
+          ]);
+        }
+      } catch (e) {
+        console.error("Failed to load history", e);
+        setChatMessages([
+          { role: 'assistant', content: 'Greetings. I am Athena. How can I assist you today?' }
+        ]);
+      }
+    };
+    loadData();
+  }, []);
+
+  // Save History on Change
+  React.useEffect(() => {
+    const save = async () => {
+      if (chatMessages.length > 0 && window.athena?.saveHistory) {
+        console.log("Saving chat history...", chatMessages.length, "messages");
+        const success = await window.athena.saveHistory(chatMessages);
+        console.log("Chat history saved:", success);
+      }
+    };
+    save();
   }, [chatMessages]);
 
   React.useEffect(() => {
@@ -161,8 +207,9 @@ export function VRMControlPanel() {
   };
 
   const handleClearHistory = () => {
-    setChatMessages([{ role: 'assistant', content: 'History cleared. Ready for new input.' }]);
-    localStorage.removeItem("athena-chat-history");
+    const newHistory: ChatMessage[] = [{ role: 'assistant', content: 'History cleared. Ready for new input.' }];
+    setChatMessages(newHistory);
+    window.athena.saveHistory(newHistory);
   };
 
   // Cleanup blob URLs
@@ -260,7 +307,7 @@ export function VRMControlPanel() {
       </main>
 
       {/* --- Right Chat Panel (25%) --- */}
-      <aside className="h-full z-10 glass-panel">
+      <aside className="h-full z-10 overflow-hidden">
         <ChatPanel
           messages={chatMessages}
           onSendMessage={handleChatSubmit}
