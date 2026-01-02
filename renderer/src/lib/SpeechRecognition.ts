@@ -182,6 +182,10 @@ export class SpeechRecognitionManager {
     private processAudio() {
         if (this.recordingLength === 0 || !this.worker) return;
 
+        // Debug: Check Sample Rate & Amplitude
+        const realSampleRate = this.audioContext?.sampleRate;
+        console.log(`🎤 [AudioDebug] Context SampleRate: ${realSampleRate}Hz (Target: ${this.SAMPLE_RATE}Hz)`);
+
         // Filter short bursts (noise)
         if (this.recordingLength < this.MIN_SPEECH_SAMPLES) {
             console.log(`🎤 [VAD] Ignored short speech (${(this.recordingLength / this.SAMPLE_RATE).toFixed(2)}s)`);
@@ -199,6 +203,17 @@ export class SpeechRecognitionManager {
         }
 
         // Send to Worker
+        let maxVal = 0;
+        for (let i = 0; i < flatBuffer.length; i++) {
+            const val = Math.abs(flatBuffer[i]);
+            if (val > maxVal) maxVal = val;
+        }
+        console.log(`🎤 [AudioDebug] Buffer Len: ${flatBuffer.length}, Max Amplitude: ${maxVal.toFixed(4)}`);
+
+        if (maxVal === 0) {
+            console.warn('🎤 [AudioDebug] WARNING: Buffer is completely silent!');
+        }
+
         this.worker.postMessage({
             type: 'transcribe',
             audio: flatBuffer
