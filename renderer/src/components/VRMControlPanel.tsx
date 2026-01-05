@@ -16,7 +16,12 @@ import { SpeechRecognitionManager } from "../lib/SpeechRecognition";
 // Extend Window interface for our preload API
 
 
-export function VRMControlPanel() {
+
+interface VRMControlPanelProps {
+  onOpenFBXLab?: () => void;
+}
+
+export function VRMControlPanel({ onOpenFBXLab }: VRMControlPanelProps) {
   // --- State ---
   const [selectedCharacter, setSelectedCharacter] = React.useState(AVAILABLE_MODELS[0]);
   const [isSettingsOpen, setIsSettingsOpen] = React.useState(false);
@@ -490,7 +495,14 @@ export function VRMControlPanel() {
         )}
 
         {/* View Mode Toggle (Floating) */}
-        <div className="absolute top-4 right-4 z-20">
+        <div className="absolute top-4 right-4 z-20 flex gap-3">
+          <button
+            onClick={onOpenFBXLab}
+            className="flex items-center gap-2 px-3 py-2 rounded-full bg-blue-500/10 border border-blue-500/20 text-xs font-mono uppercase text-blue-300 hover:text-white hover:bg-blue-500/30 transition-all backdrop-blur-sm group"
+          >
+            <span>FBX Lab</span>
+          </button>
+
           <button
             onClick={() => setViewMode('exhibition')}
             className="flex items-center gap-2 px-3 py-2 rounded-full bg-black/40 border border-white/10 text-xs font-mono uppercase text-muted-foreground hover:text-white hover:bg-white/10 hover:border-white/20 transition-all backdrop-blur-sm group"
