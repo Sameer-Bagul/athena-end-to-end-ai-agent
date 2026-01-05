@@ -30,7 +30,7 @@ export class LipSyncManager {
         this.vrm = vrm;
     }
 
-    public async playAudio(audioBlob: Blob) {
+    public async playAudio(audioBlob: Blob): Promise<void> {
         if (!this.vrm) return;
 
         // Lazy Init AudioContext
@@ -46,34 +46,40 @@ export class LipSyncManager {
         // Stop previous audio
         this.stop();
 
-        try {
-            const arrayBuffer = await audioBlob.arrayBuffer();
-            const audioBuffer = await this.audioContext.decodeAudioData(arrayBuffer);
+        return new Promise(async (resolve) => {
+            try {
+                if (!this.audioContext) return resolve(); // Should not happen
 
-            this.source = this.audioContext.createBufferSource();
-            this.source.buffer = audioBuffer;
+                const arrayBuffer = await audioBlob.arrayBuffer();
+                const audioBuffer = await this.audioContext.decodeAudioData(arrayBuffer);
 
-            this.analyser = this.audioContext.createAnalyser();
-            this.analyser.fftSize = 1024; // Higher resolution for frequency analysis
-            this.analyser.smoothingTimeConstant = 0.3;
+                this.source = this.audioContext.createBufferSource();
+                this.source.buffer = audioBuffer;
 
-            this.source.connect(this.analyser);
-            this.analyser.connect(this.audioContext.destination);
+                this.analyser = this.audioContext.createAnalyser();
+                this.analyser.fftSize = 1024; // Higher resolution for frequency analysis
+                this.analyser.smoothingTimeConstant = 0.3;
 
-            this.dataArray = new Uint8Array(this.analyser.frequencyBinCount);
+                this.source.connect(this.analyser);
+                this.analyser.connect(this.audioContext.destination);
 
-            this.source.onended = () => {
+                this.dataArray = new Uint8Array(this.analyser.frequencyBinCount);
+
+                this.source.onended = () => {
+                    this.isPlaying = false;
+                    this.resetMouth();
+                    resolve();
+                };
+
+                this.source.start(0);
+                this.isPlaying = true;
+
+            } catch (error) {
+                console.error("Error playing audio:", error);
                 this.isPlaying = false;
-                this.resetMouth();
-            };
-
-            this.source.start(0);
-            this.isPlaying = true;
-
-        } catch (error) {
-            console.error("Error playing audio:", error);
-            this.isPlaying = false;
-        }
+                resolve(); // Resolve anyway to unblock queue
+            }
+        });
     }
 
     public stop() {

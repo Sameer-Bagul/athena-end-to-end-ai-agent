@@ -122,11 +122,13 @@ export function VRMControlPanel() {
   const speechManagerRef = React.useRef<SpeechRecognitionManager | null>(null);
   const abortControllerRef = React.useRef<AbortController | null>(null);
 
-  // Initialize Speech Manager
+  // Initialize Speech Manager & Cleanup
   React.useEffect(() => {
     speechManagerRef.current = new SpeechRecognitionManager();
     return () => {
       if (speechManagerRef.current) speechManagerRef.current.stop();
+      if (abortControllerRef.current) abortControllerRef.current.abort();
+      setIsChatProcessing(false); // Ensure we don't lock UI on unmount
     }
   }, []);
 
@@ -228,6 +230,36 @@ export function VRMControlPanel() {
     }
   };
 
+  // Audio Queue State
+  const audioQueueRef = React.useRef<Blob[]>([]);
+  const isPlayingAudioRef = React.useRef(false);
+
+  // Helper to process queue
+  const playNextInQueue = async () => {
+    if (isPlayingAudioRef.current || audioQueueRef.current.length === 0) return;
+
+    isPlayingAudioRef.current = true;
+    const blob = audioQueueRef.current.shift(); // Dequeue
+
+    if (blob && stageRef.current) {
+      try {
+        // This now returns a Promise thanks to our earlier change
+        await stageRef.current.playAudio(blob);
+      } catch (e) {
+        console.error("Audio Playback Error:", e);
+      }
+    }
+
+    isPlayingAudioRef.current = false;
+    // Recursively check for next
+    playNextInQueue();
+  };
+
+  const addToAudioQueue = (blob: Blob) => {
+    audioQueueRef.current.push(blob);
+    playNextInQueue();
+  };
+
   const handleChatSubmit = async (text: string) => {
     if (!text.trim()) {
       console.warn("⚠️ [Chat] Empty text, ignoring submit");
@@ -242,6 +274,11 @@ export function VRMControlPanel() {
     const controller = new AbortController();
     abortControllerRef.current = controller;
 
+    // Reset Audio Queue
+    audioQueueRef.current = [];
+    isPlayingAudioRef.current = false;
+    stageRef.current?.stopAudio();
+
     // 1. Add User Message
     const userMsg: ChatMessage = { role: 'user', content: text };
     setChatMessages(prev => [...prev, userMsg]);
@@ -255,16 +292,47 @@ export function VRMControlPanel() {
       setChatMessages(prev => [...prev, { role: 'assistant', content: '' }]);
 
       let streamBuffer = "";
+      let sentenceBuffer = "";
+
+      // Regex for sentence ending: punctuation followed by space or end of string
+      // Note: We need to be careful not to split on "Mr." or "Dr." etc, but simple is okay for now.
+      const sentenceRegex = /[.!?]+[\s\n]+/;
 
       // 3. Call LLM (Streaming)
-      const responseText = await sendMessageToOllama(
+      await sendMessageToOllama(
         text,
         selectedCharacter.systemPrompt,
         (token) => {
           streamBuffer += token;
+          sentenceBuffer += token;
+
+          // Check for complete sentence
+          // We look for the regex match. If found, we split, take the first part as sentence, 
+          // and keep the rest in buffer.
+          const match = sentenceBuffer.match(sentenceRegex);
+          if (match && match.index !== undefined) {
+            const endIdx = match.index + match[0].length;
+            const sentence = sentenceBuffer.substring(0, endIdx);
+            const remaining = sentenceBuffer.substring(endIdx);
+
+            // Trigger TTS for this sentence immediately
+            if (sentence.trim().length > 1) { // Avoid tiny noise
+              generateSpeech(sentence, selectedCharacter.voiceStyle)
+                .then(blob => {
+                  if (!controller.signal.aborted) {
+                    addToAudioQueue(blob);
+                    // If this is the first audio, switch animation to RELAX/Happy
+                    stageRef.current?.playAnimationAction(AnimationAction.RELAX);
+                  }
+                })
+                .catch(err => console.error("TTS Chunk Error:", err));
+            }
+
+            sentenceBuffer = remaining;
+          }
+
           setChatMessages(prev => {
             const newHistory = [...prev];
-            // Update the last message (which is our assistant placeholder)
             const lastIndex = newHistory.length - 1;
             if (lastIndex >= 0 && newHistory[lastIndex].role === 'assistant') {
               newHistory[lastIndex] = {
@@ -278,29 +346,25 @@ export function VRMControlPanel() {
         controller.signal
       );
 
-      // 4. Generate Speech & Animation (Full sentence for now)
-      // Check if aborted logic: try/catch handles AbortError usually?
-
-      stageRef.current?.playAnimationAction(AnimationAction.RELAX);
-
-      // Only speak if we have text (and wasn't interrupted/empty)
-      if (responseText && responseText.trim() && !controller.signal.aborted) {
-        const audioBlob = await generateSpeech(responseText, selectedCharacter.voiceStyle);
-        // Double check before playing
-        if (!controller.signal.aborted) {
-          stageRef.current?.playAudio(audioBlob);
+      // 4. Process any remaining text in buffer (final sentence)
+      if (sentenceBuffer.trim().length > 0 && !controller.signal.aborted) {
+        try {
+          const blob = await generateSpeech(sentenceBuffer, selectedCharacter.voiceStyle);
+          if (!controller.signal.aborted) {
+            addToAudioQueue(blob);
+          }
+        } catch (e) {
+          console.error("Final TTS Chunk Error:", e);
         }
       }
 
     } catch (error: any) {
       if (error.name === 'AbortError') {
         console.log("✋ [Chat] Request aborted (Interruption)");
-        // Optionally mark message as interrupted or just leave partial
         setIsChatProcessing(false);
         return;
       }
       console.error("Chat Error:", error);
-      // Remove the empty message if it failed, or update it
       setChatMessages(prev => {
         const newHistory = [...prev];
         const lastIndex = newHistory.length - 1;
@@ -313,16 +377,24 @@ export function VRMControlPanel() {
       });
       stageRef.current?.playAnimationAction(AnimationAction.SAD);
     } finally {
-      // Only reset processing if we are truly done (not just aborted to start new one? 
-      // Actually new one sets processing true. 
-      // Races shouldn't happen inside single thread JS but React state...
-      // If we aborted *for new chat*, `handleChatSubmit` sets `true` at top.
-      // This `finally` runs for the *old* call. We should ensure we don't clobber the new state?
-      // With `abortControllerRef`, we can check:
-      if (abortControllerRef.current === controller) {
+      // If this controller is still the active one OR if active one is null (cleaned up), reset processing.
+      // But actually, we just want to ensure we don't turn off processing if a NEW request replaced us.
+      // If abortControllerRef.current is NOT us, it means someone else took over or we were aborted.
+      // If we were aborted, we likely want to stop processing anyway? 
+      // The issue is if we crashed, abortControllerRef might still be us.
+
+      const isStillActive = abortControllerRef.current === controller;
+      if (isStillActive) {
         setIsChatProcessing(false);
         abortControllerRef.current = null;
+      } else {
+        // We were replaced or aborted. 
+        // If replaced, new one sets isChatProcessing=true, so we do nothing.
       }
+
+      // Safety Fallback: If we are here, we are done. 
+      // If the user can't type, it's because isChatProcessing is TRUE.
+      // If we are the active controller, we MUST set it false.
     }
   };
 

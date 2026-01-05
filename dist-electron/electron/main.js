@@ -51,6 +51,40 @@ function startPythonServer() {
         console.error("❌ [Electron] Failed to start Python server:", err);
     });
 }
+let ttsServerProcess = null;
+function startTTSServer() {
+    const projectRoot = electron_1.app.getAppPath();
+    // TTS Service Path
+    const ttsServicePath = path_1.default.join(projectRoot, "services", "TTS-supertonic");
+    const ttsScript = path_1.default.join(ttsServicePath, "src", "server.js");
+    console.log("🚀 [Electron] Starting TTS Server...");
+    console.log("   Script:", ttsScript);
+    if (!fs_1.default.existsSync(ttsScript)) {
+        console.error("❌ [Electron] TTS script not found at:", ttsScript);
+        return;
+    }
+    // We use the same 'node' binary that runs Electron? 
+    // No, Electron's node might differ. Safer to assume system 'node' or try to find one.
+    // For standard user install, 'node' in path is best bet.
+    // OR we can rely on `process.execPath` if it wasn't packaged? 
+    // Let's use simple 'node' for now, assuming dev env. 
+    ttsServerProcess = (0, child_process_1.spawn)("node", [ttsScript], {
+        stdio: "pipe",
+        cwd: ttsServicePath // Critical for relative imports/models in TTS
+    });
+    ttsServerProcess.stdout.on("data", (data) => {
+        console.log(`🗣️ [TTS] ${data.toString().trim()}`);
+    });
+    ttsServerProcess.stderr.on("data", (data) => {
+        console.error(`🗣️ [TTS ERROR] ${data.toString().trim()}`);
+    });
+    ttsServerProcess.on("close", (code) => {
+        console.log(`🛑 [Electron] TTS server exited with code ${code}`);
+    });
+    ttsServerProcess.on("error", (err) => {
+        console.error("❌ [Electron] Failed to start TTS server:", err);
+    });
+}
 function createWindow() {
     const win = new electron_1.BrowserWindow({
         width: 1920,
@@ -122,11 +156,16 @@ electron_1.app.commandLine.appendSwitch("use-fake-ui-for-media-stream");
 electron_1.app.commandLine.appendSwitch("enable-speech-dispatcher");
 electron_1.app.whenReady().then(() => {
     startPythonServer();
+    startTTSServer();
     createWindow();
 });
 electron_1.app.on("before-quit", () => {
     if (pythonServerProcess) {
         console.log("Killing Python server...");
         pythonServerProcess.kill();
+    }
+    if (ttsServerProcess) {
+        console.log("Killing TTS server...");
+        ttsServerProcess.kill();
     }
 });

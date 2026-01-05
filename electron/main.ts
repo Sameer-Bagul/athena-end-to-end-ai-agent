@@ -60,6 +60,51 @@ function startPythonServer() {
   });
 }
 
+let ttsServerProcess: any = null;
+
+function startTTSServer() {
+  const projectRoot = app.getAppPath();
+  // TTS Service Path
+  const ttsServicePath = path.join(projectRoot, "services", "TTS-supertonic");
+  const ttsScript = path.join(ttsServicePath, "src", "server.js");
+
+  console.log("🚀 [Electron] Starting TTS Server...");
+  console.log("   Script:", ttsScript);
+
+  if (!fs.existsSync(ttsScript)) {
+    console.error("❌ [Electron] TTS script not found at:", ttsScript);
+    return;
+  }
+
+  // We use the same 'node' binary that runs Electron? 
+  // No, Electron's node might differ. Safer to assume system 'node' or try to find one.
+  // For standard user install, 'node' in path is best bet.
+  // OR we can rely on `process.execPath` if it wasn't packaged? 
+  // Let's use simple 'node' for now, assuming dev env. 
+
+  ttsServerProcess = spawn("node", [ttsScript], {
+    stdio: "pipe",
+    cwd: ttsServicePath // Critical for relative imports/models in TTS
+  });
+
+  ttsServerProcess.stdout.on("data", (data: any) => {
+    console.log(`🗣️ [TTS] ${data.toString().trim()}`);
+  });
+
+  ttsServerProcess.stderr.on("data", (data: any) => {
+    console.error(`🗣️ [TTS ERROR] ${data.toString().trim()}`);
+  });
+
+  ttsServerProcess.on("close", (code: any) => {
+    console.log(`🛑 [Electron] TTS server exited with code ${code}`);
+  });
+
+  ttsServerProcess.on("error", (err: any) => {
+    console.error("❌ [Electron] Failed to start TTS server:", err);
+  });
+}
+
+
 function createWindow() {
   const win = new BrowserWindow({
     width: 1920,
@@ -140,6 +185,7 @@ app.commandLine.appendSwitch("enable-speech-dispatcher");
 
 app.whenReady().then(() => {
   startPythonServer();
+  startTTSServer();
   createWindow();
 });
 
@@ -147,5 +193,9 @@ app.on("before-quit", () => {
   if (pythonServerProcess) {
     console.log("Killing Python server...");
     pythonServerProcess.kill();
+  }
+  if (ttsServerProcess) {
+    console.log("Killing TTS server...");
+    ttsServerProcess.kill();
   }
 });
