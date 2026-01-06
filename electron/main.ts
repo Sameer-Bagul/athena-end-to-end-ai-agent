@@ -265,6 +265,27 @@ ipcMain.handle("stt:transcribe", async (_, buffer: Buffer) => {
   return await transcribe(buffer);
 });
 
+// Tool Proxy Handlers
+ipcMain.handle("tool:news", async (_, url: string) => {
+  try {
+    console.log(`📰 [Electron] Proxying News Request: ${url}`);
+
+    // Check if URL is valid newsapi.org URL to allow-list (security)
+    if (!url.startsWith("https://newsapi.org/")) {
+      throw new Error("Unauthorized URL");
+    }
+
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`News API Error: ${response.statusText}`);
+    }
+    return await response.json();
+  } catch (error: any) {
+    console.error("❌ [Electron] News request failed:", error);
+    return { error: error.message };
+  }
+});
+
 // Chat History Persistence
 const CHAT_FILE = path.join(app.getPath("userData"), "chat-history.json");
 console.log("Chat History Path:", CHAT_FILE);

@@ -226,6 +226,25 @@ electron_1.ipcMain.handle("tts:generate", async (_, { text, voiceStyle }) => {
 electron_1.ipcMain.handle("stt:transcribe", async (_, buffer) => {
     return await (0, stt_1.transcribe)(buffer);
 });
+// Tool Proxy Handlers
+electron_1.ipcMain.handle("tool:news", async (_, url) => {
+    try {
+        console.log(`📰 [Electron] Proxying News Request: ${url}`);
+        // Check if URL is valid newsapi.org URL to allow-list (security)
+        if (!url.startsWith("https://newsapi.org/")) {
+            throw new Error("Unauthorized URL");
+        }
+        const response = await fetch(url);
+        if (!response.ok) {
+            throw new Error(`News API Error: ${response.statusText}`);
+        }
+        return await response.json();
+    }
+    catch (error) {
+        console.error("❌ [Electron] News request failed:", error);
+        return { error: error.message };
+    }
+});
 // Chat History Persistence
 const CHAT_FILE = path_1.default.join(electron_1.app.getPath("userData"), "chat-history.json");
 console.log("Chat History Path:", CHAT_FILE);
