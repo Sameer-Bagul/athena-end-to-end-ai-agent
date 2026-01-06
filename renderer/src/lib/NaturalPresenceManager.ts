@@ -155,14 +155,20 @@ export class NaturalPresenceManager {
             // Z=0 is the lens. Z > 0 is behind camera (user). Z < 0 is in front (world).
             // We want the avatar to look "through" the screen at the user.
             // Placing it slightly behind the camera (Z=0.5) helps convergence.
-            const lookSensitivity = 2.0;
-            this.lookTargetObj.position.set(x * lookSensitivity * -1, y * lookSensitivity, 0.5);
-            // Note: Z is negative because camera looks down -Z. 
-            // Actually, if child of camera:
-            // Camera looks down -Z? No, default Threejs camera looks down -Z.
-            // But we want the target to be IN FRONT of the camera.
-            // So Z should be negative (if looking down -Z). 
-            // Wait, let's verify visual result. Usually Z=-1 is in front.
+            // 4. Saccades (Micro-movements)
+            // Human eyes jitter slightly. We add a tiny noise offset.
+            const time = Date.now() * 0.002;
+            const saccadeX = (Math.sin(time * 13) + Math.cos(time * 29)) * 0.02; // Very small jitter
+            const saccadeY = (Math.cos(time * 17) + Math.sin(time * 23)) * 0.02;
+
+            // Apply
+            // Z=1.0 puts the target 1 meter behid the camera (virtual screen plane), preventing cross-eyedness
+            const lookSensitivity = 1.5; // Tuned for better directness
+            this.lookTargetObj.position.set(
+                (x * lookSensitivity * -1) + saccadeX,
+                (y * lookSensitivity) + saccadeY,
+                1.0
+            );
 
             this.headFollower.setPose(headYaw * -1, headPitch, roll, dist);
 

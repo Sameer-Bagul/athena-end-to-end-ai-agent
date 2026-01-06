@@ -44,8 +44,9 @@ export function VRMControlPanel({ onOpenWidget }: VRMControlPanelProps) {
         actions.addMessage({ role: 'user', content: text });
         await processInput(text, {
             source: 'text',
-            onPlayAudio: async (blob) => {
-                if (stageRef.current) await stageRef.current.playAudio(blob);
+            onPlayAudio: async (blob: Blob, animation?: string) => {
+                // @ts-ignore - Handle updated signature
+                if (stageRef.current) await stageRef.current.playAudio(blob, animation);
             }
         });
     }, [processInput]);

@@ -8,7 +8,7 @@ import { LipSyncManager } from '../three/LipSyncManager';
 import { NaturalPresenceManager } from '../lib/NaturalPresenceManager';
 
 export interface ThreeStageHandle {
-  playAudio: (blob: Blob, isMuted?: boolean) => Promise<void>;
+  playAudio: (blob: Blob, animation?: string, isMuted?: boolean) => Promise<void>;
   stopAudio: () => void;
   playAnimationAction: (action: AnimationAction) => void;
   captureScreenshot: (width?: number, height?: number) => string;
@@ -65,11 +65,30 @@ const ThreeStageComponent = forwardRef<ThreeStageHandle, ThreeStageProps>(({
 
   // Expose methods to parent
   useImperativeHandle(ref, () => ({
-    playAudio: (blob: Blob, isMuted: boolean = false) => {
-      if (lipSyncRef.current) {
-        return lipSyncRef.current.playAudio(blob, isMuted);
+    playAudio: async (blob: Blob, animation?: string, isMuted: boolean = false) => {
+      // 1. Start Body Animation (Gestures)
+      if (animationManagerRef.current) {
+        // Default to THINKING (Talking gesture) if no specific animation requested
+        const action = (animation as AnimationAction) || AnimationAction.THINKING;
+
+        // If specific emotion loop, or just talking, play it
+        if (animationManagerRef.current.isAnimationLoaded(action)) {
+          animationManagerRef.current.play(action);
+        } else {
+          // Fallback if specific anim not found
+          animationManagerRef.current.play(AnimationAction.THINKING);
+        }
       }
-      return Promise.resolve();
+
+      // 2. Play Audio & Lip Sync
+      if (lipSyncRef.current) {
+        await lipSyncRef.current.playAudio(blob, isMuted);
+      }
+
+      // 3. Revert to Idle (Relax) after speech finishes
+      if (animationManagerRef.current) {
+        animationManagerRef.current.play(AnimationAction.RELAX);
+      }
     },
     stopAudio: () => {
       if (lipSyncRef.current) {
