@@ -1,9 +1,32 @@
+import { useRef } from "react";
 import { useAppStore } from "../context/AppContext";
 import { sendMessageToOllama, generateSpeech } from "../lib/api";
 import { ToolRegistry } from "../services/tools/core/registry";
 
 export function useAssistant() {
     const { state, actions } = useAppStore();
+
+    // Audio Queue Logic
+    const audioQueueRef = useRef<(() => Promise<void>)[]>([]);
+    const isPlayingRef = useRef(false);
+
+    const processAudioQueue = async () => {
+        if (isPlayingRef.current || audioQueueRef.current.length === 0) return;
+
+        isPlayingRef.current = true;
+        const task = audioQueueRef.current.shift();
+
+        if (task) {
+            try {
+                await task();
+            } catch (e) {
+                console.error("Audio playback error:", e);
+            }
+        }
+
+        isPlayingRef.current = false;
+        processAudioQueue();
+    };
 
     const processInput = async (
         text: string,
@@ -13,7 +36,11 @@ export function useAssistant() {
         }
     ) => {
         actions.setChatProcessing(true);
-        const shouldSpeak = options.source === 'voice' || state.isListening;
+        // User request: always respond with voice + text
+        const shouldSpeak = true;
+
+        // Reset queue on new input? Maybe optional, but safer to assume sequential conversation
+        // audioQueueRef.current = []; // Uncomment if we want interruptions
 
         try {
             // --- Tool Check ---
@@ -26,34 +53,77 @@ export function useAssistant() {
                 console.log("[useAssistant] Tool Context:", context);
             }
 
-            // 1. LLM Request
-            // Append context to the *user prompt* effectively, or we can send it as system message update.
-            // But modifying the prompt is easier for a stateless request.
+            // 1. Setup Prompt
             const fullPrompt = context ? `${context}\n${text}` : text;
 
-            const response = await sendMessageToOllama(fullPrompt);
-            actions.addMessage({ role: 'assistant', content: response });
+            // 2. Prepare Streaming State
+            // Add a placeholder message that we will update live
+            // We use a unique ID logic implicitly by targeting the last message
+            actions.addMessage({ role: 'assistant', content: '...' });
 
-            // 2. TTS Request (if applicable)
-            if (shouldSpeak) {
-                console.log(`🎤 [useAssistant] TTS Triggered (Source: ${options.source}, Listening: ${state.isListening})`);
-                try {
-                    const audio = await generateSpeech(response, state.selectedCharacter.voiceStyle);
-                    console.log("🎤 [useAssistant] Speech generated, playing...");
-                    await options.onPlayAudio(audio);
-                } catch (e) {
-                    console.error("[useAssistant] TTS failed", e);
+            let fullResponse = "";
+            let pendingSpeechText = "";
+
+            const queueSentence = (sentence: string) => {
+                console.log(`🎤 [Stream] Queuing speech: "${sentence}"`);
+                // Start generation immediately
+                const audioPromise = generateSpeech(sentence, state.selectedCharacter.voiceStyle)
+                    .catch(e => {
+                        console.error("TTS Gen Error:", e);
+                        return null;
+                    });
+
+                // Add playback task
+                audioQueueRef.current.push(async () => {
+                    const blob = await audioPromise;
+                    if (blob) {
+                        await options.onPlayAudio(blob);
+                    }
+                });
+
+                processAudioQueue();
+            };
+
+            // 3. Call LLM with Streaming
+            await sendMessageToOllama(fullPrompt, undefined, (token) => {
+                fullResponse += token;
+                pendingSpeechText += token;
+
+                // Live UI Update
+                actions.updateLastMessage(fullResponse);
+
+                if (shouldSpeak) {
+                    // Detect sentence completion
+                    // regex looks for [.!?] followed by space or newline
+                    const match = pendingSpeechText.match(/[.!?]+[\s\n]+|[\n]+/);
+                    if (match && match.index !== undefined) {
+                        const endIdx = match.index + match[0].length;
+                        const sentence = pendingSpeechText.substring(0, endIdx).trim();
+
+                        // Basic filtering to avoid stuttering on "A.I." or "Mr."
+                        // This can be improved with advanced NLP but simple length check helps
+                        if (sentence.length > 0) {
+                            queueSentence(sentence);
+                            pendingSpeechText = pendingSpeechText.substring(endIdx);
+                        }
+                    }
                 }
-            } else {
-                console.log("🎤 [useAssistant] Auto-speak skipped (Source not voice & Mic off)");
+            });
+
+            // 4. Handle Remainder
+            if (shouldSpeak && pendingSpeechText.trim().length > 0) {
+                queueSentence(pendingSpeechText.trim());
             }
+
+            // Final Update ensures clean state
+            actions.updateLastMessage(fullResponse);
 
         } catch (e) {
             console.error("[useAssistant] Chat error", e);
             actions.addMessage({ role: 'assistant', content: "Error: Could not process request." });
         } finally {
             actions.setChatProcessing(false);
-            actions.setTranscript(""); // Clear "Using tool..." message
+            actions.setTranscript("");
         }
     };
 

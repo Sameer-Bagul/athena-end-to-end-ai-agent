@@ -23,7 +23,7 @@ export class SpeechRecognitionManager {
     private vadInterval: any = null;
 
     private readonly VAD_THRESHOLD = 30;
-    private readonly SILENCE_DURATION = 1500;
+    private readonly SILENCE_DURATION = 800;
     private readonly CHECK_INTERVAL = 100;
 
     private onResultCallback: ((text: string) => void) | null = null;

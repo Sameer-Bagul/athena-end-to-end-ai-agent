@@ -1,4 +1,6 @@
 import * as React from "react";
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { Send, Bot, MessageSquare, Sparkles, User, Trash2 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -187,10 +189,9 @@ export function ChatPanel({ onSendMessage, onClearHistory }: ChatPanelProps) {
                     <div
                         key={idx}
                         className={cn(
-                            "flex flex-col gap-2 max-w-full animate-in slide-in-from-bottom-2 duration-300 fill-mode-backwards group",
+                            "flex flex-col gap-2 max-w-full group",
                             msg.role === "user" ? "items-end" : "items-start"
                         )}
-                        style={{ animationDelay: `${idx * 0.05}s` }}
                     >
                         {/* Avatar/Label Row */}
                         <div className={cn(
@@ -207,7 +208,38 @@ export function ChatPanel({ onSendMessage, onClearHistory }: ChatPanelProps) {
                                 ? "bg-gradient-to-br from-secondary/90 to-purple-600/90 text-white rounded-tr-sm border border-white/20 shadow-purple-900/20"
                                 : "bg-white/5 text-foreground border border-white/5 rounded-tl-sm shadow-black/20 hover:bg-white/10"
                         )}>
-                            {msg.content}
+                            <ReactMarkdown
+                                remarkPlugins={[remarkGfm]}
+                                components={{
+                                    ul: (props) => <ul className="list-disc pl-4 space-y-1" {...props} />,
+                                    ol: (props) => <ol className="list-decimal pl-4 space-y-1" {...props} />,
+                                    li: (props) => <li className="mb-1" {...props} />,
+                                    blockquote: (props) => <blockquote className="border-l-2 border-primary/50 pl-4 italic opacity-80" {...props} />,
+                                    code: (props) => {
+                                        const { children, className, node, ...rest } = props;
+                                        const match = /language-(\w+)/.exec(className || '')
+                                        return match ? (
+                                            <div className="relative">
+                                                <div className="absolute top-0 right-0 px-2 py-0.5 text-[10px] text-muted-foreground bg-white/5 rounded-bl">
+                                                    {match[1]}
+                                                </div>
+                                                <code {...rest} className={className}>
+                                                    {children}
+                                                </code>
+                                            </div>
+                                        ) : (
+                                            <code {...rest} className="bg-black/30 rounded px-1 py-0.5 font-mono text-xs">
+                                                {children}
+                                            </code>
+                                        )
+                                    },
+                                    pre: (props) => <pre className="bg-black/50 p-2 rounded-lg overflow-x-auto text-xs my-2 border border-white/10" {...props} />,
+                                    p: (props) => <p className="mb-2 last:mb-0" {...props} />,
+                                    a: (props) => <a className="text-primary hover:underline" target="_blank" rel="noopener noreferrer" {...props} />,
+                                }}
+                            >
+                                {msg.content}
+                            </ReactMarkdown>
                         </div>
                     </div>
                 ))}
@@ -240,7 +272,7 @@ export function ChatPanel({ onSendMessage, onClearHistory }: ChatPanelProps) {
             </div>
 
             {/* Input Area */}
-            <div className="p-4 pt-4 border-t border-white/10 bg-black/40 shrink-0 backdrop-blur-xl z-20">
+            <div className="p-4 pt-4 border-t border-white/10 bg-black/40 shrink-0 backdrop-blur-xl z-50">
                 <form onSubmit={handleSubmit} className="relative flex gap-2 items-end">
                     <Input
                         value={input}

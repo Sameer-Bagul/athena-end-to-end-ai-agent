@@ -74,6 +74,7 @@ export interface AppActions {
     // UI
     toggleLeftCollapse: () => void;
     toggleRightCollapse: () => void;
+    updateLastMessage: (content: string) => void;
 }
 
 const StoreContext = React.createContext<{ state: AppState; actions: AppActions } | null>(null);
@@ -220,7 +221,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         toggleSettings: (open) => setShowSettings(p => open ?? !p),
 
         toggleLeftCollapse: () => setIsLeftCollapsed(p => !p),
-        toggleRightCollapse: () => setIsRightCollapsed(p => !p)
+        toggleRightCollapse: () => setIsRightCollapsed(p => !p),
+        updateLastMessage: (content: string) => {
+            setChatMessages(prev => {
+                const newHistory = [...prev];
+                const lastIdx = newHistory.length - 1;
+                if (lastIdx >= 0) {
+                    newHistory[lastIdx] = { ...newHistory[lastIdx], content };
+                }
+                return newHistory;
+            });
+        }
     };
 
     const state: AppState = {

@@ -101,9 +101,7 @@
 }
 
 @layer base {
-  * {
-    @apply border-border outline-ring/50;
-  }
+  /* Removed aggressive wildcard selector */
 
   body {
     @apply bg-background text-foreground antialiased selection:bg-primary/30 selection:text-primary-foreground;

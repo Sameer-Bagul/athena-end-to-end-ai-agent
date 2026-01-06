@@ -41,6 +41,7 @@ export function VRMControlPanel({ onOpenWidget }: VRMControlPanelProps) {
 
     // 5. Chat Panel Handler
     const handleTextSubmit = React.useCallback(async (text: string) => {
+        actions.addMessage({ role: 'user', content: text });
         await processInput(text, {
             source: 'text',
             onPlayAudio: async (blob) => {
