@@ -28,6 +28,7 @@ export class AthenaScene {
   private fillLight: THREE.DirectionalLight | null = null;
   private backLight: THREE.DirectionalLight | null = null;
   private gridHelper: THREE.GridHelper | null = null;
+  private ground: THREE.Mesh | null = null;
 
   // Callbacks for external animation updates
   private onUpdateCallbacks: ((delta: number) => void)[] = [];
@@ -155,11 +156,11 @@ export class AthenaScene {
       opacity: 0.5,
       envMapIntensity: 1.0
     });
-    const ground = new THREE.Mesh(groundGeometry, groundMaterial);
-    ground.rotation.x = -Math.PI / 2;
-    ground.position.y = -0.01;
-    ground.receiveShadow = true;
-    this.scene.add(ground);
+    this.ground = new THREE.Mesh(groundGeometry, groundMaterial);
+    this.ground.rotation.x = -Math.PI / 2;
+    this.ground.position.y = -0.01;
+    this.ground.receiveShadow = true;
+    this.scene.add(this.ground);
     console.log('🟢 [AthenaScene] Added glassy ground plane');
 
     // 4. Fog to blend floor into sky
@@ -239,6 +240,22 @@ export class AthenaScene {
   public setGridVisible(visible: boolean): void {
     if (this.gridHelper) {
       this.gridHelper.visible = visible;
+    }
+  }
+
+  /**
+   * Set Environment Visibility (Ground, etc.)
+   */
+  public setEnvironmentVisible(visible: boolean): void {
+    if (this.ground) {
+      this.ground.visible = visible;
+    }
+    // Also toggle fog if environment is hidden to prevent haze on model
+    if (!visible) {
+      this.scene.fog = null;
+    } else {
+      // Restore fog (simplistic restore)
+      this.scene.fog = new THREE.FogExp2(0x24243e, 0.015);
     }
   }
 

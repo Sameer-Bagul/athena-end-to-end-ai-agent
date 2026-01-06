@@ -11,13 +11,23 @@ export interface ChatMessage {
 
 interface ChatPanelProps {
     messages: ChatMessage[];
-    onSendMessage: (text: string) => void;
+    onSendMessage: (text: string) => void | Promise<void>;
     onClearHistory?: () => void;
     isProcessing: boolean;
     currentTranscript?: string;
+    isCollapsed?: boolean;
+    onToggleCollapse?: () => void;
 }
 
-export function ChatPanel({ messages, onSendMessage, onClearHistory, isProcessing, currentTranscript }: ChatPanelProps) {
+export function ChatPanel({
+    messages,
+    onSendMessage,
+    onClearHistory,
+    isProcessing,
+    currentTranscript,
+    isCollapsed = false,
+    onToggleCollapse
+}: ChatPanelProps) {
     const [input, setInput] = React.useState("");
     const scrollRef = React.useRef<HTMLDivElement>(null);
     const messagesEndRef = React.useRef<HTMLDivElement>(null);
@@ -47,39 +57,73 @@ export function ChatPanel({ messages, onSendMessage, onClearHistory, isProcessin
         setInput("");
     };
 
+    // --- Collapsed View ---
+    if (isCollapsed) {
+        return (
+            <div className="panel-glass border-l h-full w-full flex flex-col items-center py-4 bg-black/60 backdrop-blur-xl gap-4">
+                <Button variant="ghost" size="icon" onClick={onToggleCollapse} className="size-8 text-muted-foreground hover:text-white">
+                    <MessageSquare className="size-4" />
+                </Button>
+
+                <div className="flex-1 flex flex-col items-center justify-center gap-4 opacity-50">
+                    <div className="writing-vertical-rl rotate-180 text-xs font-mono uppercase tracking-[0.3em] text-muted-foreground whitespace-nowrap">
+                        Communication Uplink
+                    </div>
+                </div>
+
+                <div className="mt-auto pb-4">
+                    <div className={cn("size-2 rounded-full", isProcessing ? "bg-accent animate-pulse" : "bg-primary/20")} />
+                </div>
+            </div>
+        );
+    }
+
+    // --- Expanded View ---
     return (
         <div className="panel-glass border-l font-sans h-full flex flex-col relative w-full">
             {/* Header */}
-            <div className="panel-header shrink-0 z-20 shadow-sm border-b border-white/10 bg-black/40 backdrop-blur-xl">
+            <div className="panel-header shrink-0 z-20 shadow-sm border-b border-white/10 bg-black/40 backdrop-blur-xl pr-2">
                 <div className="flex items-center gap-3">
-                    <div className="p-2 bg-gradient-to-br from-primary/20 to-secondary/20 rounded-xl border border-white/10 shadow-[0_0_15px_rgba(var(--primary),0.15)] ring-1 ring-white/5">
-                        <Bot className="size-5 text-primary drop-shadow-[0_0_8px_rgba(var(--primary),0.5)]" />
+                    <div className="p-1.5 bg-white/5 rounded-lg border border-white/5 ring-1 ring-white/5">
+                        <Bot className="size-4 text-primary" />
                     </div>
                     <div>
-                        <h3 className="panel-title text-sm tracking-wider">Athena <span className="text-secondary font-light opacity-80">AI</span></h3>
-                        <div className="flex items-center gap-2 mt-0.5">
-                            <span className={cn("size-1.5 rounded-full shadow-[0_0_8px_currentColor]", isProcessing ? "bg-accent animate-pulse" : "bg-primary")} />
-                            <span className="text-[9px] text-muted-foreground font-mono uppercase tracking-widest opacity-80">
+                        <h3 className="text-xs font-bold uppercase tracking-widest text-foreground">Athena <span className="text-secondary opacity-60">AI</span></h3>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                            <span className={cn("size-1 rounded-full shadow-[0_0_8px_currentColor]", isProcessing ? "bg-accent animate-pulse" : "bg-primary")} />
+                            <span className="text-[8px] text-muted-foreground font-mono uppercase tracking-widest opacity-80">
                                 {isProcessing ? "Thinking..." : "Online"}
                             </span>
                         </div>
                     </div>
                 </div>
-                {/* Clear Button */}
-                {messages.length > 1 && (
+
+                <div className="flex items-center gap-1">
+                    {/* Clear Button */}
+                    {messages.length > 1 && (
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => {
+                                if (confirm("Clear chat history?")) {
+                                    onClearHistory?.();
+                                }
+                            }}
+                            className="size-7 text-muted-foreground/40 hover:text-white hover:bg-white/5 rounded-md"
+                        >
+                            <Trash2 className="size-3.5" />
+                        </Button>
+                    )}
+                    {/* Collapse Button */}
                     <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => {
-                            if (confirm("Clear chat history?")) {
-                                onClearHistory?.();
-                            }
-                        }}
-                        className="h-8 w-8 text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
+                        onClick={onToggleCollapse}
+                        className="size-7 text-muted-foreground/40 hover:text-white hover:bg-white/5 rounded-md"
                     >
-                        <Trash2 className="size-4" />
+                        <MessageSquare className="size-3.5" />
                     </Button>
-                )}
+                </div>
             </div>
 
             {/* Message History - The ONLY scrollable area */}

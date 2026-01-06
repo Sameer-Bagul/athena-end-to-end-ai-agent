@@ -85,8 +85,11 @@ function startTTSServer() {
         console.error("❌ [Electron] Failed to start TTS server:", err);
     });
 }
+// Main Window Reference
+let mainWindow = null;
+let widgetWindow = null;
 function createWindow() {
-    const win = new electron_1.BrowserWindow({
+    mainWindow = new electron_1.BrowserWindow({
         width: 1920,
         height: 1080,
         backgroundColor: "#0b0b0b",
@@ -97,14 +100,14 @@ function createWindow() {
         }
     });
     if (isDev) {
-        win.loadURL("http://localhost:5173");
-        win.webContents.openDevTools();
+        mainWindow.loadURL("http://localhost:5173");
+        mainWindow.webContents.openDevTools();
     }
     else {
-        win.loadFile(path_1.default.join(__dirname, "../../renderer/dist/index.html"));
+        mainWindow.loadFile(path_1.default.join(__dirname, "../../renderer/dist/index.html"));
     }
     // Grant microphone permission
-    win.webContents.session.setPermissionRequestHandler((webContents, permission, callback) => {
+    mainWindow.webContents.session.setPermissionRequestHandler((webContents, permission, callback) => {
         if (permission === 'media') {
             callback(true);
         }
@@ -112,9 +115,78 @@ function createWindow() {
             callback(false);
         }
     });
-    // Enable Web Speech API in Electron?
-    // Usually works out of the box in newer Electron versions if env is not completely stripped.
+    mainWindow.on('closed', () => {
+        mainWindow = null;
+        // If main window closes, close widget too? Usually yes for this app.
+        if (widgetWindow) {
+            widgetWindow.close();
+        }
+    });
 }
+function createWidgetWindow() {
+    if (widgetWindow) {
+        widgetWindow.focus();
+        return;
+    }
+    widgetWindow = new electron_1.BrowserWindow({
+        width: 300,
+        height: 300,
+        minWidth: 200,
+        minHeight: 200,
+        backgroundColor: "#00000000",
+        transparent: true,
+        frame: false,
+        alwaysOnTop: true,
+        skipTaskbar: false,
+        resizable: true,
+        icon: path_1.default.join(__dirname, isDev ? "../../renderer/public/icon.png" : "../../renderer/dist/icon.png"),
+        webPreferences: {
+            preload: path_1.default.join(__dirname, "preload.js"),
+            sandbox: false
+        }
+    });
+    // Load same URL but with hash
+    if (isDev) {
+        widgetWindow.loadURL("http://localhost:5173/#widget");
+    }
+    else {
+        widgetWindow.loadFile(path_1.default.join(__dirname, "../../renderer/dist/index.html"), { hash: 'widget' });
+    }
+    widgetWindow.on('closed', () => {
+        widgetWindow = null;
+    });
+    // Grant permissions
+    widgetWindow.webContents.session.setPermissionRequestHandler((webContents, permission, callback) => {
+        if (permission === 'media')
+            callback(true);
+        else
+            callback(false);
+    });
+}
+electron_1.ipcMain.handle("widget:open", () => {
+    createWidgetWindow();
+});
+electron_1.ipcMain.handle("widget:close", () => {
+    if (widgetWindow) {
+        widgetWindow.close();
+    }
+});
+// Window Controls (Legacy/Shared)
+electron_1.ipcMain.handle("window:minimize", (event) => {
+    const win = electron_1.BrowserWindow.fromWebContents(event.sender);
+    win?.minimize();
+});
+electron_1.ipcMain.handle("window:maximize", (event) => {
+    const win = electron_1.BrowserWindow.fromWebContents(event.sender);
+    if (win?.isMaximized())
+        win.unmaximize();
+    else
+        win?.maximize();
+});
+electron_1.ipcMain.handle("window:close", (event) => {
+    const win = electron_1.BrowserWindow.fromWebContents(event.sender);
+    win?.close();
+});
 // IPC handlers for LLM and TTS
 electron_1.ipcMain.handle("llm:chat", async (_, messages) => {
     return await (0, llm_1.chatWithLLM)(messages);

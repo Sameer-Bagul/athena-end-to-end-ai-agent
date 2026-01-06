@@ -100,7 +100,12 @@ export class NaturalPresenceManager {
         // Only apply idle if NO face detected recently
         if (!this.isFaceDetected && (Date.now() - this.lastFaceTime > 1000)) {
             if (this.lookTargetObj && this.headFollower) {
-                this.lookTargetObj.position.set(target.x, 1.25 + target.y, 1.5);
+                // Target is attached to CAMERA. Position (0,0,0) = looking at lens.
+                // Idle noise gives us small x/y offsets.
+                // We want to look roughly at the camera, wandering slightly.
+                const scale = 0.5;
+                this.lookTargetObj.position.set(target.x * scale, target.y * scale * 0.5, 2.0); // Z=2.0 is behind camera (distance)
+
                 this.headFollower.setTarget(target);
             }
         }
@@ -146,9 +151,12 @@ export class NaturalPresenceManager {
             const dist = Math.sqrt(dX * dX + dY * dY);
 
             // Apply
-            // LookTarget is now child of CAMERA, so (0,0,dist) is center of screen.
+            // LookTarget is now child of CAMERA.
+            // Z=0 is the lens. Z > 0 is behind camera (user). Z < 0 is in front (world).
+            // We want the avatar to look "through" the screen at the user.
+            // Placing it slightly behind the camera (Z=0.5) helps convergence.
             const lookSensitivity = 2.0;
-            this.lookTargetObj.position.set(x * lookSensitivity * -1, y * lookSensitivity, -1.5);
+            this.lookTargetObj.position.set(x * lookSensitivity * -1, y * lookSensitivity, 0.5);
             // Note: Z is negative because camera looks down -Z. 
             // Actually, if child of camera:
             // Camera looks down -Z? No, default Threejs camera looks down -Z.

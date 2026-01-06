@@ -22,6 +22,7 @@ interface ThreeStageProps {
   lightIntensity: number;
   cameraFov: number;
   gridVisible: boolean;
+  environmentVisible?: boolean;
   shadowsEnabled: boolean;
   backgroundColor: string;
   speechText?: string;
@@ -39,6 +40,7 @@ const ThreeStageComponent = forwardRef<ThreeStageHandle, ThreeStageProps>(({
   lightIntensity,
   cameraFov,
   gridVisible,
+  environmentVisible,
   shadowsEnabled,
   backgroundColor,
   speechText,
@@ -244,11 +246,9 @@ const ThreeStageComponent = forwardRef<ThreeStageHandle, ThreeStageProps>(({
               onThumbnailGenerated(screenshot);
             }
 
-            // 3. Reset Camera
-            sceneRef.current.setCameraTarget(
-              new THREE.Vector3(0, 1.2, 2.5),
-              new THREE.Vector3(0, 1.0, 0)
-            );
+            // 3. Reset Camera - REMOVED
+            // We let the cameraMode effect handle positioning once isVrmReady is set
+            // sceneRef.current.setCameraTarget(...)
           }, 150);
         }
         // ---------------------------------
@@ -318,8 +318,13 @@ const ThreeStageComponent = forwardRef<ThreeStageHandle, ThreeStageProps>(({
     headNode.getWorldPosition(headPos);
 
     if (cameraMode === 'face') {
-      const targetPos = headPos.clone().add(new THREE.Vector3(0, 0.05, 0.5));
-      sceneRef.current.setCameraTarget(targetPos, headPos);
+      // Zoom closer and aim slightly higher for "eyes" focus
+      // Head bone is at neck. Eyes are ~10cm up.
+      const eyePos = headPos.clone().add(new THREE.Vector3(0, 0.12, 0));
+      const cameraOffset = new THREE.Vector3(0, 0.0, 0.35); // Level with eyes, 35cm away
+      const targetPos = eyePos.clone().add(cameraOffset);
+
+      sceneRef.current.setCameraTarget(targetPos, eyePos);
     } else if (cameraMode === 'half') {
       const hipsNode = vrmRef.current.humanoid.getNormalizedBoneNode('hips');
       if (hipsNode) {
@@ -335,7 +340,7 @@ const ThreeStageComponent = forwardRef<ThreeStageHandle, ThreeStageProps>(({
         new THREE.Vector3(0, 1.0, 0)
       );
     }
-  }, [cameraMode]);
+  }, [cameraMode, isVrmReady]);
 
   // Update scene properties
   useEffect(() => {
@@ -347,6 +352,12 @@ const ThreeStageComponent = forwardRef<ThreeStageHandle, ThreeStageProps>(({
     if (!sceneRef.current) return;
     sceneRef.current.setGridVisible(gridVisible ?? true);
   }, [gridVisible]);
+
+  useEffect(() => {
+    if (!sceneRef.current) return;
+    // Default to true if undefined
+    sceneRef.current.setEnvironmentVisible(environmentVisible ?? true);
+  }, [environmentVisible]);
 
   useEffect(() => {
     if (!sceneRef.current) return;

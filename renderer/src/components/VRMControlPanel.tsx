@@ -19,9 +19,10 @@ import { SpeechRecognitionManager } from "../lib/SpeechRecognition";
 
 interface VRMControlPanelProps {
   onOpenFBXLab?: () => void;
+  onOpenWidget?: () => void;
 }
 
-export function VRMControlPanel({ onOpenFBXLab }: VRMControlPanelProps) {
+export function VRMControlPanel({ onOpenFBXLab, onOpenWidget }: VRMControlPanelProps) {
   // --- State ---
   const [selectedCharacter, setSelectedCharacter] = React.useState(AVAILABLE_MODELS[0]);
   const [isSettingsOpen, setIsSettingsOpen] = React.useState(false);
@@ -75,8 +76,8 @@ export function VRMControlPanel({ onOpenFBXLab }: VRMControlPanelProps) {
   React.useEffect(() => {
     const loadData = async () => {
       try {
-        if (window.athena?.loadHistory) {
-          const history = await window.athena.loadHistory();
+        if (window.athena?.loadChatHistory) {
+          const history = await window.athena.loadChatHistory();
           if (history && Array.isArray(history) && history.length > 0) {
             setChatMessages(history);
           } else {
@@ -104,9 +105,9 @@ export function VRMControlPanel({ onOpenFBXLab }: VRMControlPanelProps) {
   // Save History on Change
   React.useEffect(() => {
     const save = async () => {
-      if (chatMessages.length > 0 && window.athena?.saveHistory) {
+      if (chatMessages.length > 0 && window.athena?.saveChatHistory) {
         console.log("Saving chat history...", chatMessages.length, "messages");
-        const success = await window.athena.saveHistory(chatMessages);
+        const success = await window.athena.saveChatHistory(chatMessages);
         console.log("Chat history saved:", success);
       }
     };
@@ -406,7 +407,7 @@ export function VRMControlPanel({ onOpenFBXLab }: VRMControlPanelProps) {
   const handleClearHistory = () => {
     const newHistory: ChatMessage[] = [{ role: 'assistant', content: 'History cleared. Ready for new input.' }];
     setChatMessages(newHistory);
-    window.athena.saveHistory(newHistory);
+    window.athena.saveChatHistory(newHistory);
   };
 
   // Cleanup blob URLs
@@ -417,8 +418,33 @@ export function VRMControlPanel({ onOpenFBXLab }: VRMControlPanelProps) {
     };
   }, [vrmUrl, animationUrl]);
 
+
+  // Layout State
+  const [isLeftCollapsed, setIsLeftCollapsed] = React.useState(false);
+  const [isRightCollapsed, setIsRightCollapsed] = React.useState(false);
+
+  // Calculate Grid Template
+  // Left: 25% or 80px (collapsed)
+  // Right: 25% or 0px (hidden) -> wait, if right is chat, maybe we want it hidden completely or just icon strip?
+  // User said "collapsing feature to BOTH".
+  // Let's make Left: [280px / 70px] and Right: [320px / 0px or 60px]
+  // Ideally use flexbox for the center to take remaining space.
+
+  // Actually, keeping grid is stable. 
+  // Cols: [LeftWidth] 1fr [RightWidth]
+  const leftWidth = isLeftCollapsed ? "70px" : "280px";
+  const rightWidth = isRightCollapsed ? "60px" : "320px"; // 60px strip for chat toggle
+
   return (
-    <div className="app-layout font-sans relative">
+    <div
+      className="app-layout font-sans relative transition-all duration-300 ease-in-out"
+      style={{
+        display: 'grid',
+        gridTemplateColumns: `${leftWidth} 1fr ${rightWidth}`,
+        width: '100vw',
+        height: '100%'
+      }}
+    >
 
       {/* Exhibition Overlay */}
       {viewMode === 'exhibition' && (
@@ -433,7 +459,7 @@ export function VRMControlPanel({ onOpenFBXLab }: VRMControlPanelProps) {
       )}
 
       {/* --- Link SidePanel (Left) --- */}
-      <aside className="h-full z-10">
+      <aside className="h-full z-10 transition-all duration-300 overflow-hidden relative">
         <SidePanel
           selectedCharacter={selectedCharacter}
           onModelSelect={handleModelSelect}
@@ -455,6 +481,9 @@ export function VRMControlPanel({ onOpenFBXLab }: VRMControlPanelProps) {
           isListening={isListening}
           onToggleListening={toggleListening}
           voiceStatus={voiceStatus}
+          // Collapse Props
+          isCollapsed={isLeftCollapsed}
+          onToggleCollapse={() => setIsLeftCollapsed(!isLeftCollapsed)}
         />
       </aside>
 
@@ -465,9 +494,9 @@ export function VRMControlPanel({ onOpenFBXLab }: VRMControlPanelProps) {
         onSave={setAiConfig}
       />
 
-      {/* --- Center 3D Stage (50%) --- */}
-      <main className="h-full relative overflow-hidden bg-black/50 z-0 border-x border-white/5">
-        {/* We keep the transparent logic so the body gradient shows through, or ThreeStage renders its own env */}
+      {/* --- Center 3D Stage --- */}
+      <main className="h-full relative overflow-hidden bg-black/50 z-0 border-x border-white/5 opacity-100">
+
         {vrmUrl ? (
           <ThreeStage
             ref={stageRef}
@@ -510,17 +539,28 @@ export function VRMControlPanel({ onOpenFBXLab }: VRMControlPanelProps) {
             <LayoutGrid className="size-4 group-hover:text-primary transition-colors" />
             <span>Exhibition Mode</span>
           </button>
+
+          <button
+            onClick={onOpenWidget}
+            className="flex items-center gap-2 px-3 py-2 rounded-full bg-purple-500/10 border border-purple-500/20 text-xs font-mono uppercase text-purple-300 hover:text-white hover:bg-purple-500/30 transition-all backdrop-blur-sm group"
+          >
+            <Box className="size-4" />
+            <span>Widget</span>
+          </button>
         </div>
       </main>
 
       {/* --- Right Chat Panel (25%) --- */}
-      <aside className="h-full z-10 overflow-hidden">
+      <aside className="h-full z-10 overflow-hidden transition-all duration-300">
         <ChatPanel
           messages={chatMessages}
           onSendMessage={handleChatSubmit}
           onClearHistory={handleClearHistory}
           isProcessing={isChatProcessing}
           currentTranscript={currentTranscript}
+          // Collapse Props
+          isCollapsed={isRightCollapsed}
+          onToggleCollapse={() => setIsRightCollapsed(!isRightCollapsed)}
         />
       </aside>
 

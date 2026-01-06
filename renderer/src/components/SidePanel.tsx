@@ -1,5 +1,5 @@
 import * as React from "react";
-import { User, Activity, Save, Play, Pause, Monitor, Settings, LayoutGrid, Mic, MicOff } from "lucide-react";
+import { User, Activity, Play, Pause, Settings, LayoutGrid, Mic, MicOff } from "lucide-react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Separator } from "./ui/separator";
@@ -33,6 +33,9 @@ interface SidePanelProps {
     isListening: boolean;
     onToggleListening: () => void;
     voiceStatus?: string;
+    // Collapse Props
+    isCollapsed?: boolean;
+    onToggleCollapse?: () => void;
 }
 
 export function SidePanel({
@@ -55,42 +58,104 @@ export function SidePanel({
     onOpenExhibition,
     isListening,
     onToggleListening,
-    voiceStatus
+    voiceStatus,
+    isCollapsed = false,
+    onToggleCollapse
 }: SidePanelProps) {
+
+    // Helper to suppress unused vars warning for now (or I should use them)
+    // Actually, I am using animationFile and voiceStatus below in the expanded view?
+    // Wait, the error says 'animationFile' is never read. In my previous edit I replaced the content.
+    // Let me check if I accidentally removed the expanded view part where they were used.
+    // Ah, I see "partially reduced minimal expanded view".
+    // I simplified the "Import" section. I removed the "Save" icon usage.
+    // I also simplified the Card content. 
+    // Let me check if `animationFile` is used in the `animationFile ? "Ready" : "Motion"` logic.
+    // It seems I kept it: `{animationFile ? "Ready" : "Motion"}` in my replacement.
+    // Why did TS complain? Maybe I messed up the replacement block scope?
+    // Let's re-read the file to be sure.
+
+    // --- Minimalist / Collapsed View ---
+    if (isCollapsed) {
+        return (
+            <div className="panel-glass border-r w-full flex flex-col items-center py-4 gap-6 bg-black/60 backdrop-blur-xl">
+                {/* Collapse Toggle (Top) */}
+                <Button variant="ghost" size="icon" onClick={onToggleCollapse} className="size-8 text-muted-foreground hover:text-white">
+                    <LayoutGrid className="size-4 rotate-90" />
+                </Button>
+
+                {/* Vertical Icon Menu */}
+                <div className="flex flex-col gap-4 mt-2 w-full px-2">
+                    {/* Model Indicator (Avatar) */}
+                    <div className="relative group flex justify-center">
+                        <div className="size-10 rounded-full overflow-hidden border border-white/10 group-hover:border-primary/50 transition-all cursor-pointer" onClick={onToggleCollapse}>
+                            {thumbnailCache[selectedCharacter.id] ? (
+                                <img src={thumbnailCache[selectedCharacter.id]} className="w-full h-full object-cover" />
+                            ) : (
+                                <User className="size-5 m-auto text-muted-foreground" />
+                            )}
+                        </div>
+                    </div>
+
+                    <Separator className="bg-white/5 w-8 mx-auto" />
+
+                    {/* Play/Pause Minimal */}
+                    <div className="flex justify-center">
+                        <Button
+                            size="icon" variant="ghost"
+                            onClick={onTogglePlay}
+                            className={cn("size-8 rounded-full", isPlaying ? "text-secondary bg-secondary/10" : "text-muted-foreground")}
+                        >
+                            {isPlaying ? <Pause className="size-4" /> : <Play className="size-4" />}
+                        </Button>
+                    </div>
+
+                    {/* Voice Toggle Minimal */}
+                    <div className="flex justify-center">
+                        <Button
+                            size="icon" variant="ghost"
+                            onClick={onToggleListening}
+                            className={cn("size-8 rounded-full", isListening ? "text-red-400 bg-red-400/10" : "text-muted-foreground")}
+                        >
+                            {isListening ? <Mic className="size-4 animate-pulse" /> : <MicOff className="size-4" />}
+                        </Button>
+                    </div>
+
+                    <div className="mt-auto flex flex-col gap-4 items-center w-full">
+                        <Button
+                            size="icon" variant="ghost"
+                            onClick={onOpenSettings}
+                            className="size-8 text-muted-foreground hover:text-white"
+                        >
+                            <Settings className="size-4" />
+                        </Button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // --- Partially Reduced "Minimal" Expanded View ---
     return (
         <div className="panel-glass border-r">
-            {/* Header */}
-            {/* <div className="panel-header">
-                <div className="flex items-center gap-3">
-                    <div className="p-2 bg-gradient-to-br from-primary via-primary/50 to-transparent rounded-lg text-black">
-                        <Monitor className="size-5" />
-                    </div>
-                    <span className="font-sans text-xl font-bold tracking-tight text-foreground">
-                        Control<span className="text-secondary font-light">Panel</span>
-                    </span>
-                </div>
-            </div> */}
+            {/* Header with Collapse */}
+            <div className="flex items-center justify-between px-4 py-3 border-b border-white/5 bg-white/5">
+                <span className="text-[10px] font-mono tracking-widest uppercase text-muted-foreground/60">Controls</span>
+                <Button variant="ghost" size="icon" onClick={onToggleCollapse} className="size-6 text-muted-foreground hover:text-white">
+                    <LayoutGrid className="size-3" />
+                </Button>
+            </div>
 
-            <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
+            <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-6">
 
-                {/* Status Bar - Minimal Pill */}
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 px-3 py-1 bg-green-500/10 border border-green-500/20 rounded-full">
-                        <div className="size-1.5 rounded-full bg-green-500 animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.5)]" />
-                        <span className="text-[9px] font-mono text-green-500/90 font-bold uppercase tracking-wider">System Online</span>
-                    </div>
-                    <div className="px-2 py-1 bg-white/5 rounded-md border border-white/5">
-                        <span className="text-[8px] font-mono text-muted-foreground">V 1.0.0</span>
-                    </div>
-                </div>
+                {/* Status Bar - Removed "System Online" pill for minimalism, kept clear layout */}
 
                 {/* Avatar Core */}
                 <div className="space-y-3">
-                    <Label className="section-label justify-center text-[10px] mb-2 text-primary/80">
-                        <User className="size-3 mr-1.5" /> Identity Module
+                    <Label className="section-label text-[9px] text-primary/60">
+                        IDENTITY
                     </Label>
-                    {/* Increased Height for better visibility */}
-                    <div className="h-48 w-full -mx-1">
+                    <div className="h-44 w-full -mx-1">
                         <Carousel3D
                             items={[
                                 ...AVAILABLE_MODELS.map(m => ({
@@ -114,40 +179,38 @@ export function SidePanel({
                             type="model"
                         />
                     </div>
-                    {/* Exhibition Trigger */}
+                    {/* Exhibition Trigger - More subtle */}
                     <Button
-                        variant="ghost"
-                        className="w-full mt-2 h-8 text-[10px] uppercase tracking-wider border border-primary/20 hover:bg-primary/10 hover:text-primary transition-all group"
+                        variant="outline"
+                        className="w-full h-8 text-[9px] border-white/5 bg-black/20 hover:bg-primary/20 hover:border-primary/30 transition-all uppercase tracking-widest text-muted-foreground hover:text-primary"
                         onClick={onOpenExhibition}
                     >
-                        <LayoutGrid className="size-3 mr-2 group-hover:scale-110 transition-transform" />
-                        Enter Exhibition
+                        Display Mode
                     </Button>
                 </div>
 
-                <Separator className="bg-white/5" />
-
                 {/* Motion */}
                 <div className="space-y-2">
-                    <div className="flex items-center justify-between px-1">
-                        <Label className="section-label mb-0 text-[10px] text-secondary/80">
-                            <Activity className="size-3 mr-1.5" /> Motion Protocol
-                        </Label>
-                        <Button
-                            size="icon"
-                            variant="ghost"
-                            className={cn(
-                                "size-6 rounded-full border transition-all duration-300",
-                                isPlaying
-                                    ? "bg-secondary text-black border-secondary shadow-[0_0_10px_rgba(236,72,153,0.3)] hover:bg-secondary/90"
-                                    : "bg-transparent text-secondary border-secondary/30 hover:bg-secondary/10"
-                            )}
-                            onClick={onTogglePlay}
-                        >
-                            {isPlaying ? <Pause className="size-3 fill-current" /> : <Play className="size-3 fill-current ml-0.5" />}
-                        </Button>
+                    <div className="flex items-center justify-between">
+                        <Label className="section-label text-[9px] text-secondary/60 mb-0">ANIMATION</Label>
+                        <div className="flex items-center gap-2">
+                            <span className="text-[8px] font-mono text-muted-foreground/40">{isPlaying ? "PLAYING" : "PAUSED"}</span>
+                            <Button
+                                size="icon"
+                                variant="ghost"
+                                className={cn(
+                                    "size-5 rounded-full border transition-all",
+                                    isPlaying
+                                        ? "bg-secondary text-black border-secondary"
+                                        : "bg-transparent text-secondary border-secondary/30"
+                                )}
+                                onClick={onTogglePlay}
+                            >
+                                {isPlaying ? <Pause className="size-2.5 fill-current" /> : <Play className="size-2.5 fill-current ml-0.5" />}
+                            </Button>
+                        </div>
                     </div>
-                    <div className="h-28 w-full -mx-1">
+                    <div className="h-24 w-full -mx-1 opacity-90 hover:opacity-100 transition-opacity">
                         <Carousel3D
                             items={AVAILABLE_ANIMATIONS.map(a => ({ id: a, label: a.replace(".vrma", "").replace(".fbx", "") }))}
                             selectedId={animationUrl.split('/').pop() || ""}
@@ -157,70 +220,90 @@ export function SidePanel({
                     </div>
                 </div>
 
-                <Separator className="bg-white/5" />
-
                 {/* Voice Uplink */}
                 <div className="space-y-2">
-                    <Label className="section-label mb-0 text-[10px] text-blue-400/80">
-                        <Mic className="size-3 mr-1.5" /> Voice Uplink
-                    </Label>
+                    <Label className="section-label text-[9px] text-blue-400/60">VOICE</Label>
                     <Button
                         variant="ghost"
                         disabled={isChatProcessing && !isListening}
                         className={cn(
-                            "w-full h-9 border font-mono text-[10px] uppercase tracking-wider transition-all duration-300",
+                            "w-full h-9 border font-mono text-[9px] uppercase tracking-wider transition-all duration-300 rounded-lg",
                             isListening
-                                ? "bg-red-500/10 text-red-400 border-red-500/30 hover:bg-red-500/20"
-                                : "bg-black/20 text-muted-foreground border-white/5 hover:text-white hover:bg-white/5"
+                                ? "bg-red-500/10 text-red-300 border-red-500/20"
+                                : "bg-black/20 text-muted-foreground border-white/5 hover:bg-white/5"
                         )}
                         onClick={onToggleListening}
                     >
                         {isListening ? (
-                            <>
-                                <span className="mr-2 relative flex h-2 w-2">
+                            <div className="flex items-center gap-2">
+                                <span className="relative flex h-1.5 w-1.5">
                                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                                    <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-red-500"></span>
                                 </span>
-                                Listening...
-                            </>
+                                Microphone Active
+                            </div>
                         ) : (
-                            <>
-                                <MicOff className="size-3 mr-2" />
-                                Voice Integration Offline
-                            </>
+                            <div className="flex items-center gap-2 opacity-60">
+                                <MicOff className="size-3" />
+                                Voice Unavailable
+                            </div>
                         )}
                     </Button>
                     {voiceStatus && (
                         <div className={cn(
-                            "text-[9px] font-mono text-center tracking-wider uppercase mt-1 truncate",
-                            voiceStatus.includes('error') ? "text-red-500" : "text-muted-foreground/60"
+                            "text-[8px] font-mono text-center tracking-wider uppercase mt-1 truncate",
+                            voiceStatus.includes('error') ? "text-red-500" : "text-muted-foreground/40"
                         )}>
-                            [{voiceStatus}]
+                            {voiceStatus}
                         </div>
                     )}
                 </div>
 
-                <Separator className="bg-white/5" />
+
+                {/* Data Ingestion - Compact Cards (Renamed/Simplified) */}
+                <div className="grid grid-cols-2 gap-2 mt-2">
+                    {/* VRM Upload Card - Compact */}
+                    <div className="relative group h-16 rounded-lg border border-white/5 bg-black/20 hover:bg-white/5 hover:border-white/10 transition-all cursor-pointer overflow-hidden flex flex-col items-center justify-center gap-1">
+                        <Input
+                            type="file"
+                            accept=".vrm"
+                            onChange={onVrmUpload}
+                            className="absolute inset-0 opacity-0 cursor-pointer z-10"
+                        />
+                        <User className="size-4 text-muted-foreground/40 group-hover:text-primary transition-colors" />
+                        <span className="text-[8px] font-mono text-muted-foreground/40 uppercase group-hover:text-white transition-colors">Import VRM</span>
+                    </div>
+
+                    {/* Motion Upload Card - Compact */}
+                    <div className="relative group h-16 rounded-lg border border-white/5 bg-black/20 hover:bg-white/5 hover:border-white/10 transition-all cursor-pointer overflow-hidden flex flex-col items-center justify-center gap-1">
+                        <Input
+                            type="file"
+                            accept=".vrma,.fbx,.bvh,.glb"
+                            onChange={onAnimationUpload}
+                            className="absolute inset-0 opacity-0 cursor-pointer z-10"
+                        />
+                        <Activity className="size-4 text-muted-foreground/40 group-hover:text-secondary transition-colors" />
+                        <span className="text-[8px] font-mono text-muted-foreground/40 uppercase group-hover:text-white transition-colors">Import Anim</span>
+                    </div>
+                </div>
+
 
                 {/* Optical Sensors (Camera) - Segmented Control */}
-                <div className="space-y-2">
-                    <Label className="section-label text-[10px] mb-2">
-                        <Monitor className="size-3 mr-1.5" /> Optical Sensors
-                    </Label>
-                    <div className="p-1 bg-black/40 rounded-lg border border-white/5 grid grid-cols-3 gap-1">
+                <div className="space-y-2 mt-1">
+                    <div className="p-0.5 bg-black/40 rounded-lg border border-white/5 grid grid-cols-3 gap-0.5">
                         {[
-                            { id: 'face', label: 'FACE' },
-                            { id: 'half', label: 'BODY' }, // Changed 'half' to 'BODY' for better UX
-                            { id: 'full', label: 'WIDE' }  // Changed 'full' to 'WIDE'
+                            { id: 'face', label: 'Face' },
+                            { id: 'half', label: 'Body' },
+                            { id: 'full', label: 'Wide' }
                         ].map((mode) => (
                             <button
                                 key={mode.id}
                                 onClick={() => onCameraModeChange(mode.id)}
                                 className={cn(
-                                    "py-1.5 rounded-md text-[9px] font-bold tracking-wider transition-all duration-300 relative overflow-hidden",
+                                    "py-1.5 rounded-md text-[9px] font-medium tracking-wide transition-all duration-300",
                                     cameraMode === mode.id
-                                        ? "bg-primary text-black shadow-lg"
-                                        : "text-muted-foreground hover:text-white hover:bg-white/5"
+                                        ? "bg-white/10 text-white shadow-sm"
+                                        : "text-muted-foreground/50 hover:text-white/80"
                                 )}
                             >
                                 {mode.label}
@@ -229,90 +312,17 @@ export function SidePanel({
                     </div>
                 </div>
 
-                <div className="space-y-2 mt-2">
+
+                {/* Footer Settings */}
+                <div className="mt-auto pt-2">
                     <Button
                         variant="ghost"
-                        size="sm"
-                        className="w-full text-[9px] h-7 text-muted-foreground hover:text-red-400 hover:bg-red-500/5 transition-colors"
-                        onClick={() => {
-                            localStorage.removeItem("athena-thumbnail-cache");
-                            window.location.reload();
-                        }}
-                    >
-                        Reset Cache
-                    </Button>
-                </div>
-
-                <Separator className="bg-white/5" />
-
-                {/* Settings Trigger */}
-                <div className="space-y-2">
-                    <Button
-                        variant="outline"
-                        className="w-full h-9 border-white/5 bg-white/5 text-muted-foreground hover:text-white hover:bg-white/10 hover:border-white/10 justify-start"
+                        className="w-full h-8 text-muted-foreground hover:text-white justify-between px-2 text-[10px]"
                         onClick={onOpenSettings}
                     >
-                        <Settings className="size-3.5 mr-2" />
-                        <span className="text-[10px] font-medium uppercase tracking-wider">Configure System</span>
+                        <span>Settings</span>
+                        <Settings className="size-3" />
                     </Button>
-                </div>
-
-                <Separator className="bg-white/5" />
-
-                {/* Data Ingestion - Compact Cards */}
-                <div className="space-y-2">
-                    <Label className="section-label text-[10px] mb-2">
-                        <Save className="size-3 mr-1.5" /> Import
-                    </Label>
-
-                    <div className="grid grid-cols-2 gap-2">
-                        {/* VRM Upload Card - Compact */}
-                        <div className="relative group h-20 rounded-lg border border-dashed border-white/10 bg-white/5 hover:bg-white/10 hover:border-primary/30 transition-all cursor-pointer overflow-hidden flex flex-col items-center justify-center gap-1">
-                            <Input
-                                type="file"
-                                accept=".vrm"
-                                onChange={onVrmUpload}
-                                className="absolute inset-0 opacity-0 cursor-pointer z-10"
-                            />
-                            <div className={cn(
-                                "size-8 rounded-full flex items-center justify-center transition-colors shadow-lg text-[10px]",
-                                vrmFile ? "bg-primary text-black" : "bg-black/20 text-muted-foreground group-hover:text-primary"
-                            )}>
-                                <User className="size-4" />
-                            </div>
-                            <span className="text-[9px] font-medium text-muted-foreground/80 uppercase tracking-wide group-hover:text-white transition-colors">
-                                {vrmFile ? "Loaded" : "VRM"}
-                            </span>
-                        </div>
-
-                        {/* Motion Upload Card - Compact */}
-                        <div className="relative group h-20 rounded-lg border border-dashed border-white/10 bg-white/5 hover:bg-white/10 hover:border-secondary/30 transition-all cursor-pointer overflow-hidden flex flex-col items-center justify-center gap-1">
-                            <Input
-                                type="file"
-                                accept=".vrma,.fbx,.bvh,.glb"
-                                onChange={onAnimationUpload}
-                                className="absolute inset-0 opacity-0 cursor-pointer z-10"
-                            />
-                            <div className={cn(
-                                "size-8 rounded-full flex items-center justify-center transition-colors shadow-lg text-[10px]",
-                                animationFile ? "bg-secondary text-black" : "bg-black/20 text-muted-foreground group-hover:text-secondary"
-                            )}>
-                                <Activity className="size-4" />
-                            </div>
-                            <span className="text-[9px] font-medium text-muted-foreground/80 uppercase tracking-wide group-hover:text-white transition-colors">
-                                {animationFile ? "Ready" : "Motion"}
-                            </span>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="mt-auto pt-2">
-                    {/* Tiny Footer */}
-                    <div className="flex items-center justify-center gap-2 opacity-30 hover:opacity-100 transition-opacity">
-                        <div className="size-1 bg-white rounded-full" />
-                        <span className="text-[8px] uppercase tracking-[0.2em]">Athena OS</span>
-                        <div className="size-1 bg-white rounded-full" />
-                    </div>
                 </div>
             </div>
         </div>

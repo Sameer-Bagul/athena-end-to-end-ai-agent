@@ -120,7 +120,7 @@
 .app-layout {
   display: grid;
   grid-template-columns: 25% 50% 25%;
-  height: 100vh;
+  height: 100%;
   width: 100vw;
   overflow: hidden;
   background-color: transparent;
