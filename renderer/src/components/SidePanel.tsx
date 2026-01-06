@@ -37,71 +37,64 @@ export function SidePanel({ onToggleListening, onVrmUpload: _externalVrm, onAnim
     // --- Minimalist / Collapsed View ---
     if (state.isLeftCollapsed) {
         return (
-            <div className="panel-glass border-r w-full flex flex-col items-center py-4 gap-6 bg-black/60 backdrop-blur-xl relative">
+            <div className="h-full w-full flex flex-col items-center py-6 gap-8 relative">
                 {/* Active Indicator Strip */}
-                <div className="absolute left-0 top-0 bottom-0 w-[1px] bg-gradient-to-b from-transparent via-primary/20 to-transparent" />
+                <div className="absolute left-0 top-0 bottom-0 w-[1px] bg-gradient-to-b from-transparent via-primary/30 to-transparent" />
 
                 {/* Collapse Toggle */}
                 <Button variant="ghost" size="icon" onClick={actions.toggleLeftCollapse}
-                    className="size-8 text-muted-foreground hover:text-white hover:bg-white/10 transition-all duration-300">
-                    <LayoutGrid className="size-4 text-primary/70" />
+                    className="size-10 text-white/40 hover:text-white hover:bg-white/5 rounded-xl transition-all duration-300">
+                    <LayoutGrid className="size-5" />
                 </Button>
 
                 {/* Vertical Icon Menu */}
-                <div className="flex flex-col gap-4 mt-2 w-full px-2 items-center">
+                <div className="flex flex-col gap-6 w-full px-3 items-center">
 
                     {/* Model Indicator */}
                     <div className="relative group flex justify-center w-full">
-                        <div className="absolute inset-0 bg-primary/20 blur-md rounded-full scale-0 group-hover:scale-100 transition-transform duration-500" />
-                        <div className="size-10 rounded-full overflow-hidden border border-white/10 group-hover:border-primary/50 transition-all cursor-pointer relative z-10 shadow-lg shadow-black/50"
+                        <div className="absolute inset-0 bg-primary/20 blur-xl rounded-full scale-0 group-hover:scale-100 transition-transform duration-500" />
+                        <div className="size-11 rounded-2xl overflow-hidden border border-white/5 group-hover:border-primary/50 transition-all cursor-pointer relative z-10 shadow-lg shadow-black/50"
                             onClick={actions.toggleLeftCollapse} title={state.selectedCharacter.name}>
                             {state.thumbnailCache[state.selectedCharacter.id] ? (
-                                <img src={state.thumbnailCache[state.selectedCharacter.id]} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
+                                <img src={state.thumbnailCache[state.selectedCharacter.id]} className="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-opacity duration-300" />
                             ) : (
-                                <User className="size-5 m-auto text-muted-foreground" />
+                                <User className="size-5 m-auto text-white/40" />
                             )}
                         </div>
-                        <div className="absolute -right-1 bottom-0 size-2.5 bg-green-500 rounded-full border-2 border-black z-20"></div>
                     </div>
 
                     <Separator className="bg-white/10 w-8 mx-auto" />
 
                     {/* Play/Pause Minimal */}
-                    <div className="flex justify-center w-full group relative">
-                        <div className="absolute inset-0 bg-secondary/10 blur-sm rounded-full scale-0 group-hover:scale-100 transition-transform" />
-                        <Button
-                            size="icon" variant="ghost"
-                            onClick={actions.togglePlay}
-                            className={cn("size-10 rounded-full relative z-10 transition-all border border-transparent hover:border-white/10",
-                                state.isPlaying ? "text-secondary bg-secondary/10 shadow-[0_0_10px_rgba(var(--secondary),0.2)]" : "text-muted-foreground hover:bg-white/5")}
-                            title={state.isPlaying ? "Pause Animation" : "Play Animation"}
-                        >
-                            {state.isPlaying ? <Pause className="size-4 fill-current" /> : <Play className="size-4 fill-current ml-0.5" />}
-                        </Button>
-                    </div>
+                    <Button
+                        size="icon" variant="ghost"
+                        onClick={actions.togglePlay}
+                        className={cn("size-10 rounded-xl relative z-10 transition-all border border-transparent hover:bg-white/5",
+                            state.isPlaying ? "text-primary bg-primary/10 shadow-[0_0_15px_rgba(var(--primary),0.2)] border-primary/20" : "text-white/40 hover:text-white")}
+                        title={state.isPlaying ? "Pause Animation" : "Play Animation"}
+                    >
+                        {state.isPlaying ? <Pause className="size-4 fill-current" /> : <Play className="size-4 fill-current ml-0.5" />}
+                    </Button>
 
                     {/* Voice Toggle Minimal */}
-                    <div className="flex justify-center w-full group relative">
-                        <div className="absolute inset-0 bg-red-500/10 blur-sm rounded-full scale-0 group-hover:scale-100 transition-transform" />
-                        <Button
-                            size="icon" variant="ghost"
-                            onClick={onToggleListening}
-                            className={cn("size-10 rounded-full relative z-10 transition-all border border-transparent hover:border-white/10",
-                                state.isListening ? "text-red-400 bg-red-500/10 shadow-[0_0_15px_rgba(239,68,68,0.3)] animate-pulse-slow" : "text-muted-foreground hover:bg-white/5")}
-                            title={state.isListening ? "Stop Microphone" : "Start Microphone"}
-                        >
-                            {state.isListening ? <Mic className="size-4" /> : <MicOff className="size-4" />}
-                        </Button>
-                    </div>
+                    <Button
+                        size="icon" variant="ghost"
+                        onClick={onToggleListening}
+                        className={cn("size-10 rounded-xl relative z-10 transition-all border border-transparent hover:bg-white/5",
+                            state.isListening ? "text-red-400 bg-red-500/10 shadow-[0_0_15px_rgba(239,68,68,0.3)] animate-pulse-slow border-red-500/20" : "text-white/40 hover:text-white")}
+                        title={state.isListening ? "Stop Microphone" : "Start Microphone"}
+                    >
+                        {state.isListening ? <Mic className="size-4" /> : <MicOff className="size-4" />}
+                    </Button>
 
-                    <div className="mt-auto flex flex-col gap-4 items-center w-full pt-10">
+                    <div className="mt-auto flex flex-col gap-4 items-center w-full pt-4">
                         <Button
                             size="icon" variant="ghost"
                             onClick={() => actions.toggleSettings(true)}
-                            className="size-10 text-muted-foreground hover:text-white hover:bg-white/5 rounded-full transition-all hover:rotate-45 duration-500"
+                            className="size-10 text-white/40 hover:text-white hover:bg-white/5 rounded-xl transition-all hover:rotate-90 duration-500"
                             title="Settings"
                         >
-                            <Settings className="size-4" />
+                            <Settings className="size-5" />
                         </Button>
                     </div>
                 </div>
@@ -111,23 +104,23 @@ export function SidePanel({ onToggleListening, onVrmUpload: _externalVrm, onAnim
 
     // --- Expanded View ---
     return (
-        <div className="panel-glass border-r">
+        <div className="h-full flex flex-col relative w-full font-sans">
             {/* Header */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-white/5 bg-white/5">
-                <span className="text-[10px] font-mono tracking-widest uppercase text-muted-foreground/60">Controls</span>
-                <Button variant="ghost" size="icon" onClick={actions.toggleLeftCollapse} className="size-6 text-muted-foreground hover:text-white">
-                    <LayoutGrid className="size-3" />
+            <div className="flex items-center justify-between px-6 py-5 border-b border-white/5 bg-white/[0.02]">
+                <span className="text-xs font-medium tracking-[0.2em] uppercase text-white/40">Controls</span>
+                <Button variant="ghost" size="icon" onClick={actions.toggleLeftCollapse} className="size-8 text-white/40 hover:text-white hover:bg-white/5 rounded-lg -mr-2">
+                    <LayoutGrid className="size-4" />
                 </Button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-6">
+            <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-8 custom-scrollbar">
 
                 {/* Identity */}
-                <div className="space-y-3">
-                    <Label className="section-label text-[9px] text-primary/60">
-                        IDENTITY
+                <div className="space-y-4">
+                    <Label className="text-[10px] font-medium tracking-[0.2em] text-cyan-400/60 uppercase pl-1">
+                        Identity
                     </Label>
-                    <div className="h-44 w-full -mx-1">
+                    <div className="h-48 w-full -mx-2">
                         <Carousel3D
                             items={[
                                 ...AVAILABLE_MODELS.map(m => ({
@@ -153,35 +146,35 @@ export function SidePanel({ onToggleListening, onVrmUpload: _externalVrm, onAnim
                     </div>
                     <Button
                         variant="outline"
-                        className="w-full h-8 text-[9px] border-white/5 bg-black/20 hover:bg-primary/20 hover:border-primary/30 transition-all uppercase tracking-widest text-muted-foreground hover:text-primary"
+                        className="w-full h-9 text-[10px] border-white/10 bg-white/[0.03] hover:bg-white/[0.07] hover:border-white/20 transition-all uppercase tracking-widest text-white/50 hover:text-white"
                         onClick={() => actions.setViewMode('exhibition')}
                     >
                         Display Mode
                     </Button>
                 </div>
 
-                {/* Animation: Slider Name-Only */}
-                <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                        <Label className="section-label text-[9px] text-secondary/60 mb-0">ANIMATION</Label>
-                        <div className="flex items-center gap-2">
-                            <span className="text-[8px] font-mono text-muted-foreground/40">{state.isPlaying ? "PLAYING" : "PAUSED"}</span>
+                {/* Animation */}
+                <div className="space-y-3">
+                    <div className="flex items-center justify-between pl-1">
+                        <Label className="text-[10px] font-medium tracking-[0.2em] text-purple-400/60 uppercase">Animation</Label>
+                        <div className="flex items-center gap-3">
+                            <span className="text-[9px] font-mono text-white/30 tracking-wider ">{state.isPlaying ? "active" : "paused"}</span>
                             <Button
                                 size="icon"
                                 variant="ghost"
                                 className={cn(
-                                    "size-5 rounded-full border transition-all",
+                                    "size-6 rounded-full transition-all duration-300",
                                     state.isPlaying
-                                        ? "bg-secondary text-black border-secondary"
-                                        : "bg-transparent text-secondary border-secondary/30"
+                                        ? "bg-purple-500/20 text-purple-300 shadow-[0_0_10px_rgba(168,85,247,0.2)]"
+                                        : "text-white/20 hover:text-white"
                                 )}
                                 onClick={actions.togglePlay}
                             >
-                                {state.isPlaying ? <Pause className="size-2.5 fill-current" /> : <Play className="size-2.5 fill-current ml-0.5" />}
+                                {state.isPlaying ? <Pause className="size-3 fill-current" /> : <Play className="size-3 fill-current ml-0.5" />}
                             </Button>
                         </div>
                     </div>
-                    <div className="flex gap-2 overflow-x-auto pb-2 snap-x custom-scrollbar">
+                    <div className="flex gap-2 overflow-x-auto pb-4 snap-x custom-scrollbar -mx-2 px-2">
                         {AVAILABLE_ANIMATIONS.map((filename) => {
                             const name = filename.replace(".vrma", "").replace(".fbx", "");
                             const isActive = state.animationUrl.includes(filename);
@@ -190,10 +183,10 @@ export function SidePanel({ onToggleListening, onVrmUpload: _externalVrm, onAnim
                                     key={filename}
                                     onClick={() => actions.setAnimation(filename)}
                                     className={cn(
-                                        "flex-none snap-center px-3 py-2 rounded-md text-[9px] font-mono uppercase tracking-wider transition-all border whitespace-nowrap",
+                                        "flex-none snap-center px-4 py-2.5 rounded-xl text-[10px] font-medium uppercase tracking-wider transition-all duration-300 whitespace-nowrap border",
                                         isActive
-                                            ? "bg-secondary/20 border-secondary/50 text-secondary shadow-[0_0_10px_rgba(var(--secondary),0.1)]"
-                                            : "bg-black/20 border-white/5 text-muted-foreground hover:bg-white/5 hover:text-white hover:border-white/10"
+                                            ? "bg-purple-500/10 border-purple-500/30 text-purple-300 shadow-[0_0_15px_rgba(168,85,247,0.15)]"
+                                            : "bg-white/[0.03] border-white/5 text-white/40 hover:bg-white/[0.08] hover:text-white hover:border-white/10"
                                     )}
                                 >
                                     {name}
@@ -204,38 +197,41 @@ export function SidePanel({ onToggleListening, onVrmUpload: _externalVrm, onAnim
                 </div>
 
                 {/* Voice */}
-                <div className="space-y-2">
-                    <Label className="section-label text-[9px] text-blue-400/60">VOICE</Label>
+                <div className="space-y-3">
+                    <Label className="text-[10px] font-medium tracking-[0.2em] text-red-400/60 uppercase pl-1">Voice Input</Label>
                     <Button
                         variant="ghost"
                         disabled={state.isChatProcessing && !state.isListening}
                         className={cn(
-                            "w-full h-9 border font-mono text-[9px] uppercase tracking-wider transition-all duration-300 rounded-lg",
+                            "w-full h-11 border text-[10px] uppercase tracking-[0.15em] transition-all duration-500 rounded-xl relative overflow-hidden group",
                             state.isListening
-                                ? "bg-red-500/10 text-red-300 border-red-500/20"
-                                : "bg-black/20 text-muted-foreground border-white/5 hover:bg-white/5"
+                                ? "bg-red-500/10 text-red-300 border-red-500/30 shadow-[0_0_20px_rgba(239,68,68,0.15)]"
+                                : "bg-white/[0.03] text-white/40 border-white/5 hover:bg-white/[0.08] hover:text-white"
                         )}
                         onClick={onToggleListening}
                     >
-                        {state.isListening ? (
-                            <div className="flex items-center gap-2">
-                                <span className="relative flex h-1.5 w-1.5">
-                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                                    <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-red-500"></span>
-                                </span>
-                                Microphone Active
-                            </div>
-                        ) : (
-                            <div className="flex items-center gap-2 opacity-60">
-                                <MicOff className="size-3" />
-                                Voice Unavailable
-                            </div>
-                        )}
+                        <div className="relative z-10 flex items-center justify-center gap-3">
+                            {state.isListening ? (
+                                <>
+                                    <span className="relative flex h-2 w-2">
+                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                        <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                                    </span>
+                                    LISTENING
+                                </>
+                            ) : (
+                                <>
+                                    <MicOff className="size-3.5 opacity-50" />
+                                    <span>Microphone Off</span>
+                                </>
+                            )}
+                        </div>
+                        {state.isListening && <div className="absolute inset-0 bg-red-500/5 animate-pulse-slow" />}
                     </Button>
                     {state.voiceStatus && (
                         <div className={cn(
-                            "text-[8px] font-mono text-center tracking-wider uppercase mt-1 truncate",
-                            state.voiceStatus.includes('error') ? "text-red-500" : "text-muted-foreground/40"
+                            "text-[9px] font-mono text-center tracking-wider uppercase mt-1",
+                            state.voiceStatus.includes('error') ? "text-red-400" : "text-white/20"
                         )}>
                             {state.voiceStatus}
                         </div>
@@ -244,35 +240,40 @@ export function SidePanel({ onToggleListening, onVrmUpload: _externalVrm, onAnim
 
 
                 {/* Data Ingestion */}
-                <div className="grid grid-cols-2 gap-2 mt-2">
+                <div className="grid grid-cols-2 gap-3">
                     {/* VRM */}
-                    <div className="relative group h-16 rounded-lg border border-white/5 bg-black/20 hover:bg-white/5 hover:border-white/10 transition-all cursor-pointer overflow-hidden flex flex-col items-center justify-center gap-1">
+                    <div className="relative group h-20 rounded-xl border border-white/5 bg-white/[0.02] hover:bg-white/[0.05] hover:border-white/10 transition-all cursor-pointer overflow-hidden flex flex-col items-center justify-center gap-2">
                         <Input
                             type="file"
                             accept=".vrm"
                             onChange={handleVrmUpload}
                             className="absolute inset-0 opacity-0 cursor-pointer z-10"
                         />
-                        <User className="size-4 text-muted-foreground/40 group-hover:text-primary transition-colors" />
-                        <span className="text-[8px] font-mono text-muted-foreground/40 uppercase group-hover:text-white transition-colors">Import VRM</span>
+                        <div className="p-2 rounded-full bg-white/5 group-hover:bg-white/10 transition-colors">
+                            <User className="size-4 text-white/30 group-hover:text-white transition-colors" />
+                        </div>
+                        <span className="text-[9px] font-medium tracking-widest text-white/30 uppercase group-hover:text-white transition-colors">Upload VRM</span>
                     </div>
 
                     {/* Anim */}
-                    <div className="relative group h-16 rounded-lg border border-white/5 bg-black/20 hover:bg-white/5 hover:border-white/10 transition-all cursor-pointer overflow-hidden flex flex-col items-center justify-center gap-1">
+                    <div className="relative group h-20 rounded-xl border border-white/5 bg-white/[0.02] hover:bg-white/[0.05] hover:border-white/10 transition-all cursor-pointer overflow-hidden flex flex-col items-center justify-center gap-2">
                         <Input
                             type="file"
                             accept=".vrma,.fbx,.bvh,.glb"
                             onChange={handleAnimationUpload}
                             className="absolute inset-0 opacity-0 cursor-pointer z-10"
                         />
-                        <Activity className="size-4 text-muted-foreground/40 group-hover:text-secondary transition-colors" />
-                        <span className="text-[8px] font-mono text-muted-foreground/40 uppercase group-hover:text-white transition-colors">Import Anim</span>
+                        <div className="p-2 rounded-full bg-white/5 group-hover:bg-white/10 transition-colors">
+                            <Activity className="size-4 text-white/30 group-hover:text-white transition-colors" />
+                        </div>
+                        <span className="text-[9px] font-medium tracking-widest text-white/30 uppercase group-hover:text-white transition-colors">Upload Anim</span>
                     </div>
                 </div>
 
                 {/* Camera Mode */}
-                <div className="space-y-2 mt-1">
-                    <div className="p-0.5 bg-black/40 rounded-lg border border-white/5 grid grid-cols-3 gap-0.5">
+                <div className="space-y-3 pt-2">
+                    <Label className="text-[10px] font-medium tracking-[0.2em] text-emerald-400/60 uppercase pl-1">Camera</Label>
+                    <div className="p-1 bg-black/40 rounded-xl border border-white/5 grid grid-cols-3 gap-1">
                         {[
                             { id: 'face', label: 'Face' },
                             { id: 'half', label: 'Body' },
@@ -282,10 +283,10 @@ export function SidePanel({ onToggleListening, onVrmUpload: _externalVrm, onAnim
                                 key={mode.id}
                                 onClick={() => actions.setCameraMode(mode.id)}
                                 className={cn(
-                                    "py-1.5 rounded-md text-[9px] font-medium tracking-wide transition-all duration-300",
+                                    "py-2 rounded-lg text-[10px] font-medium tracking-wider transition-all duration-300 uppercase",
                                     state.cameraMode === mode.id
-                                        ? "bg-white/10 text-white shadow-sm"
-                                        : "text-muted-foreground/50 hover:text-white/80"
+                                        ? "bg-white/10 text-white shadow-sm border border-white/5"
+                                        : "text-white/30 hover:text-white/60 hover:bg-white/5"
                                 )}
                             >
                                 {mode.label}
@@ -295,14 +296,14 @@ export function SidePanel({ onToggleListening, onVrmUpload: _externalVrm, onAnim
                 </div>
 
                 {/* Footer */}
-                <div className="mt-auto pt-2">
+                <div className="mt-auto pt-4">
                     <Button
                         variant="ghost"
-                        className="w-full h-8 text-muted-foreground hover:text-white justify-between px-2 text-[10px]"
+                        className="w-full h-10 text-white/40 hover:text-white hover:bg-white/5 justify-between px-3 text-[10px] uppercase tracking-wider rounded-xl transition-all"
                         onClick={() => actions.toggleSettings(true)}
                     >
-                        <span>Settings</span>
-                        <Settings className="size-3" />
+                        <span>System Settings</span>
+                        <Settings className="size-3.5" />
                     </Button>
                 </div>
             </div>

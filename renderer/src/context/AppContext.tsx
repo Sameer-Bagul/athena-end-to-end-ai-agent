@@ -5,6 +5,26 @@ import type { ChatMessage } from "../components/ChatPanel";
 import type { WidgetSettings } from "../components/SettingsDialog";
 
 // --- Types ---
+export interface UserProfile {
+    name: string;
+    bio: string;
+}
+
+export interface PluginConfig {
+    newsApiKey: string;
+    weatherApiKey: string;
+}
+
+export type AiProviderType = 'ollama' | 'lmstudio' | 'grok' | 'gemini';
+
+export interface AiConfig {
+    priority: AiProviderType[];
+    ollama: { baseUrl: string; model: string }[];
+    lmstudio: { baseUrl: string; model: string }[];
+    grok: { apiKey: string; model: string }[];
+    gemini: { apiKey: string; model: string }[];
+}
+
 export interface AppState {
     // Content
     selectedCharacter: CharacterProfile;
@@ -35,6 +55,9 @@ export interface AppState {
     // Settings
     widgetSettings: WidgetSettings;
     showSettings: boolean;
+    userProfile: UserProfile;
+    pluginConfig: PluginConfig;
+    aiConfig: AiConfig;
 
     // UI state for collapsed panels
     isLeftCollapsed: boolean;
@@ -70,6 +93,9 @@ export interface AppActions {
     // Settings
     setWidgetSettings: (settings: WidgetSettings) => void;
     toggleSettings: (open?: boolean) => void;
+    setUserProfile: (profile: UserProfile) => void;
+    setPluginConfig: (config: PluginConfig) => void;
+    setAiConfig: (config: AiConfig) => void;
 
     // UI
     toggleLeftCollapse: () => void;
@@ -125,8 +151,71 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     // Settings
     const [showSettings, setShowSettings] = React.useState(false);
-    const [widgetSettings, setWidgetSettings] = React.useState<WidgetSettings>({
-        zoom: 0.5, opacity: 0, blur: 0, borderRadius: 50, size: 300
+    const [widgetSettings, setWidgetSettings] = React.useState<WidgetSettings>(() => {
+        try {
+            const saved = localStorage.getItem("athena-widget-settings");
+            return saved ? JSON.parse(saved) : { zoom: 0.5, opacity: 0, blur: 0, borderRadius: 50, size: 300, borderWidth: 0 };
+        } catch {
+            return { zoom: 0.5, opacity: 0, blur: 0, borderRadius: 50, size: 300, borderWidth: 0 };
+        }
+    });
+
+    const [userProfile, setUserProfile] = React.useState<UserProfile>(() => {
+        try {
+            const saved = localStorage.getItem("athena-user-profile");
+            return saved ? JSON.parse(saved) : { name: "", bio: "" };
+        } catch { return { name: "", bio: "" }; }
+    });
+
+    const [pluginConfig, setPluginConfig] = React.useState<PluginConfig>(() => {
+        try {
+            const saved = localStorage.getItem("athena-plugin-config");
+            return saved ? JSON.parse(saved) : { newsApiKey: "", weatherApiKey: "" };
+        } catch { return { newsApiKey: "", weatherApiKey: "" }; }
+    });
+
+    const [aiConfig, setAiConfig] = React.useState<AiConfig>(() => {
+        try {
+            const saved = localStorage.getItem("athena-ai-config");
+            // Defaults (Now arrays)
+            const defaults: AiConfig = {
+                priority: ['ollama', 'gemini', 'grok', 'lmstudio'],
+                ollama: [{ baseUrl: "http://localhost:11434", model: "dolphin-mistral:latest" }],
+                lmstudio: [{ baseUrl: "http://localhost:1234/v1", model: "local-model" }],
+                grok: [{ apiKey: "", model: "grok-beta" }],
+                gemini: [{ apiKey: "", model: "gemini-pro" }]
+            };
+
+            if (saved) {
+                const parsed = JSON.parse(saved);
+
+                // Migration Logic:
+                // 1. Convert legacy single-objects to arrays
+                if (parsed.ollama && !Array.isArray(parsed.ollama)) parsed.ollama = [parsed.ollama];
+                if (parsed.lmstudio && !Array.isArray(parsed.lmstudio)) parsed.lmstudio = [parsed.lmstudio];
+                if (parsed.grok && !Array.isArray(parsed.grok)) parsed.grok = [parsed.grok];
+                if (parsed.gemini && !Array.isArray(parsed.gemini)) parsed.gemini = [parsed.gemini];
+
+                // 2. Ensure priority list exists
+                if (!parsed.priority) {
+                    const oldProvider = parsed.provider || 'ollama'; // fallback
+                    const others = ['ollama', 'gemini', 'grok', 'lmstudio'].filter(p => p !== oldProvider);
+                    parsed.priority = [oldProvider, ...others];
+                    delete parsed.provider;
+                }
+
+                return { ...defaults, ...parsed };
+            }
+            return defaults;
+        } catch {
+            return {
+                priority: ['ollama', 'gemini', 'grok', 'lmstudio'],
+                ollama: [{ baseUrl: "http://localhost:11434", model: "dolphin-mistral:latest" }],
+                lmstudio: [{ baseUrl: "http://localhost:1234/v1", model: "local-model" }],
+                grok: [{ apiKey: "", model: "grok-beta" }],
+                gemini: [{ apiKey: "", model: "gemini-pro" }]
+            };
+        }
     });
 
     // UI
@@ -140,6 +229,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     React.useEffect(() => {
         localStorage.setItem("athena-thumbnail-cache", JSON.stringify(thumbnailCache));
     }, [thumbnailCache]);
+
+    // Persist Widget Settings
+    React.useEffect(() => {
+        localStorage.setItem("athena-widget-settings", JSON.stringify(widgetSettings));
+    }, [widgetSettings]);
+
+    React.useEffect(() => {
+        localStorage.setItem("athena-user-profile", JSON.stringify(userProfile));
+    }, [userProfile]);
+
+    React.useEffect(() => {
+        localStorage.setItem("athena-plugin-config", JSON.stringify(pluginConfig));
+    }, [pluginConfig]);
+
+    React.useEffect(() => {
+        localStorage.setItem("athena-ai-config", JSON.stringify(aiConfig));
+    }, [aiConfig]);
 
     // Load Chat History
     React.useEffect(() => {
@@ -217,8 +323,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         clearChat: () => setChatMessages([{ role: 'assistant', content: 'History cleared.' }]),
         setTranscript: setCurrentTranscript,
 
-        setWidgetSettings,
+        setWidgetSettings: (s) => {
+            setWidgetSettings(s);
+            // @ts-ignore
+            window.athena?.broadcastState?.({ type: 'settings', payload: s });
+        },
         toggleSettings: (open) => setShowSettings(p => open ?? !p),
+        setUserProfile,
+        setPluginConfig,
+        setAiConfig,
 
         toggleLeftCollapse: () => setIsLeftCollapsed(p => !p),
         toggleRightCollapse: () => setIsRightCollapsed(p => !p),
@@ -241,6 +354,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         isListening, voiceStatus, currentTranscript,
         chatMessages, isChatProcessing,
         widgetSettings, showSettings,
+        userProfile, pluginConfig, aiConfig,
         isLeftCollapsed, isRightCollapsed
     };
 

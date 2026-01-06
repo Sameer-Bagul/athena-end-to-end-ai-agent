@@ -54,7 +54,15 @@ export function useAssistant() {
             }
 
             // 1. Setup Prompt
-            const fullPrompt = context ? `${context}\n${text}` : text;
+            // Structure prompt to explicitly prioritize tool context if available
+            let fullPrompt = text;
+            if (context) {
+                fullPrompt = `SYSTEM INSTRUCTION: You have access to real-time data from a tool. You MUST use the information provided in the [SYSTEM CONTEXT] block to answer the user. Do not hallucinate or ignore this data. Cite the source if provided.
+                
+                ${context}
+                
+                User Query: ${text}`;
+            }
 
             // 2. Prepare Streaming State
             // Add a placeholder message that we will update live

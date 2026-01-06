@@ -53,15 +53,15 @@ export function ChatPanel({ onSendMessage, onClearHistory }: ChatPanelProps) {
         return (
             <div
                 className={cn(
-                    "panel-glass border-l h-full w-full flex flex-col items-center py-4 bg-black/80 backdrop-blur-xl gap-6 transition-all duration-300 relative overflow-hidden group hover:bg-black/90",
-                    state.isChatProcessing && "shadow-[inset_0_0_20px_rgba(var(--primary),0.1)]"
+                    "h-full w-full flex flex-col items-center py-6 gap-8 relative transition-all duration-500 overflow-hidden group",
+                    state.isChatProcessing && "shadow-[inset_0_0_50px_rgba(var(--primary),0.1)]"
                 )}
                 onClick={actions.toggleRightCollapse}
             >
                 {/* Active Strip */}
                 <div className={cn(
                     "absolute top-0 bottom-0 left-0 w-[1px] transition-all duration-500",
-                    state.isChatProcessing ? "bg-primary/50 shadow-[0_0_10px_currentColor]" : "bg-white/5"
+                    state.isChatProcessing ? "bg-primary shadow-[0_0_15px_currentColor]" : "bg-white/5"
                 )} />
 
                 {/* Toggle Button */}
@@ -69,49 +69,46 @@ export function ChatPanel({ onSendMessage, onClearHistory }: ChatPanelProps) {
                     variant="ghost"
                     size="icon"
                     onClick={(e) => { e.stopPropagation(); actions.toggleRightCollapse(); }}
-                    className="size-8 text-muted-foreground/50 hover:text-white rounded-full hover:bg-white/10 transition-all z-10"
+                    className="size-10 text-white/40 hover:text-white rounded-xl hover:bg-white/5 transition-all z-10"
                 >
-                    <MessageSquare className={cn("size-4 transition-transform duration-500", state.isChatProcessing && "animate-pulse text-primary")} />
+                    <MessageSquare className={cn("size-5 transition-transform duration-500", state.isChatProcessing && "animate-pulse text-primary")} />
                 </Button>
 
                 {/* Central Status Rail */}
-                <div className="flex-1 flex flex-col items-center justify-center gap-8 w-full opacity-60 group-hover:opacity-100 transition-opacity">
+                <div className="flex-1 flex flex-col items-center justify-center gap-12 w-full opacity-40 group-hover:opacity-100 transition-opacity duration-500">
 
                     {/* Decorative Line Top */}
-                    <div className="h-16 w-[1px] bg-gradient-to-b from-transparent via-white/20 to-transparent" />
+                    <div className="h-24 w-[1px] bg-gradient-to-b from-transparent via-white/20 to-transparent" />
 
                     {/* Vertical Text */}
-                    <div className="writing-vertical-rl rotate-180 flex items-center gap-4">
-                        <span className="text-[9px] font-mono uppercase tracking-[0.3em] text-muted-foreground/80 whitespace-nowrap group-hover:text-white transition-colors">
-                            Communication Link
+                    <div className="writing-vertical-rl rotate-180 flex items-center gap-6">
+                        <span className="text-[10px] font-mono uppercase tracking-[0.4em] text-white/60 whitespace-nowrap group-hover:text-white transition-colors">
+                            Neural Link
                         </span>
                         {state.isChatProcessing && (
-                            <span className="text-[8px] text-primary animate-pulse font-bold tracking-widest">
-                                ACTIVE
+                            <span className="text-[9px] text-primary animate-pulse font-bold tracking-widest">
+                                PROCESSING
                             </span>
                         )}
                     </div>
 
                     {/* Decorative Line Bottom */}
-                    <div className="h-16 w-[1px] bg-gradient-to-t from-transparent via-white/20 to-transparent" />
+                    <div className="h-24 w-[1px] bg-gradient-to-t from-transparent via-white/20 to-transparent" />
                 </div>
 
                 {/* Bottom Status Indicator */}
-                <div className="mt-auto pb-4 flex flex-col items-center gap-3 z-10">
+                <div className="mt-auto pb-6 flex flex-col items-center gap-4 z-10">
                     <div
                         className={cn(
-                            "size-2.5 rounded-full transition-all duration-500 border border-black/50 shadow-lg",
+                            "size-3 rounded-full transition-all duration-500 border border-black/50 shadow-lg",
                             state.isChatProcessing
-                                ? "bg-primary shadow-[0_0_10px_rgba(var(--primary),0.6)] animate-pulse"
+                                ? "bg-primary shadow-[0_0_15px_rgba(var(--primary),0.6)] animate-pulse"
                                 : state.isListening
-                                    ? "bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.5)]"
+                                    ? "bg-red-500 shadow-[0_0_15px_rgba(239,68,68,0.5)]"
                                     : "bg-white/20"
                         )}
                         title={state.isChatProcessing ? "Processing..." : state.isListening ? "Mic On" : "Idle"}
                     />
-                    {state.isListening && (
-                        <div className="size-1 rounded-full bg-red-500/50 animate-ping absolute bottom-5 pointer-events-none" />
-                    )}
                 </div>
             </div>
         );
@@ -119,18 +116,18 @@ export function ChatPanel({ onSendMessage, onClearHistory }: ChatPanelProps) {
 
     // --- Expanded View ---
     return (
-        <div className="panel-glass border-l font-sans h-full flex flex-col relative w-full">
+        <div className="h-full flex flex-col relative w-full font-sans">
             {/* Header */}
-            <div className="panel-header shrink-0 z-20 shadow-sm border-b border-white/10 bg-black/40 backdrop-blur-xl pr-2">
-                <div className="flex items-center gap-3">
-                    <div className="p-1.5 bg-white/5 rounded-lg border border-white/5 ring-1 ring-white/5">
+            <div className="shrink-0 z-20 border-b border-white/5 bg-white/[0.02] flex items-center justify-between px-6 py-5">
+                <div className="flex items-center gap-4">
+                    <div className="p-2 bg-white/5 rounded-xl border border-white/5 ring-1 ring-white/5 shadow-inner">
                         <Bot className="size-4 text-primary" />
                     </div>
                     <div>
-                        <h3 className="text-xs font-bold uppercase tracking-widest text-foreground">Athena <span className="text-secondary opacity-60">AI</span></h3>
-                        <div className="flex items-center gap-1.5 mt-0.5">
-                            <span className={cn("size-1 rounded-full shadow-[0_0_8px_currentColor]", state.isChatProcessing ? "bg-accent animate-pulse" : "bg-primary")} />
-                            <span className="text-[8px] text-muted-foreground font-mono uppercase tracking-widest opacity-80">
+                        <h3 className="text-xs font-bold uppercase tracking-[0.15em] text-white/90">Athena <span className="text-white/30 font-light">AI</span></h3>
+                        <div className="flex items-center gap-2 mt-1">
+                            <span className={cn("size-1.5 rounded-full shadow-[0_0_8px_currentColor] transition-all duration-500", state.isChatProcessing ? "bg-primary animate-pulse" : "bg-emerald-500/50")} />
+                            <span className="text-[9px] text-white/40 font-mono uppercase tracking-widest">
                                 {state.isChatProcessing ? "Thinking..." : "Online"}
                             </span>
                         </div>
@@ -148,9 +145,10 @@ export function ChatPanel({ onSendMessage, onClearHistory }: ChatPanelProps) {
                                     onClearHistory?.();
                                 }
                             }}
-                            className="size-7 text-muted-foreground/40 hover:text-white hover:bg-white/5 rounded-md"
+                            className="size-8 text-white/20 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-all"
+                            title="Clear History"
                         >
-                            <Trash2 className="size-3.5" />
+                            <Trash2 className="size-4" />
                         </Button>
                     )}
                     {/* Collapse Button */}
@@ -158,9 +156,9 @@ export function ChatPanel({ onSendMessage, onClearHistory }: ChatPanelProps) {
                         variant="ghost"
                         size="icon"
                         onClick={actions.toggleRightCollapse}
-                        className="size-7 text-muted-foreground/40 hover:text-white hover:bg-white/5 rounded-md"
+                        className="size-8 text-white/20 hover:text-white hover:bg-white/5 rounded-lg transition-all"
                     >
-                        <MessageSquare className="size-3.5" />
+                        <MessageSquare className="size-4" />
                     </Button>
                 </div>
             </div>
@@ -169,16 +167,16 @@ export function ChatPanel({ onSendMessage, onClearHistory }: ChatPanelProps) {
             <div
                 ref={scrollRef}
                 onScroll={handleScroll}
-                className="flex-1 overflow-y-auto min-h-0 p-4 space-y-6 scroll-smooth"
+                className="flex-1 overflow-y-auto min-h-0 p-6 space-y-8 scroll-smooth custom-scrollbar"
             >
                 {state.chatMessages.length === 0 && (
-                    <div className="flex flex-col items-center justify-center text-center h-full opacity-40 space-y-4 animate-in fade-in duration-700">
-                        <div className="p-6 rounded-full bg-linear-to-b from-white/5 to-transparent ring-1 ring-white/10 shadow-2xl">
-                            <MessageSquare className="size-8 text-foreground" />
+                    <div className="flex flex-col items-center justify-center text-center h-full opacity-30 space-y-6 animate-in fade-in duration-700">
+                        <div className="p-8 rounded-3xl bg-white/[0.03] ring-1 ring-white/5 shadow-2xl backdrop-blur-sm">
+                            <MessageSquare className="size-10 text-white" />
                         </div>
-                        <div className="space-y-1">
-                            <h4 className="text-sm font-medium tracking-wide">System Ready</h4>
-                            <p className="text-xs font-light text-muted-foreground tracking-wide">
+                        <div className="space-y-2">
+                            <h4 className="text-sm font-medium tracking-[0.2em] uppercase text-white/60">System Ready</h4>
+                            <p className="text-xs font-light text-white/30 tracking-wide">
                                 Awaiting user input protocol...
                             </p>
                         </div>
@@ -189,53 +187,53 @@ export function ChatPanel({ onSendMessage, onClearHistory }: ChatPanelProps) {
                     <div
                         key={idx}
                         className={cn(
-                            "flex flex-col gap-2 max-w-full group",
+                            "flex flex-col gap-2 max-w-full group animate-in slide-in-from-bottom-2 duration-500",
                             msg.role === "user" ? "items-end" : "items-start"
                         )}
                     >
                         {/* Avatar/Label Row */}
                         <div className={cn(
-                            "flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest opacity-40 group-hover:opacity-100 transition-opacity duration-300",
-                            msg.role === "user" ? "flex-row-reverse text-secondary/80" : "flex-row text-primary/80"
+                            "flex items-center gap-2 text-[9px] font-bold uppercase tracking-[0.2em] opacity-30 group-hover:opacity-80 transition-opacity duration-300 px-1",
+                            msg.role === "user" ? "flex-row-reverse text-emerald-400" : "flex-row text-purple-400"
                         )}>
                             <span>{msg.role === "user" ? "You" : "Athena"}</span>
                             {msg.role === "user" ? <User className="size-3" /> : <Sparkles className="size-3" />}
                         </div>
 
                         <div className={cn(
-                            "rounded-2xl px-5 py-3.5 text-sm leading-relaxed max-w-[90%] break-words shadow-lg transition-all duration-300 hover:shadow-xl hover:scale-[1.01]",
+                            "rounded-2xl px-6 py-4 text-sm leading-relaxed max-w-[90%] break-words shadow-lg backdrop-blur-md transition-all duration-300 hover:shadow-2xl",
                             msg.role === "user"
-                                ? "bg-gradient-to-br from-secondary/90 to-purple-600/90 text-white rounded-tr-sm border border-white/20 shadow-purple-900/20"
-                                : "bg-white/5 text-foreground border border-white/5 rounded-tl-sm shadow-black/20 hover:bg-white/10"
+                                ? "bg-white/[0.05] text-white/90 rounded-tr-none border border-white/10"
+                                : "bg-black/20 text-white/80 border border-white/5 rounded-tl-none shadow-black/20"
                         )}>
                             <ReactMarkdown
                                 remarkPlugins={[remarkGfm]}
                                 components={{
-                                    ul: (props) => <ul className="list-disc pl-4 space-y-1" {...props} />,
-                                    ol: (props) => <ol className="list-decimal pl-4 space-y-1" {...props} />,
-                                    li: (props) => <li className="mb-1" {...props} />,
-                                    blockquote: (props) => <blockquote className="border-l-2 border-primary/50 pl-4 italic opacity-80" {...props} />,
+                                    ul: (props) => <ul className="list-disc pl-4 space-y-1 my-2" {...props} />,
+                                    ol: (props) => <ol className="list-decimal pl-4 space-y-1 my-2" {...props} />,
+                                    li: (props) => <li className="mb-1 text-white/80" {...props} />,
+                                    blockquote: (props) => <blockquote className="border-l-2 border-white/20 pl-4 py-1 my-2 italic opacity-70 bg-white/5 rounded-r" {...props} />,
                                     code: (props) => {
                                         const { children, className, node, ...rest } = props;
                                         const match = /language-(\w+)/.exec(className || '')
                                         return match ? (
-                                            <div className="relative">
-                                                <div className="absolute top-0 right-0 px-2 py-0.5 text-[10px] text-muted-foreground bg-white/5 rounded-bl">
-                                                    {match[1]}
+                                            <div className="relative my-3 rounded-lg overflow-hidden border border-white/10 bg-black/40 shadow-inner">
+                                                <div className="flex items-center justify-between px-3 py-1.5 bg-white/5 border-b border-white/5">
+                                                    <span className="text-[10px] uppercase tracking-wider text-white/40">{match[1]}</span>
                                                 </div>
-                                                <code {...rest} className={className}>
+                                                <code {...rest} className={cn(className, "block p-3 overflow-x-auto text-xs font-mono text-white/80")}>
                                                     {children}
                                                 </code>
                                             </div>
                                         ) : (
-                                            <code {...rest} className="bg-black/30 rounded px-1 py-0.5 font-mono text-xs">
+                                            <code {...rest} className="bg-white/10 rounded px-1.5 py-0.5 font-mono text-[11px] text-emerald-300/80">
                                                 {children}
                                             </code>
                                         )
                                     },
-                                    pre: (props) => <pre className="bg-black/50 p-2 rounded-lg overflow-x-auto text-xs my-2 border border-white/10" {...props} />,
+                                    pre: (props) => <pre className="bg-transparent p-0 m-0" {...props} />,
                                     p: (props) => <p className="mb-2 last:mb-0" {...props} />,
-                                    a: (props) => <a className="text-primary hover:underline" target="_blank" rel="noopener noreferrer" {...props} />,
+                                    a: (props) => <a className="text-purple-400 hover:text-purple-300 hover:underline underline-offset-4" target="_blank" rel="noopener noreferrer" {...props} />,
                                 }}
                             >
                                 {msg.content}
@@ -246,8 +244,8 @@ export function ChatPanel({ onSendMessage, onClearHistory }: ChatPanelProps) {
 
                 {/* Live Transcript */}
                 {state.currentTranscript && (
-                    <div className="flex justify-end animate-in fade-in slide-in-from-bottom-2 duration-300">
-                        <div className="bg-primary/20 text-primary-foreground/80 border border-primary/20 rounded-2xl rounded-tr-none px-4 py-3 max-w-[85%] italic">
+                    <div className="flex justify-end animate-in fade-in slide-in-from-bottom-4 duration-300 pb-4">
+                        <div className="bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 rounded-2xl rounded-tr-none px-6 py-4 max-w-[85%] italic backdrop-blur-md shadow-[0_0_20px_rgba(16,185,129,0.1)]">
                             <span className="animate-pulse">{state.currentTranscript}</span> ...
                         </div>
                     </div>
@@ -259,47 +257,45 @@ export function ChatPanel({ onSendMessage, onClearHistory }: ChatPanelProps) {
 
             {/* Scroll to bottom button (Floating) */}
             <div className={cn(
-                "absolute bottom-24 right-6 transition-all duration-500 transform z-30",
+                "absolute bottom-28 right-8 transition-all duration-500 transform z-30",
                 showScrollButton ? "translate-y-0 opacity-100" : "translate-y-10 opacity-0 pointer-events-none"
             )}>
                 <Button
                     size="icon"
                     onClick={scrollToBottom}
-                    className="h-9 w-9 rounded-full bg-primary/20 hover:bg-primary text-primary hover:text-black border border-primary/30 shadow-[0_0_15px_rgba(var(--primary),0.3)] backdrop-blur-md transition-all"
+                    className="h-10 w-10 rounded-full bg-white/10 hover:bg-white/20 text-white border border-white/10 shadow-lg backdrop-blur-md transition-all"
                 >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
                 </Button>
             </div>
 
             {/* Input Area */}
-            <div className="p-4 pt-4 border-t border-white/10 bg-black/40 shrink-0 backdrop-blur-xl z-50">
-                <form onSubmit={handleSubmit} className="relative flex gap-2 items-end">
+            <div className="p-6 pt-2 pb-6 shrink-0 z-50 bg-gradient-to-t from-black/20 to-transparent">
+                <form onSubmit={handleSubmit} className="relative flex gap-3 items-end p-2 rounded-[2rem] bg-white/[0.04] border border-white/10 backdrop-blur-2xl shadow-2xl ring-1 ring-black/20">
                     <Input
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
-                        placeholder="Type message..."
-                        className="input-glass h-12 flex-1 shadow-inner bg-black/40 border-white/10 focus-visible:ring-primary/40 focus-visible:border-primary/40 font-light tracking-wide transition-all"
+                        placeholder="Type encrypted message..."
+                        className="flex-1 h-12 bg-transparent border-none focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-white/20 text-white/90 font-light tracking-wide px-4"
                     />
                     <Button
                         type="submit"
                         size="icon"
                         disabled={!input.trim() || state.isChatProcessing}
                         className={cn(
-                            "h-12 w-12 rounded-xl shrink-0 transition-all duration-300 shadow-lg",
+                            "h-10 w-10 rounded-full shrink-0 transition-all duration-300 my-auto mr-1",
                             !input.trim() || state.isChatProcessing
-                                ? "bg-white/5 text-muted-foreground border border-white/5"
-                                : "bg-primary text-primary-foreground hover:bg-primary/90 shadow-[0_0_20px_rgba(var(--primary),0.4)]"
+                                ? "bg-white/5 text-white/20"
+                                : "bg-white/10 text-white hover:bg-white/20 shadow-[0_0_15px_rgba(255,255,255,0.1)]"
                         )}
                     >
-                        <Send className={cn("size-5 transition-transform", input.trim() && !state.isChatProcessing && "group-hover:translate-x-0.5 group-hover:-translate-y-0.5")} />
+                        <Send className={cn("size-4 transition-transform", input.trim() && !state.isChatProcessing && "group-hover:translate-x-0.5 group-hover:-translate-y-0.5")} />
                     </Button>
                 </form>
-                <div className="mt-2.5 flex justify-center gap-3 opacity-20 text-[8px] font-mono tracking-[0.3em] uppercase select-none">
-                    <span>Encrypted</span>
+                <div className="mt-3 flex justify-center gap-4 opacity-30 text-[9px] font-mono tracking-[0.3em] uppercase select-none text-white/60">
+                    <span>Encrypted Link</span>
                     <span>•</span>
-                    <span>Chnnl 1</span>
-                    <span>•</span>
-                    <span>Active</span>
+                    <span>Athena Core</span>
                 </div>
             </div>
         </div >

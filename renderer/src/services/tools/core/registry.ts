@@ -17,6 +17,7 @@ class ToolRegistryService {
 
     findTool(text: string): Tool | null {
         const lowerText = text.toLowerCase();
+        console.log(`[ToolRegistry] Searching tool for text: "${lowerText}"`);
 
         // Simple preference: First tool that matches any keyword
         // Improvement: Use LLM to classify intent if we want to get fancy, 
@@ -25,10 +26,12 @@ class ToolRegistryService {
         for (const tool of this.tools) {
             for (const keyword of tool.keywords) {
                 if (lowerText.includes(keyword)) {
+                    console.log(`[ToolRegistry] Found tool "${tool.name}" via keyword "${keyword}"`);
                     return tool;
                 }
             }
         }
+        console.log(`[ToolRegistry] No tool found.`);
         return null;
     }
 

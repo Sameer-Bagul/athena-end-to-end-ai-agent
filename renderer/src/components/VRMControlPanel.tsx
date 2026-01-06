@@ -60,7 +60,7 @@ export function VRMControlPanel({ onOpenWidget }: VRMControlPanelProps) {
             }}
         >
             {/* Left Side Panel */}
-            <aside className="h-full z-10 relative border-r border-white/5 bg-black/40 backdrop-blur-md overflow-hidden">
+            <aside className="h-full z-20 relative border-r border-white/5 bg-black/60 backdrop-blur-2xl overflow-hidden shadow-2xl">
                 <SidePanel
                     onToggleListening={toggleListening}
                     onVrmUpload={() => { }} // TODO: Implement file handlers in Context if needed, or keep passing helpers
@@ -69,7 +69,7 @@ export function VRMControlPanel({ onOpenWidget }: VRMControlPanelProps) {
             </aside>
 
             {/* Center Stage */}
-            <main className="relative h-full w-full bg-black/50 z-0 overflow-hidden">
+            <main className="relative h-full w-full bg-[#050510] z-0 overflow-hidden">
                 <ThreeStage
                     ref={stageRef}
                     vrmUrl={state.vrmUrl}
@@ -87,14 +87,14 @@ export function VRMControlPanel({ onOpenWidget }: VRMControlPanelProps) {
 
                 {/* Floating Buttons */}
                 <div className="absolute top-4 right-4 z-20 flex gap-3">
-                    <button onClick={onOpenWidget} className="btn-glass px-3 py-2 text-xs font-mono uppercase text-purple-300 hover:text-white flex gap-2">
-                        <Box className="size-4" /> Widget
+                    <button onClick={onOpenWidget} className="btn-glass px-4 py-2 rounded-lg bg-black/40 backdrop-blur-md border border-white/10 text-xs font-mono uppercase text-white/60 hover:text-white hover:bg-white/10 hover:border-white/20 transition-all flex gap-2 items-center">
+                        <Box className="size-3.5" /> Widget
                     </button>
                 </div>
             </main>
 
             {/* Right Chat Panel */}
-            <aside className="h-full z-10 relative border-l border-white/5 bg-black/40 backdrop-blur-md overflow-hidden">
+            <aside className="h-full z-20 relative border-l border-white/5 bg-black/60 backdrop-blur-2xl overflow-hidden shadow-2xl">
                 <ChatPanel
                     onSendMessage={handleTextSubmit}
                     onClearHistory={actions.clearChat}

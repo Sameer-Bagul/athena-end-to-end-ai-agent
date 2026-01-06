@@ -62,17 +62,22 @@ export function WidgetLayout() {
     }, []);
 
     // --- Settings State ---
-    const [settings, setSettings] = useState({
-        zoom: 0.5, // Default zoom roughly matches previous 'cameraFov' logic or simpler scale logic
-        // Actually, changing FOV is better for zoom. 
-        // Or distance. 
-        // Previously: cameraFov={18} (very zoomed in telephoto).
-        // Let's map zoom 1.0 -> FOV 18?
-        // Let's store settings raw.
-        opacity: 0, // Fully transparent
-        blur: 0,
-        borderRadius: 50, // Circle
-        size: 300,
+    const [settings, setSettings] = useState(() => {
+        try {
+            const saved = localStorage.getItem("athena-widget-settings");
+            return saved ? JSON.parse(saved) : {
+                zoom: 0.5, opacity: 0, blur: 0, borderRadius: 50, size: 300, borderWidth: 0
+            };
+        } catch {
+            return {
+                zoom: 0.5,
+                opacity: 0,
+                blur: 0,
+                borderRadius: 50,
+                size: 300,
+                borderWidth: 0,
+            };
+        }
     });
 
     // --- State Sync Listener ---
@@ -132,6 +137,7 @@ export function WidgetLayout() {
         backgroundColor: `rgba(0,0,0, ${settings.opacity})`, // Simple black tint
         backdropFilter: settings.blur > 0 ? `blur(${settings.blur}px)` : 'none',
         WebkitAppRegion: 'drag', // Helper for dragging entire shape
+        border: (settings.borderWidth || 0) > 0 ? `${settings.borderWidth}px solid rgba(255,255,255,0.2)` : 'none',
     } as React.CSSProperties;
 
 
