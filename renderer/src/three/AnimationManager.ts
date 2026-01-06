@@ -13,9 +13,9 @@
  */
 
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
 import { VRM } from '@pixiv/three-vrm';
-import { VRMAnimationLoaderPlugin, createVRMAnimationClip } from '@pixiv/three-vrm-animation';
+import { retargetAnimation } from 'vrm-mixamo-retarget';
 
 /**
  * Animation action types
@@ -42,17 +42,17 @@ export type AnimationAction = typeof AnimationAction[keyof typeof AnimationActio
  * Maps enum values to VRMA filenames
  */
 const ANIMATION_FILES: Record<AnimationAction, string> = {
-  [AnimationAction.ANGRY]: 'Angry.vrma',
-  [AnimationAction.BLUSH]: 'Blush.vrma',
-  [AnimationAction.CLAPPING]: 'Clapping.vrma',
-  [AnimationAction.GOODBYE]: 'Goodbye.vrma',
-  [AnimationAction.JUMP]: 'Jump.vrma',
-  [AnimationAction.LOOK_AROUND]: 'LookAround.vrma',
-  [AnimationAction.RELAX]: 'Relax.vrma',
-  [AnimationAction.SAD]: 'Sad.vrma',
-  [AnimationAction.SLEEPY]: 'Sleepy.vrma',
-  [AnimationAction.SURPRISED]: 'Surprised.vrma',
-  [AnimationAction.THINKING]: 'Thinking.vrma',
+  [AnimationAction.ANGRY]: 'angry.fbx',
+  [AnimationAction.BLUSH]: 'nervousLookAround.fbx',
+  [AnimationAction.CLAPPING]: 'victory.fbx',
+  [AnimationAction.GOODBYE]: 'dismissingGesture.fbx',
+  [AnimationAction.JUMP]: 'jump.fbx',
+  [AnimationAction.LOOK_AROUND]: 'nervousLookAround.fbx',
+  [AnimationAction.RELAX]: 'Idle.fbx', // Default requested by user
+  [AnimationAction.SAD]: 'defeated.fbx',
+  [AnimationAction.SLEEPY]: 'idleDrunk.fbx',
+  [AnimationAction.SURPRISED]: 'surprised.fbx',
+  [AnimationAction.THINKING]: 'Talking.fbx', // AI Response requested by user
 };
 
 /**
@@ -66,22 +66,18 @@ interface AnimationConfig {
 }
 
 export class AnimationManager {
-  private gltfLoader: GLTFLoader;
   private mixer: THREE.AnimationMixer | null = null;
   private vrm: VRM | null = null;
   private animations: Map<AnimationAction, AnimationConfig> = new Map();
   private currentAction: THREE.AnimationAction | null = null;
   private currentAnimationType: AnimationAction = AnimationAction.RELAX;
+  private baseHipsHeight: number = 0; // Natural resting height of hips
 
   // Animation settings
   private readonly CROSSFADE_DURATION = 0.5; // seconds
 
   constructor() {
-    this.gltfLoader = new GLTFLoader();
-    // Register the VRMA animation loader plugin
-    this.gltfLoader.register((parser) => {
-      return new VRMAnimationLoaderPlugin(parser);
-    });
+    // FBXLoader is instantiated on demand
   }
 
   /**
@@ -92,6 +88,22 @@ export class AnimationManager {
     this.vrm = vrm;
     // Create mixer on the VRM scene for proper animation
     this.mixer = new THREE.AnimationMixer(vrm.scene);
+
+    // Capture base hips height (T-pose/Rest pose)
+    // We assume the model is loaded in T-pose initially
+    const hips = vrm.humanoid.getNormalizedBoneNode('hips');
+    if (hips) {
+      // We need world position relative to model root. 
+      // If scene is at 0,0,0, world position Y is correct.
+      // But let's be safe and use local or ensure root is 0.
+      // VRM normalized bone node "hips" is usually child of root.
+      // Let's use world position assuming model is at 0,0,0 during init.
+      const worldPos = new THREE.Vector3();
+      hips.getWorldPosition(worldPos);
+      this.baseHipsHeight = worldPos.y;
+      console.log(`📏 [AnimationManager] Base Hips Height captured: ${this.baseHipsHeight.toFixed(4)}m`);
+    }
+
     console.log('🎭 Animation mixer created on VRM scene');
   }
 
@@ -111,72 +123,63 @@ export class AnimationManager {
 
     const filename = ANIMATION_FILES[action];
     const path = `${basePath}${filename}`;
+    // Assuming strictly FBX as per plan
 
     return new Promise((resolve, reject) => {
-      this.gltfLoader.load(
-        path,
-        (gltf) => {
-          console.log(`✅ Loaded VRMA file: ${filename}`, gltf);
+      const loader = new FBXLoader();
+      loader.load(path, (fbxGroup) => {
+        console.log(`✅ Loaded FBX file for cache: ${filename}`);
 
-          // Extract VRM animation data from the loaded GLTF
-          const vrmAnimations = gltf.userData.vrmAnimations;
+        // Ensure VRM is at 0,0,0
+        this.vrm!.scene.position.set(0, 0, 0);
 
-          if (!vrmAnimations || vrmAnimations.length === 0) {
-            reject(new Error(`No VRM animation found in ${filename}`));
-            return;
-          }
-
-          // Get the first animation from the file
-          const vrmAnimationData = vrmAnimations[0];
-
-          // Convert VRM animation data to THREE.AnimationClip
-          const clip = createVRMAnimationClip(vrmAnimationData, this.vrm!);
-
-          if (!clip) {
-            reject(new Error(`Failed to create animation clip from ${filename}`));
-            return;
-          }
-
-          // --- PING-PONG LOOP FIX ---
-          // Reverted Root Motion Filter to allow full X/Y/Z movement.
-          // Using LoopPingPong ensures smooth transition by reversing at the end.
-
-          console.log(`🎬 Created animation clip for ${action}:`, clip);
-          console.log(`   Duration: ${clip.duration.toFixed(2)}s`);
-          console.log(`   Tracks: ${clip.tracks.length}`);
-
-          // Create animation action
-          const clipAction = this.mixer!.clipAction(clip);
-
-          // Configure animation
-          clipAction.setLoop(THREE.LoopRepeat, Infinity);
-          clipAction.clampWhenFinished = false;
-
-          // Store animation config
-          this.animations.set(action, {
-            action,
-            clip,
-            mixer: this.mixer!,
-            clipAction,
-          });
-
-          console.log(`✅ Loaded animation: ${action} (${filename})`);
-          resolve();
-        },
-        (progress) => {
-          const percentComplete = (progress.loaded / progress.total) * 100;
-          console.log(`Loading ${action}: ${percentComplete.toFixed(2)}%`);
-        },
-        (error) => {
-          const err = error instanceof Error ? error : new Error(String(error));
-          reject(new Error(`Failed to load animation ${action}: ${err.message}`));
+        let clip: THREE.AnimationClip | null = null;
+        try {
+          clip = retargetAnimation(fbxGroup, this.vrm!);
+        } catch (e) {
+          console.error("Retargeting failed", e);
+          reject(e);
+          return;
         }
-      );
+
+        if (!clip) {
+          reject(new Error(`Failed to retarget FBX animation: ${filename}`));
+          return;
+        }
+
+        // FIX: Strip Root Motion (Smart Lock)
+        this.stripRootMotion(clip);
+
+        // FIX: Arm Spacer
+        this.adjustArmSpacing(clip, 0.13);
+
+        const clipAction = this.mixer!.clipAction(clip);
+        clipAction.setLoop(THREE.LoopRepeat, Infinity);
+        clipAction.clampWhenFinished = false;
+
+        // Store in cache
+        this.animations.set(action, {
+          action,
+          clip,
+          mixer: this.mixer!,
+          clipAction,
+        });
+
+        console.log(`✅ Cached animation: ${action} (${filename})`);
+        resolve();
+
+      }, undefined, (e) => {
+        const err = e instanceof Error ? e : new Error(String(e));
+        reject(new Error(`Failed to load FBX ${action}: ${err.message}`));
+      });
     });
   }
 
+
+
   /**
-   * Load a single animation from an arbitrary URL (e.g. Blob URL)
+   * Load a single animation from an arbitrary URL (e.g. Blob URL or public path)
+   * Supports both .vrma and .fbx (via Mixamo retargeting)
    * 
    * @param url - URL to the animation file
    */
@@ -186,65 +189,68 @@ export class AnimationManager {
       throw new Error('AnimationManager not initialized. Call initialize() first.');
     }
 
-    console.log('[AnimationManager] loadAnimationFromUrl called with:', url);
+    // Force FBX check or assumption
+    if (!url.toLowerCase().endsWith('.fbx')) {
+      console.warn(`[AnimationManager] URL does not end with .fbx, but attempting load anyway: ${url}`);
+    }
+
+    console.log(`[AnimationManager] loadAnimationFromUrl called with: ${url}`);
 
     return new Promise((resolve, reject) => {
-      this.gltfLoader.load(
-        url,
-        (gltf) => {
-          console.log(`[AnimationManager] ✅ Loaded animation from URL: ${url}`, gltf);
+      const loader = new FBXLoader();
+      loader.load(url, (fbxGroup) => {
+        console.log(`[AnimationManager] ✅ Loaded FBX from URL: ${url}`);
 
-          // Extract VRM animation data 
-          const vrmAnimations = gltf.userData.vrmAnimations;
-          if (!vrmAnimations || vrmAnimations.length === 0) {
-            console.error('[AnimationManager] No VRM animation found in URL:', url);
-            reject(new Error(`No VRM animation found in URL`));
-            return;
-          }
+        // Ensure VRM is at 0,0,0 to prevent ground clipping
+        this.vrm!.scene.position.set(0, 0, 0);
 
-          const vrmAnimationData = vrmAnimations[0];
-          // Convert VRM animation data to THREE.AnimationClip
-          const clip = createVRMAnimationClip(vrmAnimationData, this.vrm!);
+        let clip: THREE.AnimationClip | null = null;
 
-          if (!clip) {
-            console.error('[AnimationManager] Failed to create animation clip from URL:', url);
-            reject(new Error(`Failed to create animation clip from URL`));
-            return;
-          }
-
-          // --- PING-PONG LOOP FIX ---
-          // Reverted Root Motion Filter to allow full X/Y/Z movement.
-          // Using LoopPingPong ensures smooth transition by reversing at the end.
-
-          // Create animation action
-          const clipAction = this.mixer!.clipAction(clip);
-          clipAction.setLoop(THREE.LoopPingPong, Infinity);
-          clipAction.clampWhenFinished = false;
-
-          // Perform crossfade
-          if (this.currentAction) {
-            this.currentAction.fadeOut(this.CROSSFADE_DURATION);
-          }
-
-          console.log(`[AnimationManager] ▶️ Starting custom animation for URL:`, url);
-          clipAction
-            .reset()
-            .setEffectiveTimeScale(1)
-            .setEffectiveWeight(1)
-            .fadeIn(this.CROSSFADE_DURATION)
-            .play();
-
-          this.currentAction = clipAction;
-
-          resolve();
-        },
-        undefined,
-        (error) => {
-          const err = error instanceof Error ? error : new Error(String(error));
-          console.error('[AnimationManager] Failed to load animation from URL:', url, err);
-          reject(new Error(`Failed to load animation from URL: ${err.message}`));
+        try {
+          clip = retargetAnimation(fbxGroup, this.vrm!);
+        } catch (e) {
+          console.error("Retargeting failed", e);
+          reject(e);
+          return;
         }
-      );
+
+        if (!clip) {
+          reject(new Error("Failed to retarget FBX animation"));
+          return;
+        }
+
+        // FIX: Strip Root Motion (Smart Lock)
+        this.stripRootMotion(clip);
+
+        // FIX: Arm Spacer
+        this.adjustArmSpacing(clip, 0.13);
+
+        const clipAction = this.mixer!.clipAction(clip);
+
+        // Apply Loop Fixes (same as Playground)
+        clipAction.setLoop(THREE.LoopRepeat, Infinity);
+        clipAction.clampWhenFinished = true;
+
+        // Crossfade
+        if (this.currentAction) {
+          this.currentAction.fadeOut(this.CROSSFADE_DURATION);
+        }
+
+        console.log(`[AnimationManager] ▶️ Starting FBX animation:`, url);
+        clipAction
+          .reset()
+          .setEffectiveTimeScale(1)
+          .setEffectiveWeight(1)
+          .fadeIn(this.CROSSFADE_DURATION)
+          .play();
+
+        this.currentAction = clipAction;
+        resolve();
+
+      }, undefined, (e) => {
+        console.error("FBX Load Error", e);
+        reject(e);
+      });
     });
   }
 
@@ -444,5 +450,117 @@ export class AnimationManager {
     this.animations.clear();
 
     this.vrm = null;
+  }
+
+  // * Processes root motion to allow X/Z movement relative to start,
+  //   * while ensuring Y stays above ground.
+  //  */
+  private stripRootMotion(clip: THREE.AnimationClip): void {
+  if(!this.vrm || !this.vrm.humanoid) return;
+
+  const hips = this.vrm.humanoid.getNormalizedBoneNode('hips');
+  if(!hips) return;
+
+  const hipsName = hips.name;
+
+  // Find the position track for hips
+  const positionTrack = clip.tracks.find(track => track.name === `${hipsName}.position`);
+
+  if(positionTrack) {
+    const values = positionTrack.values;
+
+    // Capture initial position (Frame 0)
+    const initialX = values[0];
+    const initialY = values[1];
+    const initialZ = values[2];
+
+    // Calculate offsets to normalize animation to start at (0, baseHipsHeight, 0)
+    // This allows the model to move (root motion) but relative to its spawn point.
+    const offsetX = -initialX;
+    const offsetZ = -initialZ;
+    const offsetY = this.baseHipsHeight - initialY;
+
+    const floorThreshold = 0.05; // Minimum height from floor
+
+    // Modify values in-place: [x, y, z, x, y, z, ...]
+    for (let i = 0; i < values.length; i += 3) {
+      // Apply Offsets (Normalize)
+      values[i] = values[i] + offsetX;       // X
+      values[i + 2] = values[i + 2] + offsetZ; // Z
+
+      // Y Logic: Normalize + Clamp
+      let newY = values[i + 1] + offsetY;
+
+      // Prevent sinking below floor
+      if (newY < floorThreshold) {
+        newY = floorThreshold;
+      }
+
+      values[i + 1] = newY;
+    }
+
+    console.log(`🔓 [AnimationManager] Processed root motion for ${hipsName}`);
+    console.log(`   - Horizontal: Normalized (Moving)`);
+    console.log(`   - Vertical: Normalized & Floor Clamped (> ${floorThreshold}m)`);
+  }
+}
+  /**
+   * Adjusts the upper arm spacing to prevent clipping into the body.
+   * Rotates arms outwards (abduction) by a small angle.
+   * 
+   * @param clip - The animation clip to modify
+   * @param spacingAngle - Angle in radians to widen arms (default: 0.1 rad ~ 5.7 deg)
+   */
+  private adjustArmSpacing(clip: THREE.AnimationClip, spacingAngle: number = 0.1): void {
+  if(!this.vrm || !this.vrm.humanoid) return;
+
+  const leftArm = this.vrm.humanoid.getNormalizedBoneNode('leftUpperArm');
+  const rightArm = this.vrm.humanoid.getNormalizedBoneNode('rightUpperArm');
+
+  if(!leftArm || !rightArm) return;
+
+const leftArmName = leftArm.name;
+const rightArmName = rightArm.name;
+
+// Create offset quaternions for abduction (Z-axis rotation usually)
+// Left Arm: Rotate -Z to move up/out (Inverted from previous)
+// Right Arm: Rotate +Z to move up/out (Inverted from previous)
+const leftOffset = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), -spacingAngle);
+const rightOffset = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), spacingAngle);
+
+let modifiedCount = 0;
+
+clip.tracks.forEach(track => {
+  if (track.name.endsWith('.quaternion')) {
+    const isLeft = track.name === `${leftArmName}.quaternion`;
+    const isRight = track.name === `${rightArmName}.quaternion`;
+
+    if (isLeft || isRight) {
+      const values = track.values; // [x, y, z, w, ...]
+      const numFrames = values.length / 4;
+      const offset = isLeft ? leftOffset : rightOffset;
+
+      for (let i = 0; i < numFrames; i++) {
+        const idx = i * 4;
+        const currentQ = new THREE.Quaternion(values[idx], values[idx + 1], values[idx + 2], values[idx + 3]);
+
+        // Apply offset: NewQ = Offset * OldQ (Premultiply for local rotation change)
+        // Or Postmultiply? Usually bone rotations are local.
+        // Let's try premultiply to rotate the "base" frame of reference.
+        currentQ.premultiply(offset);
+
+        values[idx] = currentQ.x;
+        values[idx + 1] = currentQ.y;
+        values[idx + 2] = currentQ.z;
+        values[idx + 3] = currentQ.w;
+      }
+      modifiedCount++;
+    }
+  }
+});
+
+if (modifiedCount > 0) {
+  console.log(`💪 [AnimationManager] Adjusted Arm Spacing for ${modifiedCount} tracks (+${(spacingAngle * 57.29).toFixed(1)}°)`);
+}
   }
 }
