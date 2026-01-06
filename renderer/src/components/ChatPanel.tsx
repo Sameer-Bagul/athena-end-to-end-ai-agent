@@ -49,19 +49,67 @@ export function ChatPanel({ onSendMessage, onClearHistory }: ChatPanelProps) {
     // --- Collapsed View ---
     if (state.isRightCollapsed) {
         return (
-            <div className="panel-glass border-l h-full w-full flex flex-col items-center py-4 bg-black/60 backdrop-blur-xl gap-4">
-                <Button variant="ghost" size="icon" onClick={actions.toggleRightCollapse} className="size-8 text-muted-foreground hover:text-white">
-                    <MessageSquare className="size-4" />
+            <div
+                className={cn(
+                    "panel-glass border-l h-full w-full flex flex-col items-center py-4 bg-black/80 backdrop-blur-xl gap-6 transition-all duration-300 relative overflow-hidden group hover:bg-black/90",
+                    state.isChatProcessing && "shadow-[inset_0_0_20px_rgba(var(--primary),0.1)]"
+                )}
+                onClick={actions.toggleRightCollapse}
+            >
+                {/* Active Strip */}
+                <div className={cn(
+                    "absolute top-0 bottom-0 left-0 w-[1px] transition-all duration-500",
+                    state.isChatProcessing ? "bg-primary/50 shadow-[0_0_10px_currentColor]" : "bg-white/5"
+                )} />
+
+                {/* Toggle Button */}
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={(e) => { e.stopPropagation(); actions.toggleRightCollapse(); }}
+                    className="size-8 text-muted-foreground/50 hover:text-white rounded-full hover:bg-white/10 transition-all z-10"
+                >
+                    <MessageSquare className={cn("size-4 transition-transform duration-500", state.isChatProcessing && "animate-pulse text-primary")} />
                 </Button>
 
-                <div className="flex-1 flex flex-col items-center justify-center gap-4 opacity-50">
-                    <div className="writing-vertical-rl rotate-180 text-xs font-mono uppercase tracking-[0.3em] text-muted-foreground whitespace-nowrap">
-                        Communication Uplink
+                {/* Central Status Rail */}
+                <div className="flex-1 flex flex-col items-center justify-center gap-8 w-full opacity-60 group-hover:opacity-100 transition-opacity">
+
+                    {/* Decorative Line Top */}
+                    <div className="h-16 w-[1px] bg-gradient-to-b from-transparent via-white/20 to-transparent" />
+
+                    {/* Vertical Text */}
+                    <div className="writing-vertical-rl rotate-180 flex items-center gap-4">
+                        <span className="text-[9px] font-mono uppercase tracking-[0.3em] text-muted-foreground/80 whitespace-nowrap group-hover:text-white transition-colors">
+                            Communication Link
+                        </span>
+                        {state.isChatProcessing && (
+                            <span className="text-[8px] text-primary animate-pulse font-bold tracking-widest">
+                                ACTIVE
+                            </span>
+                        )}
                     </div>
+
+                    {/* Decorative Line Bottom */}
+                    <div className="h-16 w-[1px] bg-gradient-to-t from-transparent via-white/20 to-transparent" />
                 </div>
 
-                <div className="mt-auto pb-4">
-                    <div className={cn("size-2 rounded-full", state.isChatProcessing ? "bg-accent animate-pulse" : "bg-primary/20")} />
+                {/* Bottom Status Indicator */}
+                <div className="mt-auto pb-4 flex flex-col items-center gap-3 z-10">
+                    <div
+                        className={cn(
+                            "size-2.5 rounded-full transition-all duration-500 border border-black/50 shadow-lg",
+                            state.isChatProcessing
+                                ? "bg-primary shadow-[0_0_10px_rgba(var(--primary),0.6)] animate-pulse"
+                                : state.isListening
+                                    ? "bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.5)]"
+                                    : "bg-white/20"
+                        )}
+                        title={state.isChatProcessing ? "Processing..." : state.isListening ? "Mic On" : "Idle"}
+                    />
+                    {state.isListening && (
+                        <div className="size-1 rounded-full bg-red-500/50 animate-ping absolute bottom-5 pointer-events-none" />
+                    )}
                 </div>
             </div>
         );

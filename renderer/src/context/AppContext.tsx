@@ -129,8 +129,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
 
     // UI
-    const [isLeftCollapsed, setIsLeftCollapsed] = React.useState(false);
-    const [isRightCollapsed, setIsRightCollapsed] = React.useState(false);
+    const [isLeftCollapsed, setIsLeftCollapsed] = React.useState(true);
+    const [isRightCollapsed, setIsRightCollapsed] = React.useState(true);
 
 
     // --- Side Effects & Logic ---

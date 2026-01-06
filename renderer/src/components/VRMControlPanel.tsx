@@ -7,8 +7,9 @@ import { SettingsDialog } from "./SettingsDialog";
 import { ChatPanel } from "./ChatPanel";
 import { ExhibitionPage } from "./ExhibitionPage";
 import { useAppStore } from "../context/AppContext";
-import { SpeechRecognitionManager } from "../lib/SpeechRecognition";
-import { sendMessageToOllama, generateSpeech } from "../lib/api";
+import { useSpeechManager } from "../hooks/useSpeechManager";
+import { useAssistant } from "../hooks/useAssistant";
+import { useGlobalShortcuts } from "../hooks/useGlobalShortcuts";
 
 interface VRMControlPanelProps {
     onOpenWidget?: () => void;
@@ -16,68 +17,37 @@ interface VRMControlPanelProps {
 
 export function VRMControlPanel({ onOpenWidget }: VRMControlPanelProps) {
     const { state, actions } = useAppStore();
-
-    // Refs (Still local as they are implementation details or DOM/Three refs)
-    const speechManagerRef = React.useRef<SpeechRecognitionManager | null>(null);
-    const abortControllerRef = React.useRef<AbortController | null>(null);
     const stageRef = React.useRef<ThreeStageHandle>(null);
 
-    // Initialize Speech Logic (Move to Context later? for now bridge it)
-    // We need to sync local SpeechManager events to Context State
-    React.useEffect(() => {
-        speechManagerRef.current = new SpeechRecognitionManager();
-        return () => {
-            speechManagerRef.current?.stop();
-            abortControllerRef.current?.abort();
-            actions.setChatProcessing(false);
-        }
-    }, []);
+    // 1. Assistant Logic (LLM + TTS)
+    const { processInput } = useAssistant();
 
-    // Handle Listening Toggle Bridge
-    const handleToggleListening = () => {
-        // If active, stop
-        if (state.isListening) {
-            speechManagerRef.current?.stop();
-            actions.toggleListening(); // Updates state to false
-            actions.setVoiceStatus("idle");
-        } else {
-            // Start
-            actions.toggleListening(); // Updates state to true
-            actions.setVoiceStatus("listening");
-            speechManagerRef.current?.start({
-                onResult: handleSpeechResult,
-                onStatusChange: (s) => actions.setVoiceStatus(s as any),
-                onError: (e) => console.error(e)
-            });
-        }
-    };
-
-    const handleSpeechResult = async (text: string) => {
+    // 2. Speech Result Handler (Bridge between Speech and Assistant)
+    const handleSpeechResult = React.useCallback(async (text: string) => {
         actions.addMessage({ role: 'user', content: text });
-        await handleChatSubmit(text);
-    };
-
-    const handleChatSubmit = async (text: string) => {
-        actions.setChatProcessing(true);
-        try {
-            // LLM
-            const response = await sendMessageToOllama(text);
-            const aiMsg = { role: 'assistant', content: response } as const;
-            actions.addMessage(aiMsg);
-
-            // TTS
-            if (state.isListening) { // Auto-speak if in voice mode
-                try {
-                    const audio = await generateSpeech(response, state.selectedCharacter.voiceStyle);
-                    await stageRef.current?.playAudio(audio);
-                } catch (e) { console.error("TTS failed", e); }
+        await processInput(text, {
+            source: 'voice',
+            onPlayAudio: async (blob) => {
+                if (stageRef.current) await stageRef.current.playAudio(blob);
             }
-        } catch (e) {
-            console.error("Chat error", e);
-        } finally {
-            actions.setChatProcessing(false);
-        }
-    };
+        });
+    }, [actions, processInput]);
+
+    // 3. Speech Manager
+    const { toggleListening } = useSpeechManager(handleSpeechResult);
+
+    // 4. Global Shortcuts
+    useGlobalShortcuts(toggleListening);
+
+    // 5. Chat Panel Handler
+    const handleTextSubmit = React.useCallback(async (text: string) => {
+        await processInput(text, {
+            source: 'text',
+            onPlayAudio: async (blob) => {
+                if (stageRef.current) await stageRef.current.playAudio(blob);
+            }
+        });
+    }, [processInput]);
 
 
     return (
@@ -90,7 +60,7 @@ export function VRMControlPanel({ onOpenWidget }: VRMControlPanelProps) {
             {/* Left Side Panel */}
             <aside className="h-full z-10 relative border-r border-white/5 bg-black/40 backdrop-blur-md overflow-hidden">
                 <SidePanel
-                    onToggleListening={handleToggleListening}
+                    onToggleListening={toggleListening}
                     onVrmUpload={() => { }} // TODO: Implement file handlers in Context if needed, or keep passing helpers
                     onAnimationUpload={() => { }}
                 />
@@ -124,7 +94,7 @@ export function VRMControlPanel({ onOpenWidget }: VRMControlPanelProps) {
             {/* Right Chat Panel */}
             <aside className="h-full z-10 relative border-l border-white/5 bg-black/40 backdrop-blur-md overflow-hidden">
                 <ChatPanel
-                    onSendMessage={handleChatSubmit}
+                    onSendMessage={handleTextSubmit}
                     onClearHistory={actions.clearChat}
                 />
             </aside>

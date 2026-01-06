@@ -8,8 +8,8 @@ import tempfile
 app = FastAPI()
 
 # Initialize Model (CPU for compatibility, INT8 quantization default)
-print("Loading Whisper Model...", flush=True)
-model = WhisperModel("tiny", device="cpu", compute_type="int8")
+print("Loading Whisper Model (base.en)...", flush=True)
+model = WhisperModel("base.en", device="cpu", compute_type="int8")
 print("Model Loaded.", flush=True)
 
 @app.post("/stt")
