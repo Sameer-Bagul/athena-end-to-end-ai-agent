@@ -5,6 +5,7 @@ import { VRM, VRMLoaderPlugin, VRMUtils } from '@pixiv/three-vrm';
 import { AthenaScene } from '../three/AthenaScene';
 import { AnimationManager, AnimationAction } from '../three/AnimationManager';
 import { LipSyncManager } from '../three/LipSyncManager';
+import { NaturalPresenceManager } from '../lib/NaturalPresenceManager';
 
 export interface ThreeStageHandle {
   playAudio: (blob: Blob) => Promise<void>;
@@ -50,6 +51,7 @@ const ThreeStageComponent = forwardRef<ThreeStageHandle, ThreeStageProps>(({
   const sceneRef = useRef<AthenaScene | null>(null);
   const animationManagerRef = useRef<AnimationManager | null>(null);
   const lipSyncRef = useRef<LipSyncManager | null>(null);
+  const naturalPresenceRef = useRef<NaturalPresenceManager>(new NaturalPresenceManager());
   const vrmRef = useRef<VRM | null>(null);
 
   // State for loading
@@ -109,15 +111,8 @@ const ThreeStageComponent = forwardRef<ThreeStageHandle, ThreeStageProps>(({
       if (lipSyncRef.current) {
         lipSyncRef.current.update(delta);
       }
-
-      // Update Head Follower (if active)
-      // Access via sceneRef hack or we should have stored it in a ref?
-      // Since it's dynamic based on VRM load, a ref is better. 
-      // But we attached it to sceneRef in the previous step (hacky but works for now without rewriting the whole component refs).
-      const headFollower = (sceneRef as any).headFollower;
-      if (headFollower) {
-        headFollower.update();
-      }
+      // Update Natural Presence
+      naturalPresenceRef.current.update(delta);
     };
     scene.onUpdate(updateCallback);
 
@@ -166,7 +161,7 @@ const ThreeStageComponent = forwardRef<ThreeStageHandle, ThreeStageProps>(({
     if (!sceneRef.current || !vrmUrl) return;
 
     let isCancelled = false;
-    console.log(`[ThreeStage] Starting VRM Load: ${vrmUrl}`);
+    console.log(`[ThreeStage] Starting VRM Load: ${vrmUrl} `);
 
     const loadVRM = async () => {
       try {
@@ -197,12 +192,7 @@ const ThreeStageComponent = forwardRef<ThreeStageHandle, ThreeStageProps>(({
         // Success: Replace old model with new one in a single transaction
         if (vrmRef.current) {
           // Cleanup old behaviors
-          if (vrmRef.current.scene.userData.stopBlinking) vrmRef.current.scene.userData.stopBlinking();
-          if (vrmRef.current.scene.userData.stopIdle) vrmRef.current.scene.userData.stopIdle();
-          if (vrmRef.current.scene.userData.faceTracker) vrmRef.current.scene.userData.faceTracker.stop();
-
-          // Clear head follower
-          (sceneRef as any).headFollower = null;
+          naturalPresenceRef.current.dispose();
 
           sceneRef.current!.remove(vrmRef.current.scene);
           VRMUtils.deepDispose(vrmRef.current.scene);
@@ -217,99 +207,8 @@ const ThreeStageComponent = forwardRef<ThreeStageHandle, ThreeStageProps>(({
         lipSyncRef.current!.setVRM(vrm);
 
         // --- NEW: Natural Presence Features (Blink, Idle, Head Follow) ---
-        // 1. Blinking
-        import('../lib/blink').then(({ startBlinking }) => {
-          const stopBlink = startBlinking(vrm);
-          // Store cleanup if needed, but for now it runs until VRM disposal ideally. 
-          // We should attach it to the sceneRef or vrmRef to clean up?
-          // Quick hack: Attach to vrm.scene.userData
-          vrm.scene.userData.stopBlinking = stopBlink;
-        });
-
-        // 2. Head Follow & Idle & Face Tracking
-        import('../lib/head-follow').then(({ createHeadFollower }) => {
-          import('../lib/idle').then(({ startIdle }) => {
-            import('../lib/face-tracking').then(({ FaceTracker }) => {
-
-              const headFollower = createHeadFollower(vrm);
-              (sceneRef as any).headFollower = headFollower; // Start render loop updates
-
-              // Create Persistent Look Target
-              const lookTargetObj = sceneRef.current?.getScene().getObjectByName("LookTarget") || new THREE.Object3D();
-              lookTargetObj.name = "LookTarget";
-              if (!lookTargetObj.parent) sceneRef.current?.add(lookTargetObj);
-
-              if (vrm.lookAt) {
-                vrm.lookAt.target = lookTargetObj;
-              }
-
-              // IDLE State Management
-              let isFaceDetected = false;
-              let lastFaceTime = 0;
-
-              // Start Idle Loop (Default behavior)
-              const stopIdle = startIdle((target) => {
-                // Only apply idle if NO face detected recently
-                if (!isFaceDetected && (Date.now() - lastFaceTime > 1000)) {
-                  // Apply Idle Target
-                  lookTargetObj.position.set(target.x, 1.25 + target.y, 1.5);
-                  headFollower.setTarget(target);
-                }
-              });
-              vrm.scene.userData.stopIdle = stopIdle;
-
-              // Start Webcam Face Tracking
-              const faceTracker = new FaceTracker();
-              // Store for cleanup
-              vrm.scene.userData.faceTracker = faceTracker;
-
-              faceTracker.startTracking((result) => {
-                if (result.faceLandmarks.length > 0) {
-                  isFaceDetected = true;
-                  lastFaceTime = Date.now();
-
-                  // Get Landmarks
-                  const nose = result.faceLandmarks[0][1];
-                  const leftEye = result.faceLandmarks[0][33]; // Outer corner left
-                  const rightEye = result.faceLandmarks[0][263]; // Outer corner right
-
-                  // 1. Yaw/Pitch (Position based)
-                  const x = (nose.x - 0.5) * 2.0;
-                  const y = -(nose.y - 0.5) * 2.0;
-
-                  // Head Rotation
-                  const headYaw = x * 0.7; // Dampened
-                  const headPitch = y * 0.5;
-
-                  // 2. Roll (Head Tilt)
-                  // Calculate angle between eyes
-                  const dY = (rightEye.y - leftEye.y) * -1; // Invert Y (screen space)
-                  const dX = rightEye.x - leftEye.x;
-                  const roll = Math.atan2(dY, dX);
-
-                  // 3. Distance (Lean)
-                  // Distance between eyes in normalized space
-                  const dist = Math.sqrt(dX * dX + dY * dY);
-
-                  // Apply to LookAt (Absolute target for eyes)
-                  const lookTargetSensitivity = 2.0;
-                  lookTargetObj.position.set(x * lookTargetSensitivity * -1, 1.25 + y * lookTargetSensitivity, 1.5);
-
-                  // Apply to Head Follower (Pose)
-                  if ((headFollower as any).setPose) {
-                    (headFollower as any).setPose(headYaw * -1, headPitch, roll, dist);
-                  } else {
-                    headFollower.setTarget(new THREE.Vector3(x, y, 0));
-                  }
-
-                } else {
-                  isFaceDetected = false;
-                }
-              }).catch(err => console.error("Face Tracking Error:", err));
-
-            });
-          });
-        });
+        // Initialize Natural Presence (Async)
+        naturalPresenceRef.current.initialize(vrm, sceneRef.current!.getCamera());
 
         // -------------------------------------------------------------
 

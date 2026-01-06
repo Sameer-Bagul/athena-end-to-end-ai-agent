@@ -1,5 +1,3 @@
-
-
 import { useState } from "react";
 import { VRMControlPanel } from "./components/VRMControlPanel";
 import { FBXPlayground } from "./components/FBXPlayground";

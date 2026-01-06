@@ -6,21 +6,64 @@ import { VRM } from "@pixiv/three-vrm";
 // Better to return an update function.
 
 export function createHeadFollower(vrm: VRM) {
-    const internalHeadTarget = new THREE.Vector3();
-    const internalSmoothedHead = new THREE.Vector3();
+    const targetPose = {
+        yaw: 0,
+        pitch: 0,
+        roll: 0,
+        lean: 0,
+        distance: 0
+    };
+
+    // Smooth pose state
+    const currentPose = {
+        yaw: 0,
+        pitch: 0,
+        roll: 0,
+        lean: 0
+    };
 
     return {
         setTarget: (target: THREE.Vector3) => {
-            internalHeadTarget.copy(target).multiplyScalar(0.25);
+            // Legacy/Idle support: Convert target x/y to yaw/pitch
+            targetPose.yaw = target.x * 0.5;
+            targetPose.pitch = -target.y * 0.3;
+            targetPose.roll = 0;
+            targetPose.lean = 0;
+        },
+        setPose: (yaw: number, pitch: number, roll: number, distance: number) => {
+            targetPose.yaw = yaw;
+            targetPose.pitch = pitch;
+            targetPose.roll = roll;
+
+            // Map distance to lean (0..1)
+            // Distance ~ 0.15 (far) to 0.4 (close)
+            const minD = 0.15;
+            const maxD = 0.4;
+            targetPose.lean = THREE.MathUtils.clamp((distance - minD) / (maxD - minD), 0, 1);
         },
         update: () => {
-            internalSmoothedHead.lerp(internalHeadTarget, 0.1);
+            // Smooth Dampening
+            const damp = 0.15;
+            currentPose.yaw = THREE.MathUtils.lerp(currentPose.yaw, targetPose.yaw, damp);
+            currentPose.pitch = THREE.MathUtils.lerp(currentPose.pitch, targetPose.pitch, damp);
+            currentPose.roll = THREE.MathUtils.lerp(currentPose.roll, targetPose.roll, damp);
+            currentPose.lean = THREE.MathUtils.lerp(currentPose.lean, targetPose.lean, damp);
 
             const head = vrm.humanoid?.getNormalizedBoneNode("head");
-            if (!head) return;
+            const chest = vrm.humanoid?.getNormalizedBoneNode("upperChest") || vrm.humanoid?.getNormalizedBoneNode("chest");
 
-            head.rotation.y = internalSmoothedHead.x * 0.5;   // yaw (left/right)
-            head.rotation.x = -internalSmoothedHead.y * 0.3;  // pitch (up/down)
+            if (head) {
+                // Apply Head Rotation (Y=Yaw, X=Pitch, Z=Roll)
+                head.rotation.y = currentPose.yaw;
+                head.rotation.x = currentPose.pitch;
+                head.rotation.z = currentPose.roll;
+            }
+
+            if (chest) {
+                // Apply Lean (rotate chest forward)
+                // Max lean ~ 15 degrees
+                chest.rotation.x = currentPose.lean * 0.3;
+            }
         }
     };
 }
