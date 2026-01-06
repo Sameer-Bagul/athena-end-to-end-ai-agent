@@ -28,6 +28,7 @@ interface ThreeStageProps {
   speechText?: string;
   cameraMode: string;
   onReady?: () => void;
+  onDrop?: (file: File) => void;
   onError?: (error: string) => void;
   onThumbnailGenerated?: (image: string) => void;
 }
