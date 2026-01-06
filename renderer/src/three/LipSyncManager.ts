@@ -30,7 +30,7 @@ export class LipSyncManager {
         this.vrm = vrm;
     }
 
-    public async playAudio(audioBlob: Blob): Promise<void> {
+    public async playAudio(audioBlob: Blob, isMuted: boolean = false): Promise<void> {
         if (!this.vrm) return;
 
         // Lazy Init AudioContext
@@ -61,7 +61,18 @@ export class LipSyncManager {
                 this.analyser.smoothingTimeConstant = 0.3;
 
                 this.source.connect(this.analyser);
-                this.analyser.connect(this.audioContext.destination);
+
+                if (isMuted) {
+                    // Route through zero-gain node to mute but keep graph active
+                    const gainNode = this.audioContext.createGain();
+                    gainNode.gain.value = 0;
+                    this.analyser.connect(gainNode);
+                    gainNode.connect(this.audioContext.destination);
+                } else {
+                    this.analyser.connect(this.audioContext.destination);
+                }
+
+                this.dataArray = new Uint8Array(this.analyser.frequencyBinCount);
 
                 this.dataArray = new Uint8Array(this.analyser.frequencyBinCount);
 

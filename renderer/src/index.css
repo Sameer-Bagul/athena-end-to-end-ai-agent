@@ -117,16 +117,6 @@
 
 /* --- Layout System --- */
 
-.app-layout {
-  display: grid;
-  grid-template-columns: 25% 50% 25%;
-  height: 100%;
-  width: 100vw;
-  overflow: hidden;
-  background-color: transparent;
-  /* Let body bg shine through */
-}
-
 /* Glass Panel Standard */
 .panel-glass {
   @apply bg-black/30 backdrop-blur-2xl border-white/10 shadow-xl;

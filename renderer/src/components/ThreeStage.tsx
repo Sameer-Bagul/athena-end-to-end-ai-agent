@@ -8,7 +8,7 @@ import { LipSyncManager } from '../three/LipSyncManager';
 import { NaturalPresenceManager } from '../lib/NaturalPresenceManager';
 
 export interface ThreeStageHandle {
-  playAudio: (blob: Blob) => Promise<void>;
+  playAudio: (blob: Blob, isMuted?: boolean) => Promise<void>;
   stopAudio: () => void;
   playAnimationAction: (action: AnimationAction) => void;
   captureScreenshot: (width?: number, height?: number) => string;
@@ -64,9 +64,9 @@ const ThreeStageComponent = forwardRef<ThreeStageHandle, ThreeStageProps>(({
 
   // Expose methods to parent
   useImperativeHandle(ref, () => ({
-    playAudio: (blob: Blob) => {
+    playAudio: (blob: Blob, isMuted: boolean = false) => {
       if (lipSyncRef.current) {
-        return lipSyncRef.current.playAudio(blob);
+        return lipSyncRef.current.playAudio(blob, isMuted);
       }
       return Promise.resolve();
     },
@@ -373,7 +373,7 @@ const ThreeStageComponent = forwardRef<ThreeStageHandle, ThreeStageProps>(({
 
 
   return (
-    <div className="absolute inset-0 w-full h-full overflow-hidden">
+    <div className="relative w-full h-full overflow-hidden">
       <div
         ref={containerRef}
         className="absolute inset-0"

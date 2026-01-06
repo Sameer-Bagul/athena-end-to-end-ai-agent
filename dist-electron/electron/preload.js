@@ -12,7 +12,29 @@ electron_1.contextBridge.exposeInMainWorld("athena", {
     // Window Controls (Widget & Custom Frame)
     openWidget: () => electron_1.ipcRenderer.invoke("widget:open"),
     closeWidget: () => electron_1.ipcRenderer.invoke("widget:close"),
+    resizeWidget: (width, height) => electron_1.ipcRenderer.invoke("widget:resize", { width, height }),
+    // State Sync
+    broadcastState: (data) => electron_1.ipcRenderer.send("sync:broadcast", data),
+    onSyncReceive: (callback) => {
+        const subscription = (_, data) => callback(data);
+        electron_1.ipcRenderer.on("sync:receive", subscription);
+        return () => electron_1.ipcRenderer.removeListener("sync:receive", subscription);
+    },
+    // Widget Input Forwarding
+    sendWidgetInput: (text) => electron_1.ipcRenderer.send("widget:input", text),
+    onWidgetInput: (callback) => {
+        const subscription = (_, text) => callback(text);
+        electron_1.ipcRenderer.on("widget:receive-input", subscription);
+        return () => electron_1.ipcRenderer.removeListener("widget:receive-input", subscription);
+    },
+    // Window Controls
     minimizeWindow: () => electron_1.ipcRenderer.invoke("window:minimize"),
     maximizeWindow: () => electron_1.ipcRenderer.invoke("window:maximize"),
     closeWindow: () => electron_1.ipcRenderer.invoke("window:close"),
+    // Global Shortcut
+    onShortcutEvent: (callback) => {
+        const subscription = (_, type) => callback('pressed');
+        electron_1.ipcRenderer.on('shortcut:pressed', subscription);
+        return () => electron_1.ipcRenderer.removeListener('shortcut:pressed', subscription);
+    }
 });

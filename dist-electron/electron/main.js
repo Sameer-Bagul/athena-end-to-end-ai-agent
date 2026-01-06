@@ -122,6 +122,16 @@ function createWindow() {
             widgetWindow.close();
         }
     });
+    // Auto-Open Widget on Minimize
+    mainWindow.on('minimize', () => {
+        createWidgetWindow();
+    });
+    // Auto-Close Widget on Restore (Optional, but good UX for "Companion Mode")
+    mainWindow.on('restore', () => {
+        if (widgetWindow && !widgetWindow.isDestroyed()) {
+            widgetWindow.close();
+        }
+    });
 }
 function createWidgetWindow() {
     if (widgetWindow) {
@@ -166,9 +176,28 @@ function createWidgetWindow() {
 electron_1.ipcMain.handle("widget:open", () => {
     createWidgetWindow();
 });
+// Receiver (Widget) -> forwards to Main
+electron_1.ipcMain.handle("widget:resize", (event, { width, height }) => {
+    if (widgetWindow && !widgetWindow.isDestroyed()) {
+        widgetWindow.setSize(width, height);
+    }
+});
 electron_1.ipcMain.handle("widget:close", () => {
     if (widgetWindow) {
         widgetWindow.close();
+    }
+});
+// IPC Handler for Sync Broadcasting
+// Receiver (Main) -> forwards to Widget
+electron_1.ipcMain.on("sync:broadcast", (event, data) => {
+    if (widgetWindow && !widgetWindow.isDestroyed()) {
+        widgetWindow.webContents.send("sync:receive", data);
+    }
+});
+// Receiver (Widget) -> forwards to Main
+electron_1.ipcMain.on("widget:input", (event, data) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send("widget:receive-input", data);
     }
 });
 // Window Controls (Legacy/Shared)
@@ -230,6 +259,21 @@ electron_1.app.whenReady().then(() => {
     startPythonServer();
     startTTSServer();
     createWindow();
+    // Global Shortcut for Wake / PTT
+    electron_1.globalShortcut.register('Alt+Space', () => {
+        console.log("⚡ [Electron] Alt+Space pressed");
+        // Broadcast to all windows
+        if (mainWindow && !mainWindow.isDestroyed())
+            mainWindow.webContents.send('shortcut:pressed');
+        if (widgetWindow && !widgetWindow.isDestroyed())
+            widgetWindow.webContents.send('shortcut:pressed');
+        // If widget is active, we might want to ensure it has focus to capture 'keyup'?
+        // But forcing focus might be annoying if user is typing elsewhere. 
+        // For now, let's just send the event.
+    });
+});
+electron_1.app.on('will-quit', () => {
+    electron_1.globalShortcut.unregisterAll();
 });
 electron_1.app.on("before-quit", () => {
     if (pythonServerProcess) {

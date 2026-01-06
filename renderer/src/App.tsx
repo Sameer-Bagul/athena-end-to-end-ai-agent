@@ -1,13 +1,11 @@
 import { useState, useEffect } from "react";
 import { VRMControlPanel } from "./components/VRMControlPanel";
-import { FBXPlayground } from "./components/FBXPlayground";
 import { OnboardingFlow } from "./components/onboarding/OnboardingFlow";
 import { WidgetLayout } from "./components/WidgetLayout";
 
 function App() {
   const [loading, setLoading] = useState(true);
   const [showOnboarding, setShowOnboarding] = useState(false);
-  const [screen, setScreen] = useState<'main' | 'fbx'>('main');
   const [isWidgetWindow, setIsWidgetWindow] = useState(false);
 
   useEffect(() => {
@@ -52,13 +50,10 @@ function App() {
           <div className="h-full w-full bg-black">
             <OnboardingFlow onComplete={handleOnboardingComplete} />
           </div>
-        ) : screen === 'main' ? (
+        ) : (
           <VRMControlPanel
-            onOpenFBXLab={() => setScreen('fbx')}
             onOpenWidget={handleOpenWidget}
           />
-        ) : (
-          <FBXPlayground onBack={() => setScreen('main')} />
         )}
       </div>
     </div>

@@ -1,5 +1,5 @@
 
-import { app, BrowserWindow, ipcMain } from "electron";
+import { app, BrowserWindow, ipcMain, globalShortcut } from "electron";
 import path from "path";
 import fs from "fs";
 import { spawn } from "child_process";
@@ -146,6 +146,18 @@ function createWindow() {
       widgetWindow.close();
     }
   });
+
+  // Auto-Open Widget on Minimize
+  mainWindow.on('minimize', () => {
+    createWidgetWindow();
+  });
+
+  // Auto-Close Widget on Restore (Optional, but good UX for "Companion Mode")
+  mainWindow.on('restore', () => {
+    if (widgetWindow && !widgetWindow.isDestroyed()) {
+      widgetWindow.close();
+    }
+  });
 }
 
 function createWidgetWindow() {
@@ -197,9 +209,31 @@ ipcMain.handle("widget:open", () => {
   createWidgetWindow();
 });
 
+// Receiver (Widget) -> forwards to Main
+ipcMain.handle("widget:resize", (event, { width, height }) => {
+  if (widgetWindow && !widgetWindow.isDestroyed()) {
+    widgetWindow.setSize(width, height);
+  }
+});
+
 ipcMain.handle("widget:close", () => {
   if (widgetWindow) {
     widgetWindow.close();
+  }
+});
+
+// IPC Handler for Sync Broadcasting
+// Receiver (Main) -> forwards to Widget
+ipcMain.on("sync:broadcast", (event, data) => {
+  if (widgetWindow && !widgetWindow.isDestroyed()) {
+    widgetWindow.webContents.send("sync:receive", data);
+  }
+});
+
+// Receiver (Widget) -> forwards to Main
+ipcMain.on("widget:input", (event, data) => {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send("widget:receive-input", data);
   }
 });
 
@@ -266,6 +300,22 @@ app.whenReady().then(() => {
   startPythonServer();
   startTTSServer();
   createWindow();
+
+  // Global Shortcut for Wake / PTT
+  globalShortcut.register('Alt+Space', () => {
+    console.log("⚡ [Electron] Alt+Space pressed");
+    // Broadcast to all windows
+    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('shortcut:pressed');
+    if (widgetWindow && !widgetWindow.isDestroyed()) widgetWindow.webContents.send('shortcut:pressed');
+
+    // If widget is active, we might want to ensure it has focus to capture 'keyup'?
+    // But forcing focus might be annoying if user is typing elsewhere. 
+    // For now, let's just send the event.
+  });
+});
+
+app.on('will-quit', () => {
+  globalShortcut.unregisterAll();
 });
 
 app.on("before-quit", () => {

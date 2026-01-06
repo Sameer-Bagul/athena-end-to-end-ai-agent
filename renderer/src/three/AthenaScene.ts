@@ -359,8 +359,28 @@ export class AthenaScene {
    */
   private startRenderLoop(): void {
     let frameCount = 0;
-    const animate = () => {
+
+    // FPS Limiting
+    const fps = 30; // Target FPS
+    const interval = 1000 / fps;
+    let lastTime = 0;
+
+    const animate = (currentTime: number) => {
       this.animationFrameId = requestAnimationFrame(animate);
+
+      // 1. Visibility Check (CPU Saver)
+      if (document.hidden) {
+        return; // Skip everything if tab/window is hidden
+      }
+
+      // 2. FPS Limiting
+      const elapsed = currentTime - lastTime;
+      if (elapsed < interval) {
+        return; // Skip frame if too soon
+      }
+
+      // Adjust for drift
+      lastTime = currentTime - (elapsed % interval);
 
       // Get delta time since last frame
       const delta = this.clock.getDelta();
@@ -389,7 +409,7 @@ export class AthenaScene {
       }
     };
 
-    animate();
+    animate(0);
   }
 
   /**

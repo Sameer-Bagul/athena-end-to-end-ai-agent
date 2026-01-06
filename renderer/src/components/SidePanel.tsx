@@ -51,7 +51,6 @@ export function SidePanel({
     customVrmThumbnail,
     thumbnailCache,
     onVrmUpload,
-    animationFile,
     onAnimationUpload,
     isChatProcessing,
     onOpenSettings,
@@ -78,54 +77,70 @@ export function SidePanel({
     // --- Minimalist / Collapsed View ---
     if (isCollapsed) {
         return (
-            <div className="panel-glass border-r w-full flex flex-col items-center py-4 gap-6 bg-black/60 backdrop-blur-xl">
+            <div className="panel-glass border-r w-full flex flex-col items-center py-4 gap-6 bg-black/60 backdrop-blur-xl relative">
+                {/* Active Indicator Strip (Optional) */}
+                <div className="absolute left-0 top-0 bottom-0 w-[1px] bg-gradient-to-b from-transparent via-primary/20 to-transparent" />
+
                 {/* Collapse Toggle (Top) */}
-                <Button variant="ghost" size="icon" onClick={onToggleCollapse} className="size-8 text-muted-foreground hover:text-white">
-                    <LayoutGrid className="size-4 rotate-90" />
+                <Button variant="ghost" size="icon" onClick={onToggleCollapse}
+                    className="size-8 text-muted-foreground hover:text-white hover:bg-white/10 transition-all duration-300">
+                    <LayoutGrid className="size-4 text-primary/70" />
                 </Button>
 
                 {/* Vertical Icon Menu */}
-                <div className="flex flex-col gap-4 mt-2 w-full px-2">
+                <div className="flex flex-col gap-4 mt-2 w-full px-2 items-center">
+
                     {/* Model Indicator (Avatar) */}
-                    <div className="relative group flex justify-center">
-                        <div className="size-10 rounded-full overflow-hidden border border-white/10 group-hover:border-primary/50 transition-all cursor-pointer" onClick={onToggleCollapse}>
+                    <div className="relative group flex justify-center w-full">
+                        <div className="absolute inset-0 bg-primary/20 blur-md rounded-full scale-0 group-hover:scale-100 transition-transform duration-500" />
+                        <div className="size-10 rounded-full overflow-hidden border border-white/10 group-hover:border-primary/50 transition-all cursor-pointer relative z-10 shadow-lg shadow-black/50"
+                            onClick={onToggleCollapse} title={selectedCharacter.name}>
                             {thumbnailCache[selectedCharacter.id] ? (
-                                <img src={thumbnailCache[selectedCharacter.id]} className="w-full h-full object-cover" />
+                                <img src={thumbnailCache[selectedCharacter.id]} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
                             ) : (
                                 <User className="size-5 m-auto text-muted-foreground" />
                             )}
                         </div>
+                        {/* Active Dot */}
+                        <div className="absolute -right-1 bottom-0 size-2.5 bg-green-500 rounded-full border-2 border-black z-20"></div>
                     </div>
 
-                    <Separator className="bg-white/5 w-8 mx-auto" />
+                    <Separator className="bg-white/10 w-8 mx-auto" />
 
                     {/* Play/Pause Minimal */}
-                    <div className="flex justify-center">
+                    <div className="flex justify-center w-full group relative">
+                        <div className="absolute inset-0 bg-secondary/10 blur-sm rounded-full scale-0 group-hover:scale-100 transition-transform" />
                         <Button
                             size="icon" variant="ghost"
                             onClick={onTogglePlay}
-                            className={cn("size-8 rounded-full", isPlaying ? "text-secondary bg-secondary/10" : "text-muted-foreground")}
+                            className={cn("size-10 rounded-full relative z-10 transition-all border border-transparent hover:border-white/10",
+                                isPlaying ? "text-secondary bg-secondary/10 shadow-[0_0_10px_rgba(var(--secondary),0.2)]" : "text-muted-foreground hover:bg-white/5")}
+                            title={isPlaying ? "Pause Animation" : "Play Animation"}
                         >
-                            {isPlaying ? <Pause className="size-4" /> : <Play className="size-4" />}
+                            {isPlaying ? <Pause className="size-4 fill-current" /> : <Play className="size-4 fill-current ml-0.5" />}
                         </Button>
                     </div>
 
                     {/* Voice Toggle Minimal */}
-                    <div className="flex justify-center">
+                    <div className="flex justify-center w-full group relative">
+                        <div className="absolute inset-0 bg-red-500/10 blur-sm rounded-full scale-0 group-hover:scale-100 transition-transform" />
                         <Button
                             size="icon" variant="ghost"
                             onClick={onToggleListening}
-                            className={cn("size-8 rounded-full", isListening ? "text-red-400 bg-red-400/10" : "text-muted-foreground")}
+                            className={cn("size-10 rounded-full relative z-10 transition-all border border-transparent hover:border-white/10",
+                                isListening ? "text-red-400 bg-red-500/10 shadow-[0_0_15px_rgba(239,68,68,0.3)] animate-pulse-slow" : "text-muted-foreground hover:bg-white/5")}
+                            title={isListening ? "Stop Microphone" : "Start Microphone"}
                         >
-                            {isListening ? <Mic className="size-4 animate-pulse" /> : <MicOff className="size-4" />}
+                            {isListening ? <Mic className="size-4" /> : <MicOff className="size-4" />}
                         </Button>
                     </div>
 
-                    <div className="mt-auto flex flex-col gap-4 items-center w-full">
+                    <div className="mt-auto flex flex-col gap-4 items-center w-full pt-10">
                         <Button
                             size="icon" variant="ghost"
                             onClick={onOpenSettings}
-                            className="size-8 text-muted-foreground hover:text-white"
+                            className="size-10 text-muted-foreground hover:text-white hover:bg-white/5 rounded-full transition-all hover:rotate-45 duration-500"
+                            title="Widget Settings"
                         >
                             <Settings className="size-4" />
                         </Button>
@@ -210,13 +225,25 @@ export function SidePanel({
                             </Button>
                         </div>
                     </div>
-                    <div className="h-24 w-full -mx-1 opacity-90 hover:opacity-100 transition-opacity">
-                        <Carousel3D
-                            items={AVAILABLE_ANIMATIONS.map(a => ({ id: a, label: a.replace(".vrma", "").replace(".fbx", "") }))}
-                            selectedId={animationUrl.split('/').pop() || ""}
-                            onSelect={onAnimationSelect}
-                            type="animation"
-                        />
+                    <div className="flex gap-2 overflow-x-auto pb-2 snap-x custom-scrollbar">
+                        {AVAILABLE_ANIMATIONS.map((filename) => {
+                            const name = filename.replace(".vrma", "").replace(".fbx", "");
+                            const isActive = animationUrl.includes(filename);
+                            return (
+                                <button
+                                    key={filename}
+                                    onClick={() => onAnimationSelect(filename)}
+                                    className={cn(
+                                        "flex-none snap-center px-3 py-2 rounded-md text-[9px] font-mono uppercase tracking-wider transition-all border whitespace-nowrap",
+                                        isActive
+                                            ? "bg-secondary/20 border-secondary/50 text-secondary shadow-[0_0_10px_rgba(var(--secondary),0.1)]"
+                                            : "bg-black/20 border-white/5 text-muted-foreground hover:bg-white/5 hover:text-white hover:border-white/10"
+                                    )}
+                                >
+                                    {name}
+                                </button>
+                            );
+                        })}
                     </div>
                 </div>
 

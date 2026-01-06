@@ -1,16 +1,16 @@
 import * as React from "react";
-import { Box, LayoutGrid } from "lucide-react";
+import { Box } from "lucide-react";
 import ThreeStage from "./ThreeStage";
 import type { ThreeStageHandle } from "./ThreeStage";
 import { AVAILABLE_MODELS } from "../lib/models";
 import { ChatPanel } from "./ChatPanel";
 import type { ChatMessage } from "./ChatPanel";
 import { SidePanel } from "./SidePanel";
+import { SettingsDialog } from "./SettingsDialog";
+import type { WidgetSettings } from "./SettingsDialog";
 import { sendMessageToOllama, generateSpeech } from "../lib/api";
 import { AnimationAction } from "../three/AnimationManager";
 import { ExhibitionPage } from "./ExhibitionPage";
-import { SettingsModal } from "./SettingsModal";
-import type { AIConfig } from "./SettingsModal";
 import { SpeechRecognitionManager } from "../lib/SpeechRecognition";
 
 // Extend Window interface for our preload API
@@ -18,23 +18,21 @@ import { SpeechRecognitionManager } from "../lib/SpeechRecognition";
 
 
 interface VRMControlPanelProps {
-  onOpenFBXLab?: () => void;
   onOpenWidget?: () => void;
 }
 
-export function VRMControlPanel({ onOpenFBXLab, onOpenWidget }: VRMControlPanelProps) {
+export function VRMControlPanel({ onOpenWidget }: VRMControlPanelProps) {
   // --- State ---
   const [selectedCharacter, setSelectedCharacter] = React.useState(AVAILABLE_MODELS[0]);
-  const [isSettingsOpen, setIsSettingsOpen] = React.useState(false);
+  const [showWidgetSettings, setShowWidgetSettings] = React.useState(false);
 
-  const [aiConfig, setAiConfig] = React.useState<AIConfig>(() => {
-    const saved = localStorage.getItem("athena-ai-config");
-    return saved ? JSON.parse(saved) : {
-      provider: 'ollama',
-      apiKey: '',
-      model: 'dolphin-mistral:latest',
-      endpoint: 'http://localhost:11434'
-    };
+  // Widget Settings State
+  const [widgetSettings, setWidgetSettings] = React.useState<WidgetSettings>({
+    zoom: 0.5,
+    opacity: 0,
+    blur: 0,
+    borderRadius: 50,
+    size: 300
   });
 
   const [vrmFile, setVrmFile] = React.useState<File | null>(null);
@@ -146,6 +144,11 @@ export function VRMControlPanel({ onOpenFBXLab, onOpenWidget }: VRMControlPanelP
       setVrmFile(null);
       setVrmThumbnail(null); // Reset custom thumbnail for presets
       setVrmUrl(`models/${profile.file}`);
+
+      // Sync to Widget - Broadcast specific model ID
+      if (window.athena?.broadcastState) {
+        window.athena.broadcastState({ type: 'model', payload: { id: profile.id } });
+      }
     }
   };
 
@@ -213,6 +216,50 @@ export function VRMControlPanel({ onOpenFBXLab, onOpenWidget }: VRMControlPanelP
     setCurrentTranscript(text);
   };
 
+  // --- Shortcut / Wake Logic ---
+  React.useEffect(() => {
+    const speechManager = speechManagerRef.current;
+    if (!speechManager) return;
+
+    const unsubscribe = window.athena?.onShortcutEvent((type) => {
+      // In Full Mode, Alt+Space toggles "Wake" (Continuous Listening)
+      if (type === 'pressed') {
+        // Check if speech manager is active
+        if (speechManager.isActive()) {
+          // Toggle Off ? Or just ignore?
+          // Plan says: "Wake and stay awake until silence"
+          // If already listening, maybe restart timer?
+          console.log("Main: Wake Triggered (Already Active)");
+        } else {
+          console.log("Main: Wake Triggered (Starting VAD)");
+          speechManager.setMode('vad');
+          speechManager.start({
+            onResult: handleSpeechResult,
+            onStatusChange: (status) => setVoiceStatus(status as any),
+            onError: (err) => console.error("Mic Error:", err)
+          });
+        }
+      }
+    });
+    return () => unsubscribe && unsubscribe();
+  }, [handleSpeechResult]);
+
+  React.useEffect(() => {
+    const speechManager = speechManagerRef.current;
+    if (!speechManager) return;
+
+    // Only auto-start if NOT in widget mode url?
+    // Actually we only want manual trigger now unless 'Always On' is enabled?
+    // User plan: "Full Mode -> Wake once -> listen until silence".
+    // So we DON'T auto start VAD on mount anymore.
+
+    // speechManager.current.start(...) <--- REMOVE AUTO START
+
+    return () => {
+      speechManager.stop();
+    };
+  }, []);
+
   const toggleListening = () => {
     if (!speechManagerRef.current) return;
 
@@ -249,6 +296,13 @@ export function VRMControlPanel({ onOpenFBXLab, onOpenWidget }: VRMControlPanelP
 
     if (blob && stageRef.current) {
       try {
+        // Broadcast Audio to Widget (Convert to ArrayBuffer)
+        if (window.athena?.broadcastState) {
+          blob.arrayBuffer().then(buffer => {
+            window.athena.broadcastState({ type: 'audio', payload: buffer });
+          });
+        }
+
         // This now returns a Promise thanks to our earlier change
         await stageRef.current.playAudio(blob);
       } catch (e) {
@@ -432,34 +486,37 @@ export function VRMControlPanel({ onOpenFBXLab, onOpenWidget }: VRMControlPanelP
 
   // Actually, keeping grid is stable. 
   // Cols: [LeftWidth] 1fr [RightWidth]
-  const leftWidth = isLeftCollapsed ? "70px" : "280px";
-  const rightWidth = isRightCollapsed ? "60px" : "320px"; // 60px strip for chat toggle
+  // Calculate Grid Template
+  // Removed unused width variables
+
+  // --- Widget Settings Handler ---
+  const handleUpdateWidgetSettings = (newSettings: WidgetSettings) => {
+    setWidgetSettings(newSettings);
+
+    // 1. Resize Window (IPC)
+    if (window.athena?.resizeWidget) {
+      window.athena.resizeWidget(newSettings.size, newSettings.size);
+    }
+
+    // 2. Broadcast Visuals (IPC)
+    if (window.athena?.broadcastState) {
+      window.athena.broadcastState({
+        type: 'settings',
+        payload: newSettings
+      });
+    }
+  };
 
   return (
     <div
-      className="app-layout font-sans relative transition-all duration-300 ease-in-out"
+      className="font-sans h-screen w-screen bg-black overflow-hidden relative grid transition-all duration-300 ease-in-out"
       style={{
-        display: 'grid',
-        gridTemplateColumns: `${leftWidth} 1fr ${rightWidth}`,
-        width: '100vw',
-        height: '100%'
+        gridTemplateColumns: `${isLeftCollapsed ? '70px' : '280px'} minmax(0, 1fr) ${isRightCollapsed ? '60px' : '320px'}`
       }}
     >
 
-      {/* Exhibition Overlay */}
-      {viewMode === 'exhibition' && (
-        <ExhibitionPage
-          initialModelId={selectedCharacter.id}
-          onSelect={(modelId) => {
-            handleModelSelect(modelId);
-            setViewMode('chat');
-          }}
-          onCancel={() => setViewMode('chat')}
-        />
-      )}
-
-      {/* --- Link SidePanel (Left) --- */}
-      <aside className="h-full z-10 transition-all duration-300 overflow-hidden relative">
+      {/* Left Side Panel - Grid Cell 1 */}
+      <aside className="h-full z-10 relative border-r border-white/5 bg-black/40 backdrop-blur-md overflow-hidden">
         <SidePanel
           selectedCharacter={selectedCharacter}
           onModelSelect={handleModelSelect}
@@ -476,44 +533,37 @@ export function VRMControlPanel({ onOpenFBXLab, onOpenWidget }: VRMControlPanelP
           animationFile={animationFile}
           onAnimationUpload={handleAnimationUpload}
           isChatProcessing={isChatProcessing}
-          onOpenSettings={() => setIsSettingsOpen(true)}
+          onOpenSettings={() => setShowWidgetSettings(true)}
           onOpenExhibition={() => setViewMode('exhibition')}
           isListening={isListening}
           onToggleListening={toggleListening}
           voiceStatus={voiceStatus}
-          // Collapse Props
           isCollapsed={isLeftCollapsed}
           onToggleCollapse={() => setIsLeftCollapsed(!isLeftCollapsed)}
         />
       </aside>
 
-      <SettingsModal
-        isOpen={isSettingsOpen}
-        onClose={() => setIsSettingsOpen(false)}
-        config={aiConfig}
-        onSave={setAiConfig}
-      />
-
-      {/* --- Center 3D Stage --- */}
-      <main className="h-full relative overflow-hidden bg-black/50 z-0 border-x border-white/5 opacity-100">
-
+      {/* Center Stage - Grid Cell 2 */}
+      <main className="relative h-full w-full bg-black/50 z-0 overflow-hidden">
         {vrmUrl ? (
-          <ThreeStage
-            ref={stageRef}
-            vrmUrl={vrmUrl}
-            animationUrl={animationUrl}
-            isPlaying={isPlaying}
-            animationSpeed={animationSpeed[0]}
-            lightIntensity={lightIntensity[0]}
-            cameraFov={cameraFov[0]}
-            shadowsEnabled={shadowsEnabled}
-            gridVisible={gridVisible}
-            backgroundColor={backgroundColor}
-            cameraMode={cameraMode}
-            onThumbnailGenerated={handleThumbnailGenerated}
-          />
+          <div className="relative w-full h-full">
+            <ThreeStage
+              ref={stageRef}
+              vrmUrl={vrmUrl}
+              animationUrl={animationUrl}
+              isPlaying={isPlaying}
+              animationSpeed={animationSpeed[0]}
+              lightIntensity={lightIntensity[0]}
+              cameraFov={cameraFov[0]}
+              shadowsEnabled={shadowsEnabled}
+              gridVisible={gridVisible}
+              backgroundColor={backgroundColor}
+              cameraMode={cameraMode}
+              onThumbnailGenerated={handleThumbnailGenerated}
+            />
+          </div>
         ) : (
-          <div className="flex h-full flex-col items-center justify-center relative">
+          <div className="flex h-full flex-col items-center justify-center relative w-full">
             <div className="absolute inset-0 bg-primary/5 animate-pulse-slow"></div>
             <div className="relative z-10 p-10 glass rounded-3xl flex flex-col items-center">
               <Box className="size-20 text-primary animate-float" />
@@ -523,46 +573,47 @@ export function VRMControlPanel({ onOpenFBXLab, onOpenWidget }: VRMControlPanelP
           </div>
         )}
 
-        {/* View Mode Toggle (Floating) */}
+        {/* Floating Buttons */}
         <div className="absolute top-4 right-4 z-20 flex gap-3">
-          <button
-            onClick={onOpenFBXLab}
-            className="flex items-center gap-2 px-3 py-2 rounded-full bg-blue-500/10 border border-blue-500/20 text-xs font-mono uppercase text-blue-300 hover:text-white hover:bg-blue-500/30 transition-all backdrop-blur-sm group"
-          >
-            <span>FBX Lab</span>
-          </button>
 
-          <button
-            onClick={() => setViewMode('exhibition')}
-            className="flex items-center gap-2 px-3 py-2 rounded-full bg-black/40 border border-white/10 text-xs font-mono uppercase text-muted-foreground hover:text-white hover:bg-white/10 hover:border-white/20 transition-all backdrop-blur-sm group"
-          >
-            <LayoutGrid className="size-4 group-hover:text-primary transition-colors" />
-            <span>Exhibition Mode</span>
-          </button>
-
-          <button
-            onClick={onOpenWidget}
-            className="flex items-center gap-2 px-3 py-2 rounded-full bg-purple-500/10 border border-purple-500/20 text-xs font-mono uppercase text-purple-300 hover:text-white hover:bg-purple-500/30 transition-all backdrop-blur-sm group"
-          >
-            <Box className="size-4" />
-            <span>Widget</span>
+          <button onClick={onOpenWidget} className="btn-glass px-3 py-2 text-xs font-mono uppercase text-purple-300 hover:text-white flex gap-2">
+            <Box className="size-4" /> Widget
           </button>
         </div>
       </main>
 
-      {/* --- Right Chat Panel (25%) --- */}
-      <aside className="h-full z-10 overflow-hidden transition-all duration-300">
+      {/* Right Chat Panel - Grid Cell 3 */}
+      <aside className="h-full z-10 relative border-l border-white/5 bg-black/40 backdrop-blur-md overflow-hidden">
         <ChatPanel
           messages={chatMessages}
           onSendMessage={handleChatSubmit}
           onClearHistory={handleClearHistory}
           isProcessing={isChatProcessing}
           currentTranscript={currentTranscript}
-          // Collapse Props
           isCollapsed={isRightCollapsed}
           onToggleCollapse={() => setIsRightCollapsed(!isRightCollapsed)}
         />
       </aside>
+
+      {/* --- Overlays --- */}
+
+      <SettingsDialog
+        isOpen={showWidgetSettings}
+        onClose={() => setShowWidgetSettings(false)}
+        settings={widgetSettings}
+        onUpdate={handleUpdateWidgetSettings}
+      />
+
+      {viewMode === 'exhibition' && (
+        <ExhibitionPage
+          onCancel={() => setViewMode('chat')}
+          onSelect={(id) => {
+            handleModelSelect(id);
+            setViewMode('chat');
+          }}
+          initialModelId={selectedCharacter.id}
+        />
+      )}
 
     </div>
   );

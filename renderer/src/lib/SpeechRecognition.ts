@@ -32,9 +32,15 @@ export class SpeechRecognitionManager {
     private onErrorCallback: ((error: string) => void) | null = null;
 
     private isAborted: boolean = false;
+    private mode: 'vad' | 'ptt' = 'vad';
 
     constructor() {
         console.log('🎤 [SpeechManager] Initialized (Standard WebM Client)');
+    }
+
+    public setMode(mode: 'vad' | 'ptt') {
+        this.mode = mode;
+        console.log(`🎤 [SpeechManager] Mode set to: ${mode}`);
     }
 
     public async start(callbacks: {
@@ -49,7 +55,7 @@ export class SpeechRecognitionManager {
             return;
         }
 
-        console.log('🎤 [SpeechManager] Starting...');
+        console.log(`🎤 [SpeechManager] Starting (Mode: ${this.mode})...`);
         this.shouldListen = true;
         this.isAborted = false;
 
@@ -97,7 +103,14 @@ export class SpeechRecognitionManager {
                 await this.processAudio(blob);
             };
 
-            this.startVAD();
+            if (this.mode === 'ptt') {
+                // PTT: Start recording immediately
+                this.recorder.start();
+                if (this.onStatusChangeCallback) this.onStatusChangeCallback('listening-ptt');
+            } else {
+                // VAD: Start VAD loop
+                this.startVAD();
+            }
 
         } catch (e) {
             console.error('🎤 [SpeechManager] Error starting:', e);
