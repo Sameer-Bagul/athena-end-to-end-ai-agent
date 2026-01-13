@@ -331,5 +331,94 @@ export const AVAILABLE_MODELS: CharacterProfile[] = [
         description: "Casual Model",
         backstory: "Victoria on her day off.",
         origin: "Trapped in Virtual World"
+    },
+    // --- New Integrations ---
+    {
+        id: "model_6903",
+        name: "Avatar 6903",
+        file: "690397574646893280.vrm",
+        gender: "female",
+        voiceStyle: "F1",
+        systemPrompt: "You are a helpful virtual assistant.",
+        description: "Imported Model",
+        backstory: "A new visitor to the system.",
+        origin: "External Import"
+    },
+    {
+        id: "model_8389",
+        name: "Avatar 8389",
+        file: "838906546870784730.vrm",
+        gender: "female",
+        voiceStyle: "F1",
+        systemPrompt: "You are a helpful virtual assistant.",
+        description: "Imported Model",
+        backstory: "A new visitor to the system.",
+        origin: "External Import"
+    },
+    {
+        id: "model_3568",
+        name: "Avatar 3568",
+        file: "3568652502349812865.vrm",
+        gender: "female",
+        voiceStyle: "F1",
+        systemPrompt: "You are a helpful virtual assistant.",
+        description: "Imported Model",
+        backstory: "A new visitor to the system.",
+        origin: "External Import"
+    },
+    {
+        id: "model_4430",
+        name: "Avatar 4430",
+        file: "4430289322881048059.vrm",
+        gender: "female",
+        voiceStyle: "F1",
+        systemPrompt: "You are a helpful virtual assistant.",
+        description: "Imported Model",
+        backstory: "A new visitor to the system.",
+        origin: "External Import"
+    },
+    {
+        id: "model_5899",
+        name: "Avatar 5899",
+        file: "5899186332177379643.vrm",
+        gender: "female",
+        voiceStyle: "F1",
+        systemPrompt: "You are a helpful virtual assistant.",
+        description: "Imported Model",
+        backstory: "A new visitor to the system.",
+        origin: "External Import"
+    },
+    {
+        id: "model_7062",
+        name: "Avatar 7062",
+        file: "7062840423830520603.vrm",
+        gender: "female",
+        voiceStyle: "F1",
+        systemPrompt: "You are a helpful virtual assistant.",
+        description: "Imported Model",
+        backstory: "A new visitor to the system.",
+        origin: "External Import"
+    },
+    {
+        id: "model_8862",
+        name: "Avatar 8862",
+        file: "8862775571448745455.vrm",
+        gender: "female",
+        voiceStyle: "F1",
+        systemPrompt: "You are a helpful virtual assistant.",
+        description: "Imported Model",
+        backstory: "A new visitor to the system.",
+        origin: "External Import"
+    },
+    {
+        id: "model_9033",
+        name: "Avatar 9033",
+        file: "9033989552601985436.vrm",
+        gender: "female",
+        voiceStyle: "F1",
+        systemPrompt: "You are a helpful virtual assistant.",
+        description: "Imported Model",
+        backstory: "A new visitor to the system.",
+        origin: "External Import"
     }
 ];

@@ -7,11 +7,14 @@ import { AnimationManager, AnimationAction } from '../three/AnimationManager';
 import { LipSyncManager } from '../three/LipSyncManager';
 import { NaturalPresenceManager } from '../lib/NaturalPresenceManager';
 
+import type { FacialExpression } from '../lib/facialMapping';
+
 export interface ThreeStageHandle {
-  playAudio: (blob: Blob, animation?: string, isMuted?: boolean) => Promise<void>;
+  playAudio: (blob: Blob, animation?: string, facialExpressions?: FacialExpression[], isMuted?: boolean) => Promise<void>;
   stopAudio: () => void;
   playAnimationAction: (action: AnimationAction) => void;
   captureScreenshot: (width?: number, height?: number) => string;
+  animationManager?: AnimationManager; // Expose animationManager
 }
 
 interface ThreeStageProps {
@@ -65,18 +68,23 @@ const ThreeStageComponent = forwardRef<ThreeStageHandle, ThreeStageProps>(({
 
   // Expose methods to parent
   useImperativeHandle(ref, () => ({
-    playAudio: async (blob: Blob, animation?: string, isMuted: boolean = false) => {
+    playAudio: async (blob: Blob, animation?: string, facialExpressions?: FacialExpression[], isMuted: boolean = false) => {
       // 1. Start Body Animation (Gestures)
       if (animationManagerRef.current) {
         // Default to THINKING (Talking gesture) if no specific animation requested
         const action = (animation as AnimationAction) || AnimationAction.THINKING;
 
-        // If specific emotion loop, or just talking, play it
-        if (animationManagerRef.current.isAnimationLoaded(action)) {
-          animationManagerRef.current.play(action);
+        // Play with separate facial expressions if provided
+        if (facialExpressions && facialExpressions.length > 0) {
+          animationManagerRef.current.playWithFacial(action, facialExpressions);
         } else {
-          // Fallback if specific anim not found
-          animationManagerRef.current.play(AnimationAction.THINKING);
+          // Fallback to standard play (which uses default mapping)
+          // If specific emotion loop, or just talking, play it
+          if (animationManagerRef.current.isAnimationLoaded(action)) {
+            animationManagerRef.current.play(action);
+          } else {
+            animationManagerRef.current.play(AnimationAction.THINKING);
+          }
         }
       }
 
@@ -105,7 +113,8 @@ const ThreeStageComponent = forwardRef<ThreeStageHandle, ThreeStageProps>(({
         return sceneRef.current.captureScreenshot(width, height);
       }
       return '';
-    }
+    },
+    animationManager: animationManagerRef.current ?? undefined
   }));
 
   // Initialize Scene

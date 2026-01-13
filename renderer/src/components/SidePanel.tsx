@@ -16,9 +16,32 @@ interface SidePanelProps {
     // File uploads are simple enough to handle here if we dispatch actions
     onVrmUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
     onAnimationUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
+    onExpressionChange?: (name: string, value: number) => void;
 }
 
-export function SidePanel({ onToggleListening, onVrmUpload: _externalVrm, onAnimationUpload: _externalAnim }: SidePanelProps) {
+export function SidePanel({ onToggleListening, onVrmUpload: _externalVrm, onAnimationUpload: _externalAnim, onExpressionChange }: SidePanelProps) {
+    // Facial expressions to control (can be expanded)
+    const FACIAL_EXPRESSIONS = [
+        { name: "Smile", label: "Smile" },
+        { name: "Joy", label: "Joy" },
+        { name: "Angry", label: "Angry" },
+        { name: "Sad", label: "Sad" },
+        { name: "Surprised", label: "Surprised" },
+        { name: "EyeSmileLeft", label: "Eye Smile L" },
+        { name: "EyeSmileRight", label: "Eye Smile R" }
+    ];
+
+    // Local state for slider values
+    const [expressionValues, setExpressionValues] = React.useState(() => Object.fromEntries(FACIAL_EXPRESSIONS.map(e => [e.name, 0])));
+
+    // Update VRM blendshape in real time
+    const handleExpressionChange = (name: string, value: number) => {
+        setExpressionValues(v => ({ ...v, [name]: value }));
+        if (onExpressionChange) {
+            onExpressionChange(name, value);
+        }
+        console.log(`Set facial expression ${name} to ${value}`);
+    };
     const { state, actions } = useAppStore();
 
     // Handlers for file inputs to bridge to Context Actions
@@ -114,6 +137,81 @@ export function SidePanel({ onToggleListening, onVrmUpload: _externalVrm, onAnim
             </div>
 
             <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-8 custom-scrollbar">
+                {/* Moods */}
+                <div className="space-y-3">
+                    <Label className="text-[10px] font-medium tracking-[0.2em] text-yellow-400/60 uppercase pl-1">Moods</Label>
+                    <div className="grid grid-cols-3 gap-2">
+                        {[
+                            {
+                                label: "Neutral",
+                                value: "Neutral",
+                                title: "Reset to default",
+                                preset: {} // Just reset
+                            },
+                            {
+                                label: "Happy",
+                                value: "Joy",
+                                title: "Joy (100%)",
+                                preset: { Joy: 1.0 }
+                            },
+                            {
+                                label: "Sad",
+                                value: "Sad",
+                                title: "Sorrow (100%)",
+                                preset: { Sad: 1.0 }
+                            },
+                            {
+                                label: "Angry",
+                                value: "Angry",
+                                title: "Angry (100%)",
+                                preset: { Angry: 1.0 }
+                            },
+                            {
+                                label: "Surprised",
+                                value: "Surprised",
+                                title: "Surprised (100%)",
+                                preset: { Surprised: 1.0 }
+                            },
+                            {
+                                label: "Relaxed",
+                                value: "Fun",
+                                title: "Fun (70%) + Subtle Blink",
+                                preset: { Fun: 0.7, Blink: 0.1 }
+                            }
+                        ].map((mood) => (
+                            <button
+                                key={mood.label}
+                                title={mood.title}
+                                onClick={() => {
+                                    // 1. Reset all emotions first
+                                    const allKeys = ["Joy", "Sad", "Angry", "Surprised", "Relax", "Fun", "Neutral", "Smile", "Frown", "Blink", "EyeSmileLeft", "EyeSmileRight"];
+                                    const resetState: any = {};
+                                    allKeys.forEach(k => resetState[k] = 0);
+
+                                    // Apply reset to manager
+                                    allKeys.forEach(k => handleExpressionChange(k, 0));
+
+                                    // 2. Apply Preset values
+                                    Object.entries(mood.preset).forEach(([key, val]) => {
+                                        handleExpressionChange(key, val as number);
+                                        resetState[key] = val; // Update local state
+                                    });
+
+                                    // 3. Update Visual State
+                                    setExpressionValues(resetState);
+                                }}
+                                className={cn(
+                                    "py-2.5 rounded-xl text-[10px] font-medium tracking-wider uppercase transition-all duration-300 border",
+                                    (expressionValues[mood.value] || 0) > 0.1
+                                        ? "bg-yellow-500/20 border-yellow-500/40 text-yellow-200 shadow-[0_0_10px_rgba(234,179,8,0.2)]"
+                                        : "bg-white/[0.03] border-white/5 text-white/40 hover:bg-white/[0.08] hover:text-white hover:border-white/10"
+                                )}
+                            >
+                                {mood.label}
+                            </button>
+                        ))}
+                    </div>
+                </div>
 
                 {/* Identity */}
                 <div className="space-y-4">

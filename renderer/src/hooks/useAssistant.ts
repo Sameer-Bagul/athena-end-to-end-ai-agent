@@ -1,5 +1,6 @@
 import { useRef } from "react";
 import { useAppStore } from "../context/AppContext";
+import { selectAnimationAndExpression } from "../lib/aiAnimationSelector";
 import { sendMessageToOllama, generateSpeech } from "../lib/api";
 import { ToolRegistry } from "../services/tools/core/registry";
 
@@ -73,26 +74,12 @@ export function useAssistant() {
             let pendingSpeechText = "";
 
             // Animation Keyword Matching
-            const determineAnimation = (text: string): string | undefined => {
-                const t = text.toLowerCase();
-                if (t.includes("hello") || t.includes("hi ") || t.includes("greetings")) return 'CLAPPING'; // Friendly greeting
-                if (t.includes("bye") || t.includes("see you")) return 'GOODBYE';
-                if (t.includes("wow") || t.includes("amazing") || t.includes("great")) return 'CLAPPING';
-                if (t.includes("sad") || t.includes("sorry") || t.includes("unfortunate")) return 'SAD';
-                if (t.includes("angry") || t.includes("mad") || t.includes("terrible")) return 'ANGRY';
-                if (t.includes("wait") || t.includes("thinking") || t.includes("hmm")) return 'THINKING';
-                if (t.includes("yes") || t.includes("course") || t.includes("sure")) return 'CLAPPING'; // Nod equivalent?
-                if (t.includes("no ") || t.includes("not ")) return 'ANGRY'; // Shake equivalent?
-
-                // Default "Talking" animation for any speech
-                return 'THINKING';
-            };
 
             const queueSentence = (sentence: string) => {
                 console.log(`🎤 [Stream] Queuing speech: "${sentence}"`);
 
-                // Determine animation mainly from the sentence content
-                const animation = determineAnimation(sentence);
+                // Use AI-driven selector for both animation and facial expression
+                const { animation, facialExpressions } = selectAnimationAndExpression(sentence);
 
                 // Start generation immediately
                 const audioPromise = generateSpeech(sentence, state.selectedCharacter.voiceStyle)
@@ -105,9 +92,9 @@ export function useAssistant() {
                 audioQueueRef.current.push(async () => {
                     const blob = await audioPromise;
                     if (blob) {
-                        // Pass animation intent to player
+                        // Pass both animation and facial expressions to player
                         // @ts-ignore - Updated handshake
-                        await options.onPlayAudio(blob, animation);
+                        await options.onPlayAudio(blob, animation, facialExpressions);
                     }
                 });
 

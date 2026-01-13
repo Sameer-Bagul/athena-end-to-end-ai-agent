@@ -1,5 +1,7 @@
 import * as React from "react";
 import { Box } from "lucide-react";
+import { animationFacialMap } from "../lib/facialMapping";
+import { selectAnimationAndExpression } from "../lib/aiAnimationSelector";
 import ThreeStage from "./ThreeStage";
 import type { ThreeStageHandle } from "./ThreeStage";
 import { SidePanel } from "./SidePanel";
@@ -16,6 +18,9 @@ interface VRMControlPanelProps {
 }
 
 export function VRMControlPanel({ onOpenWidget }: VRMControlPanelProps) {
+
+    // Track last AI selection for UI
+    const [aiSelection, setAiSelection] = React.useState<{ animation: string, facialExpressions: any[] }>({ animation: '', facialExpressions: [] });
     const { state, actions } = useAppStore();
     const stageRef = React.useRef<ThreeStageHandle>(null);
 
@@ -27,8 +32,8 @@ export function VRMControlPanel({ onOpenWidget }: VRMControlPanelProps) {
         actions.addMessage({ role: 'user', content: text });
         await processInput(text, {
             source: 'voice',
-            onPlayAudio: async (blob) => {
-                if (stageRef.current) await stageRef.current.playAudio(blob);
+            onPlayAudio: async (blob: Blob, animation?: string, facialExpressions?: any[]) => {
+                if (stageRef.current) await stageRef.current.playAudio(blob, animation, facialExpressions);
             }
         });
     }, [actions, processInput]);
@@ -42,14 +47,19 @@ export function VRMControlPanel({ onOpenWidget }: VRMControlPanelProps) {
     // 5. Chat Panel Handler
     const handleTextSubmit = React.useCallback(async (text: string) => {
         actions.addMessage({ role: 'user', content: text });
+        // Get AI selection for preview
+        const { animation, facialExpressions } = selectAnimationAndExpression(text);
+        setAiSelection({ animation, facialExpressions });
         await processInput(text, {
             source: 'text',
-            onPlayAudio: async (blob: Blob, animation?: string) => {
-                // @ts-ignore - Handle updated signature
-                if (stageRef.current) await stageRef.current.playAudio(blob, animation);
+            onPlayAudio: async (blob: Blob, animation?: string, facialExpressions?: any[]) => {
+                if (stageRef.current) await stageRef.current.playAudio(blob, animation, facialExpressions);
             }
         });
-    }, [processInput]);
+    }, [actions, processInput]);
+    // UI override controls
+    const [overrideAnim, setOverrideAnim] = React.useState<string | null>(null);
+    const [overrideFace, setOverrideFace] = React.useState<any[] | null>(null);
 
 
     return (
@@ -63,9 +73,46 @@ export function VRMControlPanel({ onOpenWidget }: VRMControlPanelProps) {
             <aside className="h-full z-20 relative border-r border-white/5 bg-black/60 backdrop-blur-2xl overflow-hidden shadow-2xl">
                 <SidePanel
                     onToggleListening={toggleListening}
-                    onVrmUpload={() => { }} // TODO: Implement file handlers in Context if needed, or keep passing helpers
+                    onVrmUpload={() => { }}
                     onAnimationUpload={() => { }}
+                    onExpressionChange={(name, value) => {
+                        if (stageRef.current && stageRef.current.animationManager) {
+                            stageRef.current.animationManager.setExpression(name, value);
+                        }
+                    }}
                 />
+                {/* Facial Expression Mapping UI */}
+                <div className="p-4 border-t border-white/10">
+                    <h3 className="text-xs font-mono text-cyan-400 mb-2">AI Animation & Facial Expression</h3>
+                    <div className="space-y-2">
+                        <div className="bg-black/40 rounded-lg p-2 border border-cyan-900">
+                            <div className="font-mono text-xs text-cyan-300 mb-1">AI Selected Animation: {aiSelection.animation}</div>
+                            <div className="flex flex-wrap gap-2 mb-2">
+                                {aiSelection.facialExpressions.map((expr, idx) => (
+                                    <span key={idx} className="px-2 py-1 rounded bg-cyan-800/60 text-cyan-100 text-[10px] font-mono">
+                                        {expr.name} ({expr.value}){expr.duration ? ` for ${expr.duration}ms` : ''}
+                                    </span>
+                                ))}
+                            </div>
+                            <div className="flex gap-2 items-center">
+                                <label className="text-xs text-white/40">Override Animation:</label>
+                                <select value={overrideAnim ?? aiSelection.animation} onChange={e => setOverrideAnim(e.target.value)} className="bg-black/60 text-cyan-200 text-xs rounded px-2 py-1">
+                                    {Object.keys(animationFacialMap).map(anim => (
+                                        <option key={anim} value={anim}>{anim}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="flex gap-2 items-center mt-2">
+                                <label className="text-xs text-white/40">Override Facial:</label>
+                                <select value={overrideFace ? JSON.stringify(overrideFace) : JSON.stringify(aiSelection.facialExpressions)} onChange={e => setOverrideFace(JSON.parse(e.target.value))} className="bg-black/60 text-cyan-200 text-xs rounded px-2 py-1">
+                                    {Object.entries(animationFacialMap).map(([anim, exprs]) => (
+                                        <option key={anim} value={JSON.stringify(exprs)}>{anim}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </aside>
 
             {/* Center Stage */}

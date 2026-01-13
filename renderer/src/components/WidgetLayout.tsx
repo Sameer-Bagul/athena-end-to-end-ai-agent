@@ -94,7 +94,7 @@ export function WidgetLayout() {
             } else if (data.type === 'audio') {
                 const buffer = data.payload;
                 const blob = new Blob([buffer], { type: 'audio/wav' });
-                if (stageRef.current) stageRef.current.playAudio(blob, undefined, true);
+                if (stageRef.current) stageRef.current.playAudio(blob, undefined, undefined, true);
             } else if (data.type === 'settings') {
                 // Apply Settings
                 setSettings(data.payload);

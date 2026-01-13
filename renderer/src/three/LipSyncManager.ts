@@ -35,7 +35,7 @@ export class LipSyncManager {
 
         // Lazy Init AudioContext
         if (!this.audioContext) {
-            this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+            this.audioContext = new (window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext)();
         }
 
         // Resume if suspended (browser policy)
@@ -46,50 +46,50 @@ export class LipSyncManager {
         // Stop previous audio
         this.stop();
 
-        return new Promise(async (resolve) => {
-            try {
-                if (!this.audioContext) return resolve(); // Should not happen
+        return new Promise((resolve) => {
+            (async () => {
+                try {
+                    if (!this.audioContext) return resolve(); // Should not happen
 
-                const arrayBuffer = await audioBlob.arrayBuffer();
-                const audioBuffer = await this.audioContext.decodeAudioData(arrayBuffer);
+                    const arrayBuffer = await audioBlob.arrayBuffer();
+                    const audioBuffer = await this.audioContext.decodeAudioData(arrayBuffer);
 
-                this.source = this.audioContext.createBufferSource();
-                this.source.buffer = audioBuffer;
+                    this.source = this.audioContext.createBufferSource();
+                    this.source.buffer = audioBuffer;
 
-                this.analyser = this.audioContext.createAnalyser();
-                this.analyser.fftSize = 1024; // Higher resolution for frequency analysis
-                this.analyser.smoothingTimeConstant = 0.3;
+                    this.analyser = this.audioContext.createAnalyser();
+                    this.analyser.fftSize = 1024; // Higher resolution for frequency analysis
+                    this.analyser.smoothingTimeConstant = 0.3;
 
-                this.source.connect(this.analyser);
+                    this.source.connect(this.analyser);
 
-                if (isMuted) {
-                    // Route through zero-gain node to mute but keep graph active
-                    const gainNode = this.audioContext.createGain();
-                    gainNode.gain.value = 0;
-                    this.analyser.connect(gainNode);
-                    gainNode.connect(this.audioContext.destination);
-                } else {
-                    this.analyser.connect(this.audioContext.destination);
-                }
+                    if (isMuted) {
+                        // Route through zero-gain node to mute but keep graph active
+                        const gainNode = this.audioContext.createGain();
+                        gainNode.gain.value = 0;
+                        this.analyser.connect(gainNode);
+                        gainNode.connect(this.audioContext.destination);
+                    } else {
+                        this.analyser.connect(this.audioContext.destination);
+                    }
 
-                this.dataArray = new Uint8Array(this.analyser.frequencyBinCount);
+                    this.dataArray = new Uint8Array(this.analyser.frequencyBinCount);
 
-                this.dataArray = new Uint8Array(this.analyser.frequencyBinCount);
+                    this.source.onended = () => {
+                        this.isPlaying = false;
+                        this.resetMouth();
+                        resolve();
+                    };
 
-                this.source.onended = () => {
+                    this.source.start(0);
+                    this.isPlaying = true;
+
+                } catch (error) {
+                    console.error("Error playing audio:", error);
                     this.isPlaying = false;
-                    this.resetMouth();
-                    resolve();
-                };
-
-                this.source.start(0);
-                this.isPlaying = true;
-
-            } catch (error) {
-                console.error("Error playing audio:", error);
-                this.isPlaying = false;
-                resolve(); // Resolve anyway to unblock queue
-            }
+                    resolve(); // Resolve anyway to unblock queue
+                }
+            })();
         });
     }
 
@@ -97,7 +97,7 @@ export class LipSyncManager {
         if (this.source) {
             try {
                 this.source.stop();
-            } catch (e) {
+            } catch {
                 // ignore if already stopped or not started
             }
             this.source.disconnect();
@@ -115,7 +115,9 @@ export class LipSyncManager {
         }
 
         // Get frequency data
-        this.analyser.getByteFrequencyData(this.dataArray as any);
+        if (this.dataArray) {
+            this.analyser.getByteFrequencyData(this.dataArray as Uint8Array<ArrayBuffer>);
+        }
 
         // Analyze Formant Energy Bands
         // AudioContext default sample rate is usually 44.1kHz or 48kHz.

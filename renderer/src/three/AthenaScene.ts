@@ -21,6 +21,7 @@ export class AthenaScene {
   private animationFrameId: number | null = null;
   private container: HTMLDivElement | null = null;
   private controls: OrbitControls | null = null;
+  private resizeObserver: ResizeObserver | null = null;
 
   // Scene objects for dynamic updates
   private ambientLight: THREE.AmbientLight | null = null;
@@ -350,7 +351,7 @@ export class AthenaScene {
     // OR I can use a monkey-patch style on the container.
     // Best practice: Add the property. I will do a multi-replace to add the property AND the method.
 
-    (this as any).resizeObserver = resizeObserver;
+    this.resizeObserver = resizeObserver;
   }
 
   /**
@@ -531,9 +532,9 @@ export class AthenaScene {
     }
 
     // Stop ResizeObserver
-    if ((this as any).resizeObserver) {
-      ((this as any).resizeObserver as ResizeObserver).disconnect();
-      (this as any).resizeObserver = null;
+    if (this.resizeObserver) {
+      this.resizeObserver.disconnect();
+      this.resizeObserver = null;
     }
 
     // Clear update callbacks
