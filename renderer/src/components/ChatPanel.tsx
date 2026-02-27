@@ -1,7 +1,8 @@
 import * as React from "react";
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Send, Bot, MessageSquare, Sparkles, User, Trash2, Paperclip, FileText, X } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Send, Bot, MessageSquare, Sparkles, Trash2, Paperclip, FileText, X, ChevronDown } from "lucide-react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { cn } from "../lib/utils";
@@ -70,127 +71,99 @@ export function ChatPanel({ onSendMessage, onClearHistory }: ChatPanelProps) {
         }
     };
 
-    // --- Collapsed View ---
+    // --- Collapsed View (Floating Icon) ---
     if (state.isRightCollapsed) {
         return (
-            <div
-                className={cn(
-                    "h-full w-full flex flex-col items-center py-6 gap-8 relative transition-all duration-500 overflow-hidden group",
-                    state.isChatProcessing && "shadow-[inset_0_0_50px_rgba(var(--primary),0.1)]"
-                )}
-                onClick={actions.toggleRightCollapse}
-            >
-                {/* Active Strip */}
-                <div className={cn(
-                    "absolute top-0 bottom-0 left-0 w-[1px] transition-all duration-500",
-                    state.isChatProcessing ? "bg-primary shadow-[0_0_15px_currentColor]" : "bg-white/5"
-                )} />
-
-                {/* Toggle Button */}
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={(e) => { e.stopPropagation(); actions.toggleRightCollapse(); }}
-                    className="size-10 text-white/40 hover:text-white rounded-xl hover:bg-white/5 transition-all z-10"
+            <div className="fixed bottom-8 right-8 z-[100]">
+                <motion.div
+                    initial={{ scale: 0, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
                 >
-                    <MessageSquare className={cn("size-5 transition-transform duration-500", state.isChatProcessing && "animate-pulse text-primary")} />
-                </Button>
-
-                {/* Central Status Rail */}
-                <div className="flex-1 flex flex-col items-center justify-center gap-12 w-full opacity-40 group-hover:opacity-100 transition-opacity duration-500">
-
-                    {/* Decorative Line Top */}
-                    <div className="h-24 w-[1px] bg-gradient-to-b from-transparent via-white/20 to-transparent" />
-
-                    {/* Vertical Text */}
-                    <div className="writing-vertical-rl rotate-180 flex items-center gap-6">
-                        <span className="text-[10px] font-mono uppercase tracking-[0.4em] text-white/60 whitespace-nowrap group-hover:text-white transition-colors">
-                            Neural Link
-                        </span>
-                        {state.isChatProcessing && (
-                            <span className="text-[9px] text-primary animate-pulse font-bold tracking-widest">
-                                PROCESSING
-                            </span>
-                        )}
-                    </div>
-
-                    {/* Decorative Line Bottom */}
-                    <div className="h-24 w-[1px] bg-gradient-to-t from-transparent via-white/20 to-transparent" />
-                </div>
-
-                {/* Bottom Status Indicator */}
-                <div className="mt-auto pb-6 flex flex-col items-center gap-4 z-10">
-                    <div
+                    <Button
+                        onClick={actions.toggleRightCollapse}
                         className={cn(
-                            "size-3 rounded-full transition-all duration-500 border border-black/50 shadow-lg",
+                            "size-14 rounded-full shadow-[0_0_30px_rgba(0,0,0,0.5)] border border-white/20 transition-all duration-300",
                             state.isChatProcessing
-                                ? "bg-primary shadow-[0_0_15px_rgba(var(--primary),0.6)] animate-pulse"
-                                : state.isListening
-                                    ? "bg-red-500 shadow-[0_0_15px_rgba(239,68,68,0.5)]"
-                                    : "bg-white/20"
+                                ? "bg-white text-black"
+                                : "bg-black text-white hover:bg-white/10"
                         )}
-                        title={state.isChatProcessing ? "Processing..." : state.isListening ? "Mic On" : "Idle"}
-                    />
-                </div>
+                    >
+                        <AnimatePresence mode="wait">
+                            {state.isChatProcessing ? (
+                                <motion.div
+                                    key="processing"
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    exit={{ opacity: 0 }}
+                                >
+                                    <Sparkles className="size-6 animate-pulse" />
+                                </motion.div>
+                            ) : (
+                                <motion.div
+                                    key="idle"
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    exit={{ opacity: 0 }}
+                                >
+                                    <MessageSquare className="size-6" />
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    </Button>
+                </motion.div>
             </div>
         );
     }
 
-    // --- Expanded View ---
+    // --- Expanded View (Resized Minimalist Monochrome) ---
     return (
-        <div className="h-full flex flex-col relative w-full font-sans">
-            {/* Header */}
-            <div className="shrink-0 z-20 border-b border-white/5 bg-white/[0.02] flex items-center justify-between px-6 py-5">
-                <div className="flex items-center gap-4">
-                    <div className="p-2 bg-white/5 rounded-xl border border-white/5 ring-1 ring-white/5 shadow-inner">
-                        <Bot className="size-4 text-primary" />
+        <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="h-full max-h-full flex flex-col relative w-full font-sans bg-black border-l border-white/5 overflow-hidden"
+        >
+            {/* Minimal Header */}
+            <div className="shrink-0 z-20 border-b border-white/5 bg-transparent flex items-center justify-between px-6 py-4">
+                <div className="flex items-center gap-3">
+                    <div className="size-7 flex items-center justify-center bg-white rounded-sm">
+                        <Bot className="size-3.5 text-black" />
                     </div>
-                    <div>
-                        <h3 className="text-xs font-bold uppercase tracking-[0.15em] text-white/90">Athena <span className="text-white/30 font-light">AI</span></h3>
-                        <div className="flex items-center gap-2 mt-1">
-                            <span className={cn("size-1.5 rounded-full shadow-[0_0_8px_currentColor] transition-all duration-500", state.isChatProcessing ? "bg-primary animate-pulse" : "bg-emerald-500/50")} />
-                            <span className="text-[9px] text-white/40 font-mono uppercase tracking-widest">
-                                {state.isChatProcessing ? "Thinking..." : "Online"}
+                    <div className="flex flex-col">
+                        <h3 className="text-[10px] font-black uppercase tracking-[0.4em] text-white">Athena-01</h3>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                            <motion.div
+                                animate={state.isChatProcessing ? { opacity: [1, 0, 1] } : {}}
+                                transition={{ repeat: Infinity, duration: 1 }}
+                                className={cn("size-1 rounded-full", state.isChatProcessing ? "bg-white" : "bg-white/20")}
+                            />
+                            <span className="text-[7px] text-white/30 font-mono uppercase tracking-[0.1em]">
+                                {state.isChatProcessing ? "Busy" : "Ready"}
                             </span>
                         </div>
                     </div>
                 </div>
 
-                <div className="flex items-center gap-1">
-                    {/* RAG Status */}
+                <div className="flex items-center gap-4">
                     {state.ragStatus.isReady && (
-                        <div className="flex items-center gap-2 mr-2 px-2 py-1 bg-primary/10 border border-primary/20 rounded-lg">
-                            <FileText className="size-3 text-primary" />
-                            <span className="text-[9px] font-mono text-primary font-bold">{state.ragStatus.indexedFiles.length} DOCS</span>
-                            <button onClick={handleClearRag} className="hover:text-red-400 text-white/20 transition-colors">
-                                <X className="size-3" />
+                        <div className="flex items-center gap-2 px-2 py-1 border border-white/10">
+                            <FileText className="size-2.5 text-white/40" />
+                            <span className="text-[8px] font-mono text-white/60 font-bold">{state.ragStatus.indexedFiles.length}</span>
+                            <button onClick={handleClearRag} className="hover:text-white text-white/10 transition-colors">
+                                <X className="size-2.5" />
                             </button>
                         </div>
                     )}
-                    {/* Clear Button */}
-                    {state.chatMessages.length > 1 && (
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => {
-                                if (confirm("Clear chat history?")) {
-                                    onClearHistory?.();
-                                }
-                            }}
-                            className="size-8 text-white/20 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-all"
-                            title="Clear History"
-                        >
-                            <Trash2 className="size-4" />
-                        </Button>
-                    )}
-                    {/* Collapse Button */}
+
                     <Button
                         variant="ghost"
                         size="icon"
                         onClick={actions.toggleRightCollapse}
-                        className="size-8 text-white/20 hover:text-white hover:bg-white/5 rounded-lg transition-all"
+                        className="size-7 text-white/20 hover:text-white hover:bg-white/5 rounded-none"
                     >
-                        <MessageSquare className="size-4" />
+                        <ChevronDown className="size-4 rotate-270" />
                     </Button>
                 </div>
             </div>
@@ -199,147 +172,168 @@ export function ChatPanel({ onSendMessage, onClearHistory }: ChatPanelProps) {
             <div
                 ref={scrollRef}
                 onScroll={handleScroll}
-                className="flex-1 overflow-y-auto min-h-0 p-6 space-y-8 scroll-smooth custom-scrollbar"
+                className="flex-1 overflow-y-auto min-h-0 p-8 space-y-12 scroll-smooth custom-scrollbar"
             >
                 {state.chatMessages.length === 0 && (
-                    <div className="flex flex-col items-center justify-center text-center h-full opacity-30 space-y-6 animate-in fade-in duration-700">
-                        <div className="p-8 rounded-3xl bg-white/[0.03] ring-1 ring-white/5 shadow-2xl backdrop-blur-sm">
-                            <MessageSquare className="size-10 text-white" />
-                        </div>
-                        <div className="space-y-2">
-                            <h4 className="text-sm font-medium tracking-[0.2em] uppercase text-white/60">System Ready</h4>
-                            <p className="text-xs font-light text-white/30 tracking-wide">
-                                Awaiting user input protocol...
-                            </p>
-                        </div>
+                    <div className="flex flex-col items-center justify-center text-center h-full opacity-10">
+                        <MessageSquare className="size-6 text-white mb-4" />
+                        <span className="text-[8px] font-mono tracking-[0.5em] uppercase">Ready for transmission</span>
                     </div>
                 )}
 
-                {state.chatMessages.map((msg, idx) => (
-                    <div
-                        key={idx}
-                        className={cn(
-                            "flex flex-col gap-2 max-w-full group animate-in slide-in-from-bottom-2 duration-500",
-                            msg.role === "user" ? "items-end" : "items-start"
-                        )}
-                    >
-                        {/* Avatar/Label Row */}
-                        <div className={cn(
-                            "flex items-center gap-2 text-[9px] font-bold uppercase tracking-[0.2em] opacity-30 group-hover:opacity-80 transition-opacity duration-300 px-1",
-                            msg.role === "user" ? "flex-row-reverse text-emerald-400" : "flex-row text-purple-400"
-                        )}>
-                            <span>{msg.role === "user" ? "You" : "Athena"}</span>
-                            {msg.role === "user" ? <User className="size-3" /> : <Sparkles className="size-3" />}
-                        </div>
+                <AnimatePresence initial={false}>
+                    {state.chatMessages.map((msg, idx) => (
+                        <motion.div
+                            key={idx}
+                            initial={{ opacity: 0, scale: 0.98 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            className={cn(
+                                "flex flex-col gap-2 group",
+                                msg.role === "user" ? "items-end" : "items-start"
+                            )}
+                        >
+                            <div className={cn(
+                                "text-[8px] font-bold uppercase tracking-[0.4em] opacity-20",
+                                msg.role === "user" ? "text-right" : "text-left"
+                            )}>
+                                {msg.role === "user" ? "Client" : "ATH"}
+                            </div>
 
-                        <div className={cn(
-                            "rounded-2xl px-6 py-4 text-sm leading-relaxed max-w-[90%] break-words shadow-lg backdrop-blur-md transition-all duration-300 hover:shadow-2xl",
-                            msg.role === "user"
-                                ? "bg-white/[0.05] text-white/90 rounded-tr-none border border-white/10"
-                                : "bg-black/20 text-white/80 border border-white/5 rounded-tl-none shadow-black/20"
-                        )}>
-                            <ReactMarkdown
-                                remarkPlugins={[remarkGfm]}
-                                components={{
-                                    ul: (props) => <ul className="list-disc pl-4 space-y-1 my-2" {...props} />,
-                                    ol: (props) => <ol className="list-decimal pl-4 space-y-1 my-2" {...props} />,
-                                    li: (props) => <li className="mb-1 text-white/80" {...props} />,
-                                    blockquote: (props) => <blockquote className="border-l-2 border-white/20 pl-4 py-1 my-2 italic opacity-70 bg-white/5 rounded-r" {...props} />,
-                                    code: (props) => {
-                                        const { children, className, node, ...rest } = props;
-                                        const match = /language-(\w+)/.exec(className || '')
-                                        return match ? (
-                                            <div className="relative my-3 rounded-lg overflow-hidden border border-white/10 bg-black/40 shadow-inner">
-                                                <div className="flex items-center justify-between px-3 py-1.5 bg-white/5 border-b border-white/5">
-                                                    <span className="text-[10px] uppercase tracking-wider text-white/40">{match[1]}</span>
+                            <div className={cn(
+                                "px-6 py-4 text-[13px] leading-relaxed max-w-[98%] border transition-all duration-300",
+                                msg.role === "user"
+                                    ? "bg-transparent text-white border-white/10 rounded-[2.5rem] rounded-tr-none"
+                                    : "bg-white text-black border-white rounded-[2.5rem] rounded-tl-none font-medium"
+                            )}>
+                                <ReactMarkdown
+                                    remarkPlugins={[remarkGfm]}
+                                    components={{
+                                        ul: (props) => <ul className="list-disc pl-5 space-y-1 my-3" {...props} />,
+                                        ol: (props) => <ol className="list-decimal pl-5 space-y-1 my-3" {...props} />,
+                                        li: (props) => <li className={msg.role === 'user' ? "text-white/70" : "text-black/80"} {...props} />,
+                                        blockquote: (props) => <blockquote className={cn("border-l px-4 my-4 italic", msg.role === 'user' ? "border-white/10 text-white/40" : "border-black/20 text-black/50")} {...props} />,
+                                        code: (props) => {
+                                            const { children, className, node, ...rest } = props;
+                                            const match = /language-(\w+)/.exec(className || '')
+                                            return match ? (
+                                                <div className={cn("relative my-4 border", msg.role === 'user' ? "border-white/5" : "border-black/5")}>
+                                                    <div className={cn("flex items-center justify-between px-3 py-1 border-b", msg.role === 'user' ? "border-white/5 text-white/20" : "border-black/5 text-black/30")}>
+                                                        <span className="text-[8px] font-mono uppercase">{match[1]}</span>
+                                                    </div>
+                                                    <code {...rest} className={cn(className, "block p-4 overflow-x-auto text-[11px] font-mono")}>
+                                                        {children}
+                                                    </code>
                                                 </div>
-                                                <code {...rest} className={cn(className, "block p-3 overflow-x-auto text-xs font-mono text-white/80")}>
+                                            ) : (
+                                                <code {...rest} className={cn("px-1 py-0.5 font-mono text-[11px]", msg.role === 'user' ? "bg-white/5 text-white/60" : "bg-black/5 text-black/70")}>
                                                     {children}
                                                 </code>
-                                            </div>
-                                        ) : (
-                                            <code {...rest} className="bg-white/10 rounded px-1.5 py-0.5 font-mono text-[11px] text-emerald-300/80">
-                                                {children}
-                                            </code>
-                                        )
-                                    },
-                                    pre: (props) => <pre className="bg-transparent p-0 m-0" {...props} />,
-                                    p: (props) => <p className="mb-2 last:mb-0" {...props} />,
-                                    a: (props) => <a className="text-purple-400 hover:text-purple-300 hover:underline underline-offset-4" target="_blank" rel="noopener noreferrer" {...props} />,
-                                }}
-                            >
-                                {msg.content}
-                            </ReactMarkdown>
-                        </div>
-                    </div>
-                ))}
+                                            )
+                                        },
+                                        pre: (props) => <pre className="bg-transparent p-0 m-0" {...props} />,
+                                        p: (props) => <p className="mb-3 last:mb-0" {...props} />,
+                                        strong: (props) => <strong className="font-bold" {...props} />,
+                                        a: (props) => <a className="underline underline-offset-4 opacity-50 hover:opacity-100 transition-opacity" target="_blank" rel="noopener noreferrer" {...props} />,
+                                    }}
+                                >
+                                    {msg.content}
+                                </ReactMarkdown>
+                            </div>
+                        </motion.div>
+                    ))}
+                </AnimatePresence>
 
                 {/* Live Transcript */}
-                {state.currentTranscript && (
-                    <div className="flex justify-end animate-in fade-in slide-in-from-bottom-4 duration-300 pb-4">
-                        <div className="bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 rounded-2xl rounded-tr-none px-6 py-4 max-w-[85%] italic backdrop-blur-md shadow-[0_0_20px_rgba(16,185,129,0.1)]">
-                            <span className="animate-pulse">{state.currentTranscript}</span> ...
-                        </div>
-                    </div>
+                <AnimatePresence>
+                    {state.currentTranscript && (
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="flex justify-end pb-2"
+                        >
+                            <div className="border border-white/5 px-4 py-3 max-w-[90%] text-[12px] font-mono text-white/20">
+                                <span className="animate-pulse">_</span> {state.currentTranscript}
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+
+                <div ref={messagesEndRef} className="h-4 w-full" />
+            </div>
+
+            {/* Minimal Scroll Button */}
+            <AnimatePresence>
+                {showScrollButton && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="absolute bottom-28 right-8 z-30"
+                    >
+                        <Button
+                            size="icon"
+                            onClick={scrollToBottom}
+                            className="size-8 rounded-none bg-white text-black hover:bg-white/90 border border-white"
+                        >
+                            <ChevronDown className="size-4" />
+                        </Button>
+                    </motion.div>
                 )}
+            </AnimatePresence>
 
-                {/* Invisible element to scroll to */}
-                <div ref={messagesEndRef} className="h-px w-full" />
-            </div>
+            {/* Ultra-minimal Input */}
+            <div className="p-8 shrink-0 bg-black">
+                <form onSubmit={handleSubmit} className="relative">
+                    <div className="relative flex items-center border-b border-white/20 focus-within:border-white transition-colors duration-500">
+                        <Button
+                            type="button"
+                            size="icon"
+                            variant="ghost"
+                            onClick={handleAttachDocument}
+                            className="h-10 w-10 shrink-0 text-white/20 hover:text-white rounded-none"
+                        >
+                            <Paperclip className="size-3.5" />
+                        </Button>
 
-            {/* Scroll to bottom button (Floating) */}
-            <div className={cn(
-                "absolute bottom-28 right-8 transition-all duration-500 transform z-30",
-                showScrollButton ? "translate-y-0 opacity-100" : "translate-y-10 opacity-0 pointer-events-none"
-            )}>
-                <Button
-                    size="icon"
-                    onClick={scrollToBottom}
-                    className="h-10 w-10 rounded-full bg-white/10 hover:bg-white/20 text-white border border-white/10 shadow-lg backdrop-blur-md transition-all"
-                >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
-                </Button>
-            </div>
+                        <Input
+                            value={input}
+                            onChange={(e) => setInput(e.target.value)}
+                            placeholder="COMM //"
+                            className="flex-1 h-12 bg-transparent border-none focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-white/10 text-white font-mono text-[12px] px-2"
+                        />
 
-            {/* Input Area */}
-            <div className="p-6 pt-2 pb-6 shrink-0 z-50 bg-gradient-to-t from-black/20 to-transparent">
-                <form onSubmit={handleSubmit} className="relative flex gap-3 items-end p-2 rounded-[2rem] bg-white/[0.04] border border-white/10 backdrop-blur-2xl shadow-2xl ring-1 ring-black/20">
-                    <Button
-                        type="button"
-                        size="icon"
-                        variant="ghost"
-                        onClick={handleAttachDocument}
-                        className="h-10 w-10 rounded-full shrink-0 text-white/30 hover:text-white hover:bg-white/5 my-auto ml-1"
-                        title="Attach Document (PDF, TXT, MD)"
-                    >
-                        <Paperclip className="size-4" />
-                    </Button>
-                    <Input
-                        value={input}
-                        onChange={(e) => setInput(e.target.value)}
-                        placeholder={state.ragStatus.isReady ? "Ask about your documents..." : "Type encrypted message..."}
-                        className="flex-1 h-12 bg-transparent border-none focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-white/20 text-white/90 font-light tracking-wide px-2"
-                    />
-                    <Button
-                        type="submit"
-                        size="icon"
-                        disabled={!input.trim() || state.isChatProcessing}
-                        className={cn(
-                            "h-10 w-10 rounded-full shrink-0 transition-all duration-300 my-auto mr-1",
-                            !input.trim() || state.isChatProcessing
-                                ? "bg-white/5 text-white/20"
-                                : "bg-white/10 text-white hover:bg-white/20 shadow-[0_0_15px_rgba(255,255,255,0.1)]"
+                        {onClearHistory && state.chatMessages.length > 0 && (
+                            <Button
+                                type="button"
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => onClearHistory()}
+                                className="h-10 w-10 shrink-0 text-white/5 hover:text-white rounded-none"
+                            >
+                                <Trash2 className="size-3.5" />
+                            </Button>
                         )}
-                    >
-                        <Send className={cn("size-4 transition-transform", input.trim() && !state.isChatProcessing && "group-hover:translate-x-0.5 group-hover:-translate-y-0.5")} />
-                    </Button>
+
+                        <Button
+                            type="submit"
+                            size="icon"
+                            disabled={!input.trim() || state.isChatProcessing}
+                            className={cn(
+                                "h-10 w-10 shrink-0 transition-opacity rounded-none",
+                                !input.trim() || state.isChatProcessing ? "opacity-0 pointer-events-none" : "opacity-100"
+                            )}
+                        >
+                            <Send className="size-3.5 text-white" />
+                        </Button>
+                    </div>
                 </form>
-                <div className="mt-3 flex justify-center gap-4 opacity-30 text-[9px] font-mono tracking-[0.3em] uppercase select-none text-white/60">
-                    <span>Encrypted Link</span>
-                    <span>•</span>
-                    <span>Athena Core</span>
+
+                <div className="mt-4 flex justify-between px-1 text-[7px] font-mono tracking-[0.2em] uppercase opacity-10 text-white">
+                    <span>SECURE LINK</span>
+                    <span>V.12</span>
                 </div>
             </div>
-        </div >
+        </motion.div >
     );
 }

@@ -1,7 +1,9 @@
 import * as React from "react";
-import { Box } from "lucide-react";
+import { Box, ChevronLeft } from "lucide-react";
+import { Button } from "./ui/button";
 import { animationFacialMap } from "../lib/facialMapping";
 import { selectAnimationAndExpression } from "../lib/aiAnimationSelector";
+import { cn } from "../lib/utils";
 import ThreeStage from "./ThreeStage";
 import type { ThreeStageHandle } from "./ThreeStage";
 import { SidePanel } from "./SidePanel";
@@ -57,58 +59,96 @@ export function VRMControlPanel({ onOpenWidget }: VRMControlPanelProps) {
             }
         });
     }, [actions, processInput]);
-    // UI override controls
+    // 6. Resizable Chat Panel logic
+    const [chatWidth, setChatWidth] = React.useState(320);
+    const isResizing = React.useRef(false);
     const [overrideAnim, setOverrideAnim] = React.useState<string | null>(null);
     const [overrideFace, setOverrideFace] = React.useState<any[] | null>(null);
+
+    const startResizing = React.useCallback(() => {
+        isResizing.current = true;
+        document.addEventListener('mousemove', handleMouseMove);
+        document.addEventListener('mouseup', stopResizing);
+        document.body.style.cursor = 'col-resize';
+    }, []);
+
+    const stopResizing = React.useCallback(() => {
+        isResizing.current = false;
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', stopResizing);
+        document.body.style.cursor = 'default';
+    }, []);
+
+    const handleMouseMove = React.useCallback((e: MouseEvent) => {
+        if (!isResizing.current) return;
+        const newWidth = window.innerWidth - e.clientX;
+        if (newWidth > 280 && newWidth < 800) {
+            setChatWidth(newWidth);
+        }
+    }, []);
 
 
     return (
         <div
-            className="font-sans h-screen w-screen bg-black overflow-hidden relative grid transition-all duration-300 ease-in-out"
-            style={{
-                gridTemplateColumns: `${state.isLeftCollapsed ? '70px' : '280px'} minmax(0, 1fr) ${state.isRightCollapsed ? '60px' : '320px'}`
-            }}
+            className="font-sans h-screen w-screen bg-black overflow-hidden relative flex flex-row items-stretch"
         >
             {/* Left Side Panel */}
-            <aside className="h-full z-20 relative border-r border-white/5 bg-black/60 backdrop-blur-2xl overflow-hidden shadow-2xl">
-                <SidePanel
-                    onToggleListening={toggleListening}
-                    onVrmUpload={() => { }}
-                    onAnimationUpload={() => { }}
-                    onExpressionChange={(name, value) => {
-                        if (stageRef.current && stageRef.current.animationManager) {
-                            stageRef.current.animationManager.setExpression(name, value);
-                        }
-                    }}
-                />
-                {/* Facial Expression Mapping UI */}
-                <div className="p-4 border-t border-white/10">
-                    <h3 className="text-xs font-mono text-cyan-400 mb-2">AI Animation & Facial Expression</h3>
-                    <div className="space-y-2">
-                        <div className="bg-black/40 rounded-lg p-2 border border-cyan-900">
-                            <div className="font-mono text-xs text-cyan-300 mb-1">AI Selected Animation: {aiSelection.animation}</div>
-                            <div className="flex flex-wrap gap-2 mb-2">
-                                {aiSelection.facialExpressions.map((expr, idx) => (
-                                    <span key={idx} className="px-2 py-1 rounded bg-cyan-800/60 text-cyan-100 text-[10px] font-mono">
-                                        {expr.name} ({expr.value}){expr.duration ? ` for ${expr.duration}ms` : ''}
-                                    </span>
-                                ))}
-                            </div>
-                            <div className="flex gap-2 items-center">
-                                <label className="text-xs text-white/40">Override Animation:</label>
-                                <select value={overrideAnim ?? aiSelection.animation} onChange={e => setOverrideAnim(e.target.value)} className="bg-black/60 text-cyan-200 text-xs rounded px-2 py-1">
-                                    {Object.keys(animationFacialMap).map(anim => (
-                                        <option key={anim} value={anim}>{anim}</option>
+            <aside
+                className={cn(
+                    "h-full z-20 relative border-r border-white/5 bg-black/60 backdrop-blur-2xl shadow-2xl transition-all duration-500 flex flex-col overflow-hidden",
+                    state.isLeftCollapsed ? "w-[70px]" : "w-[280px]"
+                )}
+            >
+                <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col">
+                    <SidePanel
+                        onToggleListening={toggleListening}
+                        onVrmUpload={() => { }}
+                        onAnimationUpload={() => { }}
+                        onExpressionChange={(name, value) => {
+                            if (stageRef.current && stageRef.current.animationManager) {
+                                stageRef.current.animationManager.setExpression(name, value);
+                            }
+                        }}
+                    />
+                    {/* Facial Expression Mapping UI - Integrated into scrollable area */}
+                    <div className="p-4 border-t border-white/10 shrink-0">
+                        <h3 className="text-[10px] font-mono text-white/40 mb-2 uppercase tracking-widest">AI Status</h3>
+                        <div className="space-y-4">
+                            <div className="bg-white/[0.02] border border-white/5 p-3 rounded-none">
+                                <div className="font-mono text-[9px] text-white/30 mb-2">ANIM: {aiSelection.animation}</div>
+                                <div className="flex flex-wrap gap-1.5 mb-3">
+                                    {aiSelection.facialExpressions.map((expr, idx) => (
+                                        <span key={idx} className="px-1.5 py-0.5 border border-white/10 text-white/50 text-[8px] font-mono">
+                                            {expr.name}
+                                        </span>
                                     ))}
-                                </select>
-                            </div>
-                            <div className="flex gap-2 items-center mt-2">
-                                <label className="text-xs text-white/40">Override Facial:</label>
-                                <select value={overrideFace ? JSON.stringify(overrideFace) : JSON.stringify(aiSelection.facialExpressions)} onChange={e => setOverrideFace(JSON.parse(e.target.value))} className="bg-black/60 text-cyan-200 text-xs rounded px-2 py-1">
-                                    {Object.entries(animationFacialMap).map(([anim, exprs]) => (
-                                        <option key={anim} value={JSON.stringify(exprs)}>{anim}</option>
-                                    ))}
-                                </select>
+                                </div>
+                                <div className="space-y-3">
+                                    <div className="flex flex-col gap-1.5">
+                                        <label className="text-[8px] text-white/20 uppercase font-bold">Override Anim</label>
+                                        <select
+                                            value={overrideAnim ?? aiSelection.animation}
+                                            onChange={e => setOverrideAnim(e.target.value)}
+                                            className="bg-black text-white/60 text-[10px] border border-white/10 px-2 py-1.5 outline-none focus:border-white transition-colors"
+                                        >
+                                            {Object.keys(animationFacialMap).map(anim => (
+                                                <option key={anim} value={anim}>{anim}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div className="flex flex-col gap-1.5">
+                                        <label className="text-[8px] text-white/20 uppercase font-bold">Override Facial</label>
+                                        <select
+                                            value={overrideFace ? JSON.stringify(overrideFace) : JSON.stringify(aiSelection.facialExpressions)}
+                                            onChange={e => setOverrideFace(JSON.parse(e.target.value))}
+                                            className="bg-black text-white/60 text-[10px] border border-white/10 px-2 py-1.5 outline-none focus:border-white transition-colors"
+                                        >
+                                            {Object.entries(animationFacialMap).map(([anim, exprs]) => (
+                                                <option key={anim} value={JSON.stringify(exprs)}>{anim}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -116,12 +156,12 @@ export function VRMControlPanel({ onOpenWidget }: VRMControlPanelProps) {
             </aside>
 
             {/* Center Stage */}
-            <main className="relative h-full w-full bg-[#050510] z-0 overflow-hidden">
+            <main className="relative flex-1 h-full bg-[#050510] z-0 overflow-hidden min-w-0">
                 <ThreeStage
                     ref={stageRef}
                     vrmUrl={state.vrmUrl}
                     animationUrl={state.animationUrl}
-                    animationSpeed={state.animationSpeed} // Context uses number, ThreeStage might expect array? check
+                    animationSpeed={state.animationSpeed}
                     cameraMode={state.cameraMode}
                     isPlaying={state.isPlaying}
                     lightIntensity={1}
@@ -132,16 +172,42 @@ export function VRMControlPanel({ onOpenWidget }: VRMControlPanelProps) {
                     onDrop={(f) => actions.setVrmFile(f)}
                 />
 
-                {/* Floating Buttons */}
-                <div className="absolute top-4 right-4 z-20 flex gap-3">
-                    <button onClick={onOpenWidget} className="btn-glass px-4 py-2 rounded-lg bg-black/40 backdrop-blur-md border border-white/10 text-xs font-mono uppercase text-white/60 hover:text-white hover:bg-white/10 hover:border-white/20 transition-all flex gap-2 items-center">
+                {/* Overlays / UI Buttons */}
+                <div className="absolute top-8 left-8 z-10">
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={actions.toggleLeftCollapse}
+                        className="size-10 rounded-none bg-black/40 backdrop-blur-md border border-white/10 text-white/50 hover:text-white transition-all shadow-2xl"
+                    >
+                        <ChevronLeft className={cn("size-6 transition-transform duration-500", state.isLeftCollapsed && "rotate-180")} />
+                    </Button>
+                </div>
+
+                {/* Floating Widget Toggle */}
+                <div className="absolute top-8 right-8 z-20 flex gap-3">
+                    <button onClick={onOpenWidget} className="btn-glass px-4 py-2 rounded-none bg-black/40 backdrop-blur-md border border-white/10 text-[10px] font-mono uppercase text-white/40 hover:text-white hover:bg-white/10 hover:border-white/20 transition-all flex gap-2 items-center">
                         <Box className="size-3.5" /> Widget
                     </button>
                 </div>
             </main>
 
+            {/* Resize Handle */}
+            {!state.isRightCollapsed && (
+                <div
+                    onMouseDown={startResizing}
+                    className="w-[1px] bg-white/5 hover:bg-white/20 cursor-col-resize z-40 transition-colors"
+                />
+            )}
+
             {/* Right Chat Panel */}
-            <aside className="h-full z-20 relative border-l border-white/5 bg-black/60 backdrop-blur-2xl overflow-hidden shadow-2xl">
+            <aside
+                className={cn(
+                    "h-full z-30 relative transition-all duration-500 ease-in-out overflow-hidden",
+                    state.isRightCollapsed ? "w-0" : "border-l border-white/5 shadow-2xl"
+                )}
+                style={{ width: state.isRightCollapsed ? 0 : chatWidth }}
+            >
                 <ChatPanel
                     onSendMessage={handleTextSubmit}
                     onClearHistory={actions.clearChat}
