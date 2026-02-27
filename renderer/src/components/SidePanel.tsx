@@ -1,10 +1,12 @@
 import * as React from "react";
-import { User, Activity, Play, Pause, Settings, LayoutGrid, Palette, ChevronLeft } from "lucide-react";
+import { User, Play, Pause, Settings, LayoutGrid, ChevronLeft, Upload, Trash2 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
-import { Label } from "./ui/label";
+import { Badge } from "./ui/badge";
 import { cn } from "../lib/utils";
 import { Carousel3D } from "./ui/Carousel3D";
+import { ControlModule } from "./ui/ControlModule";
+import { IndustrialSelect } from "./ui/IndustrialSelect";
 import { AVAILABLE_MODELS } from "../lib/models";
 import { AVAILABLE_ANIMATIONS } from "../lib/animations";
 import { useAppStore } from "../context/AppContext";
@@ -72,197 +74,211 @@ export function SidePanel({ onToggleListening, onVrmUpload: _externalVrm, onAnim
         }
     };
 
+
     // --- Expanded View (Modern Monochrome) ---
     return (
-        <div className="h-full flex flex-col relative w-full font-sans bg-black">
-            {/* Header */}
-            <div className="flex items-center justify-between px-6 py-5 border-b border-white/5 bg-transparent">
-                <div className="flex items-center gap-2">
-                    <div className="size-5 flex items-center justify-center border border-white/20">
-                        <Palette className="size-3 text-white/60" />
-                    </div>
-                    <span className="text-[10px] font-black tracking-[0.4em] uppercase text-white">Console</span>
+        <div className="h-full flex flex-col relative w-full font-sans bg-[#050505] selection:bg-white selection:text-black overflow-x-hidden">
+            {/* Header - Unified */}
+            <div className="flex items-center justify-between border-b border-white/10 bg-black/60 backdrop-blur-3xl px-4 h-16 shrink-0">
+                <div className="flex flex-col">
+                    <span className="text-[9px] font-mono text-white/30 tracking-[0.3em] uppercase">System</span>
+                    <h2 className="text-[14px] font-black tracking-[0.4em] text-white uppercase italic leading-tight">Console</h2>
                 </div>
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={actions.toggleLeftCollapse}
-                    className="size-8 text-white/20 hover:text-white hover:bg-white/5 rounded-none"
-                >
-                    <ChevronLeft className="size-4" />
-                </Button>
+
+                <div className="flex items-center gap-2">
+                    <Button
+                        variant="outline"
+                        onClick={() => actions.setViewMode('exhibition')}
+                        className="h-8 border-white/20 text-white hover:bg-white hover:text-black hover:border-white rounded-full transition-all px-4 text-[10px] font-bold tracking-[0.2em] uppercase"
+                    >
+                        Exhibition
+                    </Button>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={actions.toggleLeftCollapse}
+                        className="size-8 text-white/30 hover:text-white hover:bg-white/10 rounded-full transition-all"
+                    >
+                        <ChevronLeft className="size-4" />
+                    </Button>
+                </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-8 flex flex-col gap-12 custom-scrollbar">
+            <div className="flex-1 overflow-y-auto overflow-x-hidden px-3 py-4 flex flex-col gap-3 custom-scrollbar relative">
+                {/* Subtle Grid Overlay */}
+                <div className="absolute inset-0 pointer-events-none opacity-[0.03] bg-[linear-gradient(to_right,#808080_1px,transparent_1px),linear-gradient(to_bottom,#808080_1px,transparent_1px)] bg-[size:40px_40px]" />
 
-                {/* Mood Presets */}
-                <div className="space-y-4">
-                    <div className="flex items-center gap-4 mb-2">
-                        <Label className="text-[9px] font-bold tracking-[0.3em] text-white/30 uppercase">Protocol // Mood</Label>
-                        <div className="h-[1px] flex-1 bg-white/5" />
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                        {[
-                            { label: "Neutral", value: "Neutral", preset: {} },
-                            { label: "Joy", value: "Joy", preset: { Joy: 1.0 } },
-                            { label: "Sadness", value: "Sad", preset: { Sad: 1.0 } },
-                            { label: "Anger", value: "Angry", preset: { Angry: 1.0 } },
-                            { label: "Inquiry", value: "Surprised", preset: { Surprised: 1.0 } },
-                            { label: "Relax", value: "Fun", preset: { Fun: 0.7, Blink: 0.1 } }
-                        ].map((mood) => (
-                            <button
-                                key={mood.label}
-                                onClick={() => {
+                <div className="flex flex-col relative z-10 gap-3">
+                    {/* Module 01: Host Identity */}
+                    <ControlModule id="MOD_01" title="Host Identity" defaultOpen={true}>
+                        <div className="space-y-4">
+                            <div className="h-48 w-full">
+                                <Carousel3D
+                                    items={[
+                                        ...AVAILABLE_MODELS.map(m => ({
+                                            id: m.id,
+                                            label: m.name,
+                                            description: m.description,
+                                            image: state.thumbnailCache[m.id] || m.image
+                                        })),
+                                        ...(state.vrmFile ? [{
+                                            id: 'custom',
+                                            label: 'Custom',
+                                            description: state.vrmFile.name,
+                                            image: state.vrmThumbnail || undefined,
+                                            icon: <User />
+                                        }] : [])
+                                    ]}
+                                    selectedId={state.vrmFile ? 'custom' : state.selectedCharacter.id}
+                                    onSelect={(id) => {
+                                        if (id !== 'custom') actions.setModel(id);
+                                    }}
+                                    type="model"
+                                />
+                            </div>
+                            <div className="bg-white/[0.04] border border-white/10 p-4 rounded-xl">
+                                <div className="flex justify-between items-center mb-1.5">
+                                    <h4 className="text-[12px] font-black uppercase italic tracking-widest text-white">
+                                        {state.vrmFile ? 'CUSTOM_RIG' : state.selectedCharacter.name}
+                                    </h4>
+                                    <Badge variant="outline" className="rounded-full border-white/30 text-[8px] uppercase tracking-[0.2em] px-2 py-0.5 bg-white/10 text-white">Active</Badge>
+                                </div>
+                                <p className="text-[10px] text-white/50 uppercase tracking-[0.15em] font-mono leading-relaxed">
+                                    {state.vrmFile ? state.vrmFile.name : (state.selectedCharacter as any).bio || "No BIOS profile detected."}
+                                </p>
+                            </div>
+                        </div>
+                    </ControlModule>
+
+                    {/* Module 02: Neural Mood */}
+                    <ControlModule id="MOD_02" title="Neural Mood" defaultOpen={true}>
+                        <div className="space-y-3">
+                            <IndustrialSelect
+                                value={Object.entries(expressionValues).find(([_, v]) => v > 0.1)?.[0] || 'Neutral'}
+                                options={[
+                                    { label: "Neutral // Default", value: "Neutral", description: "Standard calibration mode" },
+                                    { label: "Joy // Positive", value: "Joy", description: "High valence neural state" },
+                                    { label: "Sadness // Negative", value: "Sad", description: "Low valence neural state" },
+                                    { label: "Anger // Reactive", value: "Angry", description: "Hostile response pattern" },
+                                    { label: "Inquiry // Alert", value: "Surprised", description: "Analytical focus increased" },
+                                    { label: "Relax // Passive", value: "Fun", description: "Idle power conservation" }
+                                ]}
+                                onChange={(val) => {
+                                    const moods: Record<string, any> = {
+                                        Neutral: {},
+                                        Joy: { Joy: 1.0 },
+                                        Sad: { Sad: 1.0 },
+                                        Angry: { Angry: 1.0 },
+                                        Surprised: { Surprised: 1.0 },
+                                        Fun: { Fun: 0.7, Blink: 0.1 }
+                                    };
+                                    const preset = moods[val] || {};
                                     const allKeys = ["Joy", "Sad", "Angry", "Surprised", "Relax", "Fun", "Neutral", "Smile", "Frown", "Blink", "EyeSmileLeft", "EyeSmileRight"];
                                     const resetState: any = {};
                                     allKeys.forEach(k => {
                                         resetState[k] = 0;
                                         handleExpressionChange(k, 0);
                                     });
-                                    Object.entries(mood.preset).forEach(([key, val]) => {
+                                    Object.entries(preset).forEach(([key, val]) => {
                                         handleExpressionChange(key, val as number);
                                         resetState[key] = val;
                                     });
                                     setExpressionValues(resetState);
                                 }}
+                            />
+                        </div>
+                    </ControlModule>
+
+                    {/* Module 03: Kinetic Stream */}
+                    <ControlModule id="MOD_03" title="Kinetic Stream" defaultOpen={true}>
+                        <div className="space-y-3">
+                            <IndustrialSelect
+                                placeholder="SELECT_MOTION"
+                                value={AVAILABLE_ANIMATIONS.find(f => state.animationUrl.includes(f)) || ""}
+                                options={AVAILABLE_ANIMATIONS.map(filename => ({
+                                    label: filename.replace(".vrma", "").replace(".fbx", "").toUpperCase(),
+                                    value: filename,
+                                    description: "Execution sequence"
+                                }))}
+                                onChange={(val) => actions.setAnimation(val)}
+                            />
+                            <Button
+                                variant="ghost"
                                 className={cn(
-                                    "py-3 px-4 text-[9px] font-mono tracking-widest uppercase transition-all duration-300 border",
-                                    (expressionValues[mood.value] || 0) > 0.1
-                                        ? "bg-white text-black border-white"
-                                        : "bg-transparent border-white/10 text-white/40 hover:border-white/30 hover:text-white"
+                                    "w-full h-10 border text-[11px] tracking-[0.2em] font-mono uppercase transition-all rounded-xl justify-between px-4",
+                                    state.isPlaying
+                                        ? "bg-white text-black border-white shadow-[0_4px_15px_rgba(255,255,255,0.15)]"
+                                        : "border-white/20 text-white/50 hover:text-white hover:border-white/50 hover:bg-white/[0.05]"
                                 )}
+                                onClick={actions.togglePlay}
                             >
-                                {mood.label}
-                            </button>
-                        ))}
-                    </div>
-                </div>
+                                <span className="font-bold">{state.isPlaying ? "STREAM_ACTIVE" : "STREAM_PAUSED"}</span>
+                                {state.isPlaying ? <Pause className="size-4" /> : <Play className="size-4" />}
+                            </Button>
+                        </div>
+                    </ControlModule>
 
-                {/* Identity Engine */}
-                <div className="space-y-4">
-                    <div className="flex items-center gap-4 mb-2">
-                        <Label className="text-[9px] font-bold tracking-[0.3em] text-white/30 uppercase">Neural // Host</Label>
-                        <div className="h-[1px] flex-1 bg-white/5" />
-                    </div>
-                    <div className="h-44 w-full -mx-2">
-                        <Carousel3D
-                            items={[
-                                ...AVAILABLE_MODELS.map(m => ({
-                                    id: m.id,
-                                    label: m.name,
-                                    description: m.description,
-                                    image: state.thumbnailCache[m.id] || m.image
-                                })),
-                                ...(state.vrmFile ? [{
-                                    id: 'custom',
-                                    label: 'Custom',
-                                    description: state.vrmFile.name,
-                                    image: state.vrmThumbnail || undefined,
-                                    icon: <User />
-                                }] : [])
-                            ]}
-                            selectedId={state.vrmFile ? 'custom' : state.selectedCharacter.id}
-                            onSelect={(id) => {
-                                if (id !== 'custom') actions.setModel(id);
-                            }}
-                            type="model"
-                        />
-                    </div>
-                </div>
-
-                {/* Animation Matrix */}
-                <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                        <Label className="text-[9px] font-bold tracking-[0.3em] text-white/30 uppercase">Motion // Stream</Label>
+                    {/* Module 04: Comms Link */}
+                    <ControlModule id="MOD_04" title="Comms Link" defaultOpen={true}>
                         <Button
-                            size="icon"
                             variant="ghost"
                             className={cn(
-                                "size-6 rounded-none transition-all",
-                                state.isPlaying ? "bg-white text-black" : "text-white/20 hover:text-white"
+                                "w-full h-10 border text-[11px] tracking-[0.2em] font-mono uppercase transition-all rounded-xl",
+                                state.isListening
+                                    ? "bg-white text-black border-white shadow-[0_0_20px_rgba(255,255,255,0.15)]"
+                                    : "bg-transparent border-white/20 text-white hover:text-white hover:border-white/50 hover:bg-white/[0.05]"
                             )}
-                            onClick={actions.togglePlay}
+                            onClick={onToggleListening}
                         >
-                            {state.isPlaying ? <Pause className="size-3 fill-current" /> : <Play className="size-3 fill-current" />}
+                            <span className="font-bold">{state.isListening ? "LINK_ACTIVE" : "LINK_STANDBY"}</span>
                         </Button>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                        {AVAILABLE_ANIMATIONS.map((filename) => {
-                            const name = filename.replace(".vrma", "").replace(".fbx", "");
-                            const isActive = state.animationUrl.includes(filename);
-                            return (
-                                <button
-                                    key={filename}
-                                    onClick={() => actions.setAnimation(filename)}
-                                    className={cn(
-                                        "px-3 py-2 text-[8px] font-mono uppercase tracking-widest border transition-all",
-                                        isActive
-                                            ? "bg-white text-black border-white"
-                                            : "bg-transparent border-white/5 text-white/30 hover:border-white/20 hover:text-white"
-                                    )}
-                                >
-                                    {name}
-                                </button>
-                            );
-                        })}
-                    </div>
-                </div>
+                    </ControlModule>
 
-                {/* Audio Interface */}
-                <div className="space-y-4">
-                    <div className="flex items-center gap-4 mb-2">
-                        <Label className="text-[9px] font-bold tracking-[0.3em] text-white/30 uppercase">Comms // Link</Label>
-                        <div className="h-[1px] flex-1 bg-white/5" />
-                    </div>
-                    <Button
-                        variant="ghost"
-                        className={cn(
-                            "w-full h-11 border text-[9px] tracking-[0.2em] font-mono uppercase transition-all rounded-none",
-                            state.isListening
-                                ? "bg-white text-black border-white shadow-[0_0_20px_rgba(255,255,255,0.1)]"
-                                : "bg-transparent border-white/10 text-white/30 hover:text-white hover:border-white/30"
-                        )}
-                        onClick={onToggleListening}
-                    >
-                        {state.isListening ? "LINK_ACTIVE" : "LINK_STANDBY"}
-                    </Button>
-                </div>
-
-                {/* Secure Uploads */}
-                <div className="grid grid-cols-2 gap-3">
-                    <div className="relative group h-20 border border-white/5 bg-transparent hover:border-white/20 transition-all cursor-pointer overflow-hidden flex flex-col items-center justify-center gap-2">
-                        <Input
-                            type="file"
-                            accept=".vrm"
-                            onChange={handleVrmUpload}
-                            className="absolute inset-0 opacity-0 cursor-pointer z-10"
-                        />
-                        <Activity className="size-4 text-white/20 group-hover:text-white transition-colors" />
-                        <span className="text-[7px] font-mono tracking-widest text-white/20 uppercase group-hover:text-white">UP_VRM</span>
-                    </div>
-
-                    <div className="relative group h-20 border border-white/5 bg-transparent hover:border-white/20 transition-all cursor-pointer overflow-hidden flex flex-col items-center justify-center gap-2">
-                        <Input
-                            type="file"
-                            accept=".vrma,.fbx,.bvh,.glb"
-                            onChange={handleAnimationUpload}
-                            className="absolute inset-0 opacity-0 cursor-pointer z-10"
-                        />
-                        <Activity className="size-4 text-white/20 group-hover:text-white transition-colors" />
-                        <span className="text-[7px] font-mono tracking-widest text-white/20 uppercase group-hover:text-white">UP_ANIM</span>
-                    </div>
-                </div>
-
-                {/* System Ops */}
-                <div className="mt-4 border-t border-white/5 pt-4 flex flex-col gap-2">
-                    <Button
-                        variant="ghost"
-                        className="w-full h-8 text-white/20 hover:text-white hover:bg-white/5 flex justify-between px-2 text-[8px] uppercase tracking-[0.2em] font-mono rounded-none"
-                        onClick={() => actions.toggleSettings(true)}
-                    >
-                        <span>CONFIG_SYS</span>
-                        <Settings className="size-3" />
-                    </Button>
+                    {/* Module 05: Maintenance */}
+                    <ControlModule id="MOD_05" title="Maintenance" defaultOpen={false}>
+                        <div className="space-y-3">
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="relative group h-14 border border-white/10 bg-black/40 hover:border-white/40 hover:bg-white/[0.05] transition-all cursor-pointer overflow-hidden flex items-center justify-center gap-2 rounded-xl">
+                                    <Input
+                                        type="file"
+                                        accept=".vrm"
+                                        onChange={handleVrmUpload}
+                                        className="absolute inset-0 opacity-0 cursor-pointer z-10"
+                                    />
+                                    <Upload className="size-4 text-white/40 group-hover:text-white transition-all" />
+                                    <span className="text-[9px] font-mono tracking-[0.2em] text-white/40 uppercase group-hover:text-white font-bold">UP_VRM</span>
+                                </div>
+                                <div className="relative group h-14 border border-white/10 bg-black/40 hover:border-white/40 hover:bg-white/[0.05] transition-all cursor-pointer overflow-hidden flex items-center justify-center gap-2 rounded-xl">
+                                    <Input
+                                        type="file"
+                                        accept=".vrma,.fbx,.bvh,.glb"
+                                        onChange={handleAnimationUpload}
+                                        className="absolute inset-0 opacity-0 cursor-pointer z-10"
+                                    />
+                                    <Upload className="size-4 text-white/40 group-hover:text-white transition-all" />
+                                    <span className="text-[9px] font-mono tracking-[0.2em] text-white/40 uppercase group-hover:text-white font-bold">UP_ANIM</span>
+                                </div>
+                            </div>
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className="w-full h-10 border border-white/10 text-white/40 hover:text-white hover:bg-white/10 transition-all flex justify-between px-4 text-[9px] uppercase tracking-[0.3em] font-mono rounded-xl"
+                                onClick={() => actions.toggleSettings(true)}
+                            >
+                                <span className="font-bold">SYSTEM_CONFIG</span>
+                                <Settings className="size-4" />
+                            </Button>
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className="w-full h-10 border border-red-500/20 text-red-500/60 hover:text-red-500 hover:bg-red-500/10 transition-all flex justify-between px-4 text-[9px] uppercase tracking-[0.3em] font-mono rounded-xl"
+                                onClick={() => actions.clearChat()}
+                            >
+                                <span className="font-bold">PURGE_MODEM</span>
+                                <Trash2 className="size-4" />
+                            </Button>
+                        </div>
+                    </ControlModule>
                 </div>
             </div>
         </div>

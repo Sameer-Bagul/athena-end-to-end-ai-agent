@@ -1,8 +1,6 @@
 import * as React from "react";
 import { Box, ChevronLeft } from "lucide-react";
 import { Button } from "./ui/button";
-import { animationFacialMap } from "../lib/facialMapping";
-import { selectAnimationAndExpression } from "../lib/aiAnimationSelector";
 import { cn } from "../lib/utils";
 import ThreeStage from "./ThreeStage";
 import type { ThreeStageHandle } from "./ThreeStage";
@@ -21,8 +19,6 @@ interface VRMControlPanelProps {
 
 export function VRMControlPanel({ onOpenWidget }: VRMControlPanelProps) {
 
-    // Track last AI selection for UI
-    const [aiSelection, setAiSelection] = React.useState<{ animation: string, facialExpressions: any[] }>({ animation: '', facialExpressions: [] });
     const { state, actions } = useAppStore();
     const stageRef = React.useRef<ThreeStageHandle>(null);
 
@@ -49,9 +45,6 @@ export function VRMControlPanel({ onOpenWidget }: VRMControlPanelProps) {
     // 5. Chat Panel Handler
     const handleTextSubmit = React.useCallback(async (text: string) => {
         actions.addMessage({ role: 'user', content: text });
-        // Get AI selection for preview
-        const { animation, facialExpressions } = selectAnimationAndExpression(text);
-        setAiSelection({ animation, facialExpressions });
         await processInput(text, {
             source: 'text',
             onPlayAudio: async (blob: Blob, animation?: string, facialExpressions?: any[]) => {
@@ -62,8 +55,6 @@ export function VRMControlPanel({ onOpenWidget }: VRMControlPanelProps) {
     // 6. Resizable Chat Panel logic
     const [chatWidth, setChatWidth] = React.useState(320);
     const isResizing = React.useRef(false);
-    const [overrideAnim, setOverrideAnim] = React.useState<string | null>(null);
-    const [overrideFace, setOverrideFace] = React.useState<any[] | null>(null);
 
     const startResizing = React.useCallback(() => {
         isResizing.current = true;
@@ -95,8 +86,8 @@ export function VRMControlPanel({ onOpenWidget }: VRMControlPanelProps) {
             {/* Left Side Panel */}
             <aside
                 className={cn(
-                    "h-full z-20 relative bg-black/60 backdrop-blur-2xl transition-all duration-500 flex flex-col overflow-hidden",
-                    state.isLeftCollapsed ? "w-0 border-none" : "w-[280px] border-r border-white/5 shadow-2xl"
+                    "h-full z-20 relative bg-[#050505] backdrop-blur-3xl transition-all duration-500 flex flex-col overflow-hidden rounded-tr-[2rem]",
+                    state.isLeftCollapsed ? "w-0 border-none px-0" : "w-[360px] border-r border-white/10 shadow-[20px_0_50px_rgba(0,0,0,0.5)]"
                 )}
             >
                 <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col">
@@ -110,48 +101,7 @@ export function VRMControlPanel({ onOpenWidget }: VRMControlPanelProps) {
                             }
                         }}
                     />
-                    {/* Facial Expression Mapping UI - Integrated into scrollable area */}
-                    <div className="p-4 border-t border-white/10 shrink-0">
-                        <h3 className="text-[10px] font-mono text-white/40 mb-2 uppercase tracking-widest">AI Status</h3>
-                        <div className="space-y-4">
-                            <div className="bg-white/[0.02] border border-white/5 p-3 rounded-none">
-                                <div className="font-mono text-[9px] text-white/30 mb-2">ANIM: {aiSelection.animation}</div>
-                                <div className="flex flex-wrap gap-1.5 mb-3">
-                                    {aiSelection.facialExpressions.map((expr, idx) => (
-                                        <span key={idx} className="px-1.5 py-0.5 border border-white/10 text-white/50 text-[8px] font-mono">
-                                            {expr.name}
-                                        </span>
-                                    ))}
-                                </div>
-                                <div className="space-y-3">
-                                    <div className="flex flex-col gap-1.5">
-                                        <label className="text-[8px] text-white/20 uppercase font-bold">Override Anim</label>
-                                        <select
-                                            value={overrideAnim ?? aiSelection.animation}
-                                            onChange={e => setOverrideAnim(e.target.value)}
-                                            className="bg-black text-white/60 text-[10px] border border-white/10 px-2 py-1.5 outline-none focus:border-white transition-colors"
-                                        >
-                                            {Object.keys(animationFacialMap).map(anim => (
-                                                <option key={anim} value={anim}>{anim}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                    <div className="flex flex-col gap-1.5">
-                                        <label className="text-[8px] text-white/20 uppercase font-bold">Override Facial</label>
-                                        <select
-                                            value={overrideFace ? JSON.stringify(overrideFace) : JSON.stringify(aiSelection.facialExpressions)}
-                                            onChange={e => setOverrideFace(JSON.parse(e.target.value))}
-                                            className="bg-black text-white/60 text-[10px] border border-white/10 px-2 py-1.5 outline-none focus:border-white transition-colors"
-                                        >
-                                            {Object.entries(animationFacialMap).map(([anim, exprs]) => (
-                                                <option key={anim} value={JSON.stringify(exprs)}>{anim}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+
                 </div>
             </aside>
 
