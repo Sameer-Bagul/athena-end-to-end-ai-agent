@@ -62,6 +62,9 @@ export interface AppState {
     // UI state for collapsed panels
     isLeftCollapsed: boolean;
     isRightCollapsed: boolean;
+
+    // RAG Status
+    ragStatus: { isReady: boolean, indexedFiles: string[] };
 }
 
 export interface AppActions {
@@ -101,6 +104,7 @@ export interface AppActions {
     toggleLeftCollapse: () => void;
     toggleRightCollapse: () => void;
     updateLastMessage: (content: string) => void;
+    refreshRagStatus: () => Promise<void>;
 }
 
 const StoreContext = React.createContext<{ state: AppState; actions: AppActions } | null>(null);
@@ -221,6 +225,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // UI
     const [isLeftCollapsed, setIsLeftCollapsed] = React.useState(true);
     const [isRightCollapsed, setIsRightCollapsed] = React.useState(true);
+
+    // RAG
+    const [ragStatus, setRagStatus] = React.useState<{ isReady: boolean, indexedFiles: string[] }>({
+        isReady: false,
+        indexedFiles: []
+    });
+
+    const refreshRagStatus = React.useCallback(async () => {
+        // @ts-ignore
+        if (window.athena?.rag?.getStatus) {
+            // @ts-ignore
+            const status = await window.athena.rag.getStatus();
+            setRagStatus(status);
+        }
+    }, []);
+
+    // Initial load
+    React.useEffect(() => {
+        refreshRagStatus();
+    }, [refreshRagStatus]);
 
 
     // --- Side Effects & Logic ---
@@ -344,7 +368,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                 }
                 return newHistory;
             });
-        }
+        },
+        refreshRagStatus
     };
 
     const state: AppState = {
@@ -355,7 +380,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         chatMessages, isChatProcessing,
         widgetSettings, showSettings,
         userProfile, pluginConfig, aiConfig,
-        isLeftCollapsed, isRightCollapsed
+        isLeftCollapsed, isRightCollapsed,
+        ragStatus
     };
 
     return (

@@ -37,5 +37,12 @@ electron_1.contextBridge.exposeInMainWorld("athena", {
         const subscription = (_, type) => callback('pressed');
         electron_1.ipcRenderer.on('shortcut:pressed', subscription);
         return () => electron_1.ipcRenderer.removeListener('shortcut:pressed', subscription);
+    },
+    // RAG / Knowledge Base
+    rag: {
+        uploadDocument: () => electron_1.ipcRenderer.invoke("rag:upload-document"),
+        getStatus: () => electron_1.ipcRenderer.invoke("rag:status"),
+        clear: () => electron_1.ipcRenderer.invoke("rag:clear"),
+        getContext: (input) => electron_1.ipcRenderer.invoke("rag:get-context", input)
     }
 });

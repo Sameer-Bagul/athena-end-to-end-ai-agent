@@ -12,11 +12,18 @@
     "start:prod": "NODE_ENV=production ELECTRON_DISABLE_SANDBOX=1 npx electron ."
   },
   "dependencies": {
+    "@langchain/classic": "^1.0.21",
+    "@langchain/community": "^1.1.20",
+    "@langchain/core": "^1.1.29",
+    "@langchain/ollama": "^1.2.5",
+    "@langchain/textsplitters": "^1.0.1",
     "axios": "^1.13.2",
-    "dotenv": "^17.2.3",
+    "dotenv": "^16.4.5",
     "electron": "^39.2.7",
     "form-data": "^4.0.5",
+    "langchain": "^1.2.28",
     "node-fetch": "^3.3.2",
+    "pdf-parse": "^1.1.1",
     "vaul": "^1.1.2"
   },
   "devDependencies": {

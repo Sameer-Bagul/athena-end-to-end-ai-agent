@@ -1,7 +1,7 @@
 import * as React from "react";
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Send, Bot, MessageSquare, Sparkles, User, Trash2 } from "lucide-react";
+import { Send, Bot, MessageSquare, Sparkles, User, Trash2, Paperclip, FileText, X } from "lucide-react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { cn } from "../lib/utils";
@@ -46,6 +46,28 @@ export function ChatPanel({ onSendMessage, onClearHistory }: ChatPanelProps) {
         if (!input.trim() || state.isChatProcessing) return;
         onSendMessage(input);
         setInput("");
+    };
+
+    const handleAttachDocument = async () => {
+        // @ts-ignore
+        if (window.athena?.rag?.uploadDocument) {
+            // @ts-ignore
+            const result = await window.athena.rag.uploadDocument();
+            if (result && !result.canceled && !result.error) {
+                actions.refreshRagStatus();
+            } else if (result?.error) {
+                alert(`Error uploading document: ${result.error}`);
+            }
+        }
+    };
+
+    const handleClearRag = async () => {
+        // @ts-ignore
+        if (window.athena?.rag?.clear) {
+            // @ts-ignore
+            await window.athena.rag.clear();
+            actions.refreshRagStatus();
+        }
     };
 
     // --- Collapsed View ---
@@ -135,6 +157,16 @@ export function ChatPanel({ onSendMessage, onClearHistory }: ChatPanelProps) {
                 </div>
 
                 <div className="flex items-center gap-1">
+                    {/* RAG Status */}
+                    {state.ragStatus.isReady && (
+                        <div className="flex items-center gap-2 mr-2 px-2 py-1 bg-primary/10 border border-primary/20 rounded-lg">
+                            <FileText className="size-3 text-primary" />
+                            <span className="text-[9px] font-mono text-primary font-bold">{state.ragStatus.indexedFiles.length} DOCS</span>
+                            <button onClick={handleClearRag} className="hover:text-red-400 text-white/20 transition-colors">
+                                <X className="size-3" />
+                            </button>
+                        </div>
+                    )}
                     {/* Clear Button */}
                     {state.chatMessages.length > 1 && (
                         <Button
@@ -272,11 +304,21 @@ export function ChatPanel({ onSendMessage, onClearHistory }: ChatPanelProps) {
             {/* Input Area */}
             <div className="p-6 pt-2 pb-6 shrink-0 z-50 bg-gradient-to-t from-black/20 to-transparent">
                 <form onSubmit={handleSubmit} className="relative flex gap-3 items-end p-2 rounded-[2rem] bg-white/[0.04] border border-white/10 backdrop-blur-2xl shadow-2xl ring-1 ring-black/20">
+                    <Button
+                        type="button"
+                        size="icon"
+                        variant="ghost"
+                        onClick={handleAttachDocument}
+                        className="h-10 w-10 rounded-full shrink-0 text-white/30 hover:text-white hover:bg-white/5 my-auto ml-1"
+                        title="Attach Document (PDF, TXT, MD)"
+                    >
+                        <Paperclip className="size-4" />
+                    </Button>
                     <Input
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
-                        placeholder="Type encrypted message..."
-                        className="flex-1 h-12 bg-transparent border-none focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-white/20 text-white/90 font-light tracking-wide px-4"
+                        placeholder={state.ragStatus.isReady ? "Ask about your documents..." : "Type encrypted message..."}
+                        className="flex-1 h-12 bg-transparent border-none focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-white/20 text-white/90 font-light tracking-wide px-2"
                     />
                     <Button
                         type="submit"

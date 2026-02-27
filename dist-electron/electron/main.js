@@ -11,6 +11,8 @@ require("dotenv/config");
 const llm_1 = require("../backend/llm");
 const tts_1 = require("../backend/tts");
 const stt_1 = require("../backend/stt");
+const rag_1 = require("../backend/rag");
+const electron_2 = require("electron");
 const isDev = process.env.NODE_ENV === "development";
 // Hack to try and unblock Google Speech API in Electron
 process.env.GOOGLE_API_KEY = "ignore";
@@ -219,6 +221,38 @@ electron_1.ipcMain.handle("window:close", (event) => {
 // IPC handlers for LLM and TTS
 electron_1.ipcMain.handle("llm:chat", async (_, messages) => {
     return await (0, llm_1.chatWithLLM)(messages);
+});
+// RAG Handlers
+electron_1.ipcMain.handle("rag:upload-document", async (event) => {
+    const win = electron_1.BrowserWindow.fromWebContents(event.sender);
+    if (!win)
+        return { error: "No window found" };
+    const result = await electron_2.dialog.showOpenDialog(win, {
+        properties: ['openFile'],
+        filters: [
+            { name: 'Documents', extensions: ['pdf', 'txt', 'md'] }
+        ]
+    });
+    if (result.canceled || result.filePaths.length === 0)
+        return { canceled: true };
+    try {
+        const uploadResult = await rag_1.ragService.loadDocument(result.filePaths[0]);
+        return uploadResult;
+    }
+    catch (error) {
+        console.error("❌ [Electron] RAG Upload Error:", error);
+        return { error: error.message };
+    }
+});
+electron_1.ipcMain.handle("rag:status", async () => {
+    return rag_1.ragService.getStatus();
+});
+electron_1.ipcMain.handle("rag:clear", async () => {
+    rag_1.ragService.clearContext();
+    return { success: true };
+});
+electron_1.ipcMain.handle("rag:get-context", async (_, input) => {
+    return await rag_1.ragService.getRelevantContext(input);
 });
 electron_1.ipcMain.handle("tts:generate", async (_, { text, voiceStyle }) => {
     return await (0, tts_1.speak)(text, voiceStyle);

@@ -7,6 +7,8 @@ import "dotenv/config";
 import { chatWithLLM } from "../backend/llm";
 import { speak } from "../backend/tts";
 import { transcribe } from "../backend/stt";
+import { ragService } from "../backend/rag";
+import { dialog } from "electron";
 
 const isDev = process.env.NODE_ENV === "development";
 
@@ -255,6 +257,42 @@ ipcMain.handle("window:close", (event) => {
 // IPC handlers for LLM and TTS
 ipcMain.handle("llm:chat", async (_, messages) => {
   return await chatWithLLM(messages);
+});
+
+// RAG Handlers
+ipcMain.handle("rag:upload-document", async (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  if (!win) return { error: "No window found" };
+
+  const result: any = await dialog.showOpenDialog(win, {
+    properties: ['openFile'],
+    filters: [
+      { name: 'Documents', extensions: ['pdf', 'txt', 'md'] }
+    ]
+  });
+
+  if (result.canceled || result.filePaths.length === 0) return { canceled: true };
+
+  try {
+    const uploadResult = await ragService.loadDocument(result.filePaths[0]);
+    return uploadResult;
+  } catch (error: any) {
+    console.error("❌ [Electron] RAG Upload Error:", error);
+    return { error: error.message };
+  }
+});
+
+ipcMain.handle("rag:status", async () => {
+  return ragService.getStatus();
+});
+
+ipcMain.handle("rag:clear", async () => {
+  ragService.clearContext();
+  return { success: true };
+});
+
+ipcMain.handle("rag:get-context", async (_, input) => {
+  return await ragService.getRelevantContext(input);
 });
 
 ipcMain.handle("tts:generate", async (_, { text, voiceStyle }) => {

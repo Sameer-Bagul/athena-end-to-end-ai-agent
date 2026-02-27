@@ -54,15 +54,30 @@ export function useAssistant() {
                 console.log("[useAssistant] Tool Context:", context);
             }
 
+            // --- RAG Check ---
+            // @ts-ignore
+            if (window.athena?.rag?.getContext) {
+                // @ts-ignore
+                const ragContexts = await window.athena.rag.getContext(text);
+                if (ragContexts && ragContexts.length > 0) {
+                    const ragText = ragContexts.join("\n---\n");
+                    context += `\n[DOCUMENT CONTEXT]\n${ragText}\n[END DOCUMENT CONTEXT]\n`;
+                    console.log("[useAssistant] RAG Context added.");
+                }
+            }
+
             // 1. Setup Prompt
-            // Structure prompt to explicitly prioritize tool context if available
+            // Structure prompt to explicitly prioritize tool and document context if available
             let fullPrompt = text;
             if (context) {
-                fullPrompt = `SYSTEM INSTRUCTION: You have access to real-time data from a tool. You MUST use the information provided in the [SYSTEM CONTEXT] block to answer the user. Do not hallucinate or ignore this data. Cite the source if provided.
-                
-                ${context}
-                
-                User Query: ${text}`;
+                fullPrompt = `SYSTEM INSTRUCTION: You are Athena, a sophisticated neural network. 
+Use the provided contexts (Tools or Documents) to formulate a precise and efficient response. 
+If the answer is in the [DOCUMENT CONTEXT], prioritize it above all else. 
+Maintain your clinical, sharp, and immersive persona at all times.
+
+${context}
+
+User Query: ${text}`;
             }
 
             // 2. Prepare Streaming State
