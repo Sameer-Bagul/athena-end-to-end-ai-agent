@@ -1,6 +1,5 @@
 import * as React from "react";
 import { Box, ChevronLeft } from "lucide-react";
-import { Button } from "./ui/button";
 import { cn } from "../lib/utils";
 import ThreeStage from "./ThreeStage";
 import type { ThreeStageHandle } from "./ThreeStage";
@@ -81,13 +80,13 @@ export function VRMControlPanel({ onOpenWidget }: VRMControlPanelProps) {
 
     return (
         <div
-            className="font-sans h-screen w-screen bg-black overflow-hidden relative flex flex-row items-stretch"
+            className="font-sans h-screen w-screen bg-[#050505] overflow-hidden relative flex flex-row items-stretch"
         >
             {/* Left Side Panel */}
             <aside
                 className={cn(
-                    "h-full z-20 relative bg-[#050505] backdrop-blur-3xl transition-all duration-500 flex flex-col overflow-hidden rounded-tr-[2rem]",
-                    state.isLeftCollapsed ? "w-0 border-none px-0" : "w-[360px] border-r border-white/10 shadow-[20px_0_50px_rgba(0,0,0,0.5)]"
+                    "h-full z-20 relative bg-[#050505]/80 backdrop-blur-3xl transition-all duration-700 ease-in-out flex flex-col overflow-hidden",
+                    state.isLeftCollapsed ? "w-0 border-none px-0" : "w-[360px] border-r border-white/[0.03] shadow-[40px_0_100px_rgba(0,0,0,0.8)]"
                 )}
             >
                 <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col">
@@ -106,7 +105,7 @@ export function VRMControlPanel({ onOpenWidget }: VRMControlPanelProps) {
             </aside>
 
             {/* Center Stage */}
-            <main className="relative flex-1 h-full bg-[#050510] z-0 overflow-hidden min-w-0">
+            <main className="relative flex-1 h-full bg-[#020205] z-0 overflow-hidden min-w-0">
                 <ThreeStage
                     ref={stageRef}
                     vrmUrl={state.vrmUrl}
@@ -114,29 +113,27 @@ export function VRMControlPanel({ onOpenWidget }: VRMControlPanelProps) {
                     animationSpeed={state.animationSpeed}
                     cameraMode={state.cameraMode}
                     isPlaying={state.isPlaying}
-                    lightIntensity={1}
-                    cameraFov={50}
-                    gridVisible={true}
+                    lightIntensity={1.2}
+                    cameraFov={45}
+                    gridVisible={false}
                     shadowsEnabled={true}
-                    backgroundColor="#050510"
+                    backgroundColor="#020205"
                     onDrop={(f) => actions.setVrmFile(f)}
                 />
 
                 {/* Overlays / UI Buttons */}
                 <div className="absolute top-8 left-8 z-10">
-                    <Button
-                        variant="ghost"
-                        size="icon"
+                    <button
                         onClick={actions.toggleLeftCollapse}
-                        className="size-10 rounded-none bg-black/40 backdrop-blur-md border border-white/10 text-white/50 hover:text-white transition-all shadow-2xl"
+                        className="size-10 flex items-center justify-center rounded-full bg-white/[0.02] hover:bg-white/[0.05] border border-white/[0.05] text-white/20 hover:text-white transition-all backdrop-blur-md"
                     >
-                        <ChevronLeft className={cn("size-6 transition-transform duration-500", state.isLeftCollapsed && "rotate-180")} />
-                    </Button>
+                        <ChevronLeft className={cn("size-5 transition-transform duration-700", state.isLeftCollapsed && "rotate-180")} />
+                    </button>
                 </div>
 
                 {/* Floating Widget Toggle */}
                 <div className="absolute top-8 right-8 z-20 flex gap-3">
-                    <button onClick={onOpenWidget} className="btn-glass px-4 py-2 rounded-none bg-black/40 backdrop-blur-md border border-white/10 text-[10px] font-mono uppercase text-white/40 hover:text-white hover:bg-white/10 hover:border-white/20 transition-all flex gap-2 items-center">
+                    <button onClick={onOpenWidget} className="px-4 py-2 rounded-full bg-white/[0.02] hover:bg-white/[0.05] border border-white/[0.05] text-[10px] font-medium text-white/30 hover:text-white transition-all backdrop-blur-md flex gap-2 items-center">
                         <Box className="size-3.5" /> Widget
                     </button>
                 </div>

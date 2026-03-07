@@ -103,8 +103,12 @@
 @layer base {
   /* Removed aggressive wildcard selector */
 
+  ::selection {
+    @apply bg-primary/30 text-white;
+  }
+
   body {
-    @apply bg-background text-foreground antialiased selection:bg-primary/30 selection:text-primary-foreground;
+    @apply bg-background text-foreground antialiased selection:bg-primary/30 selection:text-white;
     /* Rich Gradient Background */
     background-image:
       radial-gradient(circle at 10% 20%, oklch(0.2 0.1 260 / 0.4) 0%, transparent 40%),
@@ -117,9 +121,8 @@
 
 /* Glass Panel Standard */
 .panel-glass {
-  @apply bg-black/30 backdrop-blur-2xl border-white/10 shadow-xl;
-  border-left: 1px solid rgba(255, 255, 255, 0.05);
-  border-right: 1px solid rgba(255, 255, 255, 0.05);
+  @apply bg-black/20 backdrop-blur-3xl border border-white/[0.08];
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.8);
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -129,40 +132,40 @@
 
 /* Panel Header */
 .panel-header {
-  @apply flex items-center justify-between px-6 py-5 border-b border-white/5 bg-white/5 backdrop-blur-md shrink-0;
-  min-height: 4.5rem;
+  @apply flex items-center justify-between px-6 py-4 border-b border-white/[0.05] bg-white/[0.02] backdrop-blur-xl shrink-0;
+  min-height: 4rem;
 }
 
 .panel-title {
-  @apply font-sans font-bold text-sm tracking-wide text-foreground uppercase flex items-center gap-2;
+  @apply font-sans font-semibold text-[13px] tracking-tight text-white/90 flex items-center gap-2;
 }
 
 /* Panel Content */
 .panel-content {
-  @apply flex-1 overflow-y-auto p-6 space-y-8;
+  @apply flex-1 overflow-y-auto p-6 space-y-6;
   min-height: 0;
 }
 
 /* Section Styling */
 .panel-section {
-  @apply space-y-4;
+  @apply space-y-3;
 }
 
 .section-label {
-  @apply text-[10px] font-mono uppercase tracking-[0.2em] text-primary/80 flex items-center gap-2 mb-3 opacity-70;
+  @apply text-[11px] font-sans font-medium text-white/50 flex items-center gap-2 mb-2;
 }
 
 /* Form Elements */
 .input-glass {
-  @apply bg-black/20 border-white/10 text-foreground focus-visible:ring-1 focus-visible:ring-primary/50 focus-visible:border-primary/50 placeholder:text-muted-foreground/50 rounded-xl transition-all;
+  @apply bg-white/[0.03] border border-white/[0.08] text-white focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:border-primary/40 placeholder:text-white/10 rounded-xl transition-all duration-300;
 }
 
 .btn-glass {
-  @apply bg-white/5 hover:bg-white/10 text-foreground border border-white/5 transition-all active:scale-95 rounded-lg;
+  @apply bg-white/[0.03] hover:bg-white/[0.08] text-white/60 hover:text-white border border-white/[0.05] hover:border-white/[0.15] transition-all active:scale-[0.98] rounded-xl;
 }
 
 .btn-primary-glass {
-  @apply bg-primary/20 text-primary hover:bg-primary hover:text-black border border-primary/20 hover:border-primary shadow-lg shadow-primary/10 transition-all rounded-lg;
+  @apply bg-primary/10 text-primary hover:bg-primary/[0.15] border border-primary/20 hover:border-primary/40 shadow-lg shadow-primary/5 transition-all duration-300 rounded-xl;
 }
 
 /* Helpers */

@@ -17,13 +17,13 @@ export function ControlModule({ id, title, children, defaultOpen = true, classNa
         <div className={cn("rounded-xl border border-white/10 bg-white/[0.02] overflow-hidden shadow-lg", className)}>
             <button
                 onClick={() => setIsOpen(!isOpen)}
-                className="w-full flex items-center justify-between px-4 py-3 hover:bg-white/[0.04] transition-all group"
+                className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-white/[0.04] transition-all group"
             >
                 <div className="flex items-center gap-3">
-                    <span className="text-[9px] font-mono text-white/40 tracking-[0.2em] font-bold group-hover:text-white/70 transition-colors uppercase">{id}</span>
-                    <span className="text-[11px] font-black text-white group-hover:text-white transition-all uppercase tracking-[0.25em] italic">{title}</span>
+                    <span className="text-[11px] font-sans text-white/40 group-hover:text-white/60 transition-colors">{id}</span>
+                    <span className="text-[12px] font-semibold text-white/70 group-hover:text-white/90 transition-all tracking-tight">{title}</span>
                 </div>
-                <ChevronDown className={cn("size-5 text-white transition-transform duration-500", isOpen ? "rotate-180" : "rotate-0")} />
+                <ChevronDown className={cn("size-4 text-white/20 group-hover:text-white/40 transition-all duration-500", isOpen ? "rotate-180" : "rotate-0")} />
             </button>
             <div className={cn(
                 "transition-all duration-500 ease-in-out",

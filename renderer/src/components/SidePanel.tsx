@@ -77,30 +77,29 @@ export function SidePanel({ onToggleListening, onVrmUpload: _externalVrm, onAnim
 
     // --- Expanded View (Modern Monochrome) ---
     return (
-        <div className="h-full flex flex-col relative w-full font-sans bg-[#050505] selection:bg-white selection:text-black overflow-x-hidden">
+        <div className="h-full flex flex-col relative w-full font-sans bg-transparent selection:bg-white selection:text-black overflow-x-hidden border-r border-white/5">
             {/* Header - Unified */}
-            <div className="flex items-center justify-between border-b border-white/10 bg-black/60 backdrop-blur-3xl px-4 h-16 shrink-0">
+            <div className="flex items-center justify-between px-6 h-16 shrink-0 border-b border-white/[0.03]">
                 <div className="flex flex-col">
-                    <span className="text-[9px] font-mono text-white/30 tracking-[0.3em] uppercase">System</span>
-                    <h2 className="text-[14px] font-black tracking-[0.4em] text-white uppercase italic leading-tight">Console</h2>
+                    <span className="text-[11px] font-medium text-white/40">Core</span>
+                    <h2 className="text-[15px] font-semibold text-white/90 leading-tight">Systems</h2>
                 </div>
 
-                <div className="flex items-center gap-2">
-                    <Button
-                        variant="outline"
-                        onClick={() => actions.setViewMode('exhibition')}
-                        className="h-8 border-white/20 text-white hover:bg-white hover:text-black hover:border-white rounded-full transition-all px-4 text-[10px] font-bold tracking-[0.2em] uppercase"
-                    >
-                        Exhibition
-                    </Button>
+                <div className="flex items-center gap-3">
                     <Button
                         variant="ghost"
-                        size="icon"
+                        size="sm"
+                        onClick={() => actions.setViewMode('exhibition')}
+                        className="h-7 text-[10px] font-medium text-white/30 hover:text-white hover:bg-white/[0.03] transition-all px-3 rounded-md"
+                    >
+                        Models
+                    </Button>
+                    <button
                         onClick={actions.toggleLeftCollapse}
-                        className="size-8 text-white/30 hover:text-white hover:bg-white/10 rounded-full transition-all"
+                        className="text-white/20 hover:text-white transition-colors"
                     >
                         <ChevronLeft className="size-4" />
-                    </Button>
+                    </button>
                 </div>
             </div>
 

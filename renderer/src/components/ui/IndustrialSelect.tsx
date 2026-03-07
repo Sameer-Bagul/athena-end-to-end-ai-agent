@@ -53,7 +53,7 @@ export function IndustrialSelect({ options, value, onChange, placeholder = "SELE
     const dropdown = isOpen ? ReactDOM.createPortal(
         <div
             style={dropdownStyle}
-            className="bg-[#0a0a0a] border border-white/20 shadow-[0_20px_50px_rgba(0,0,0,0.9)] animate-in fade-in slide-in-from-top-1 duration-200 overflow-hidden rounded-xl"
+            className="bg-[#08080a] border border-white/[0.08] shadow-[0_24px_64px_rgba(0,0,0,0.9)] animate-in fade-in slide-in-from-top-1 duration-300 overflow-hidden rounded-xl backdrop-blur-3xl"
         >
             <div className="max-h-60 overflow-y-auto custom-scrollbar">
                 {options.map((option) => (
@@ -65,19 +65,19 @@ export function IndustrialSelect({ options, value, onChange, placeholder = "SELE
                             setIsOpen(false);
                         }}
                         className={cn(
-                            "w-full px-4 py-3 flex items-center justify-between text-[10px] tracking-[0.15em] uppercase font-mono transition-all",
+                            "w-full px-5 py-3 flex items-center justify-between text-[11px] transition-all",
                             option.value === value
-                                ? "bg-white/10 text-white"
-                                : "text-white/60 hover:bg-white/5 hover:text-white"
+                                ? "bg-white/[0.05] text-white"
+                                : "text-white/40 hover:bg-white/[0.02] hover:text-white"
                         )}
                     >
                         <div className="flex flex-col items-start gap-1">
-                            <span className={cn("font-bold", option.value === value ? "text-white" : "text-white/80")}>{option.label}</span>
+                            <span className={cn("font-medium", option.value === value ? "text-white" : "text-white/60")}>{option.label}</span>
                             {option.description && (
-                                <span className="text-[8px] opacity-50 lowercase tracking-normal font-sans italic text-white">{option.description}</span>
+                                <span className="text-[8px] opacity-40 lowercase tracking-normal font-sans italic">{option.description}</span>
                             )}
                         </div>
-                        {option.value === value && <Check className="size-3.5 text-white shrink-0" />}
+                        {option.value === value && <Check className="size-3 text-white/60 shrink-0" />}
                     </button>
                 ))}
             </div>
@@ -91,14 +91,14 @@ export function IndustrialSelect({ options, value, onChange, placeholder = "SELE
                 ref={buttonRef}
                 onClick={() => setIsOpen(!isOpen)}
                 className={cn(
-                    "w-full h-10 px-4 border text-[10px] tracking-[0.2em] font-mono uppercase transition-all flex items-center justify-between rounded-xl",
+                    "w-full h-11 px-5 border text-[11px] font-medium transition-all flex items-center justify-between rounded-xl",
                     isOpen
-                        ? "bg-white text-black border-white shadow-[0_0_15px_rgba(255,255,255,0.15)]"
-                        : "bg-transparent border-white/20 text-white hover:border-white/40 hover:bg-white/[0.04]"
+                        ? "bg-white/[0.08] text-white border-white/20 shadow-lg"
+                        : "bg-white/[0.02] border-white/[0.05] text-white/60 hover:border-white/20 hover:bg-white/[0.05]"
                 )}
             >
-                <span className="truncate font-bold">{selectedOption?.label || placeholder}</span>
-                <ChevronDown className={cn("size-3.5 ml-2 shrink-0 transition-transform duration-300", isOpen ? "rotate-180" : "")} />
+                <span className="truncate">{selectedOption?.label || placeholder}</span>
+                <ChevronDown className={cn("size-3.5 ml-2 opacity-30 transition-transform duration-500", isOpen ? "rotate-180" : "")} />
             </button>
             {dropdown}
         </div>

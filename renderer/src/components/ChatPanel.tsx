@@ -123,48 +123,46 @@ export function ChatPanel({ onSendMessage, onClearHistory }: ChatPanelProps) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="h-full max-h-full flex flex-col relative w-full font-sans bg-black border-l border-white/5 overflow-hidden"
+            className="h-full max-h-full flex flex-col relative w-full font-sans bg-transparent border-l border-white/5 overflow-hidden"
         >
             {/* Minimal Header */}
-            <div className="shrink-0 z-20 border-b border-white/5 bg-transparent flex items-center justify-between px-6 py-4">
+            <div className="shrink-0 z-20 border-b border-white/[0.03] bg-transparent flex items-center justify-between px-6 py-4 h-16">
                 <div className="flex items-center gap-3">
-                    <div className="size-7 flex items-center justify-center bg-white rounded-sm">
-                        <Bot className="size-3.5 text-black" />
+                    <div className="size-6 flex items-center justify-center bg-white/[0.05] border border-white/10 rounded-full">
+                        <Bot className="size-3 text-white/40" />
                     </div>
                     <div className="flex flex-col">
-                        <h3 className="text-[10px] font-black uppercase tracking-[0.4em] text-white">Athena-01</h3>
+                        <h3 className="text-[13px] font-semibold text-white/90">Athena</h3>
                         <div className="flex items-center gap-1.5 mt-0.5">
                             <motion.div
                                 animate={state.isChatProcessing ? { opacity: [1, 0, 1] } : {}}
                                 transition={{ repeat: Infinity, duration: 1 }}
-                                className={cn("size-1 rounded-full", state.isChatProcessing ? "bg-white" : "bg-white/20")}
+                                className={cn("size-1 rounded-full", state.isChatProcessing ? "bg-primary" : "bg-white/20")}
                             />
-                            <span className="text-[7px] text-white/30 font-mono uppercase tracking-[0.1em]">
-                                {state.isChatProcessing ? "Busy" : "Ready"}
+                            <span className="text-[10px] text-white/40 font-medium tracking-tight">
+                                {state.isChatProcessing ? "Processing" : "Idle"}
                             </span>
                         </div>
                     </div>
                 </div>
 
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-3">
                     {state.ragStatus.isReady && (
-                        <div className="flex items-center gap-2 px-2 py-1 border border-white/10">
-                            <FileText className="size-2.5 text-white/40" />
-                            <span className="text-[8px] font-mono text-white/60 font-bold">{state.ragStatus.indexedFiles.length}</span>
+                        <div className="flex items-center gap-2 px-2 py-1 bg-white/[0.02] border border-white/[0.05] rounded-md">
+                            <FileText className="size-2.5 text-white/20" />
+                            <span className="text-[8px] font-mono text-white/40">{state.ragStatus.indexedFiles.length}</span>
                             <button onClick={handleClearRag} className="hover:text-white text-white/10 transition-colors">
                                 <X className="size-2.5" />
                             </button>
                         </div>
                     )}
 
-                    <Button
-                        variant="ghost"
-                        size="icon"
+                    <button
                         onClick={actions.toggleRightCollapse}
-                        className="size-7 text-white/20 hover:text-white hover:bg-white/5 rounded-none"
+                        className="text-white/20 hover:text-white transition-colors"
                     >
                         <ChevronDown className="size-4 rotate-270" />
-                    </Button>
+                    </button>
                 </div>
             </div>
 
@@ -185,25 +183,25 @@ export function ChatPanel({ onSendMessage, onClearHistory }: ChatPanelProps) {
                     {state.chatMessages.map((msg, idx) => (
                         <motion.div
                             key={idx}
-                            initial={{ opacity: 0, scale: 0.98 }}
-                            animate={{ opacity: 1, scale: 1 }}
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
                             className={cn(
-                                "flex flex-col gap-2 group",
+                                "flex flex-col gap-1.5 group",
                                 msg.role === "user" ? "items-end" : "items-start"
                             )}
                         >
                             <div className={cn(
-                                "text-[8px] font-bold uppercase tracking-[0.4em] opacity-20",
+                                "text-[8px] font-medium text-white/40 opacity-40 group-hover:opacity-100 transition-opacity",
                                 msg.role === "user" ? "text-right" : "text-left"
                             )}>
-                                {msg.role === "user" ? "Client" : "ATH"}
+                                {msg.role === "user" ? "You" : "Athena"}
                             </div>
 
                             <div className={cn(
-                                "px-6 py-4 text-[13px] leading-relaxed max-w-[98%] border transition-all duration-300",
+                                "px-5 py-3.5 text-[13px] leading-relaxed max-w-[92%] transition-all duration-300",
                                 msg.role === "user"
-                                    ? "bg-transparent text-white border-white/10 rounded-[2.5rem] rounded-tr-none"
-                                    : "bg-white text-black border-white rounded-[2.5rem] rounded-tl-none font-medium"
+                                    ? "bg-white/[0.03] text-white/80 border border-white/[0.05] rounded-2xl rounded-tr-none"
+                                    : "bg-white/[0.9] text-black border border-white rounded-2xl rounded-tl-none font-medium shadow-[0_4px_20px_rgba(255,255,255,0.1)]"
                             )}>
                                 <ReactMarkdown
                                     remarkPlugins={[remarkGfm]}
@@ -211,13 +209,13 @@ export function ChatPanel({ onSendMessage, onClearHistory }: ChatPanelProps) {
                                         ul: (props) => <ul className="list-disc pl-5 space-y-1 my-3" {...props} />,
                                         ol: (props) => <ol className="list-decimal pl-5 space-y-1 my-3" {...props} />,
                                         li: (props) => <li className={msg.role === 'user' ? "text-white/70" : "text-black/80"} {...props} />,
-                                        blockquote: (props) => <blockquote className={cn("border-l px-4 my-4 italic", msg.role === 'user' ? "border-white/10 text-white/40" : "border-black/20 text-black/50")} {...props} />,
+                                        blockquote: (props) => <blockquote className={cn("border-l-2 px-4 my-4 italic", msg.role === 'user' ? "border-white/10 text-white/40" : "border-black/20 text-black/50")} {...props} />,
                                         code: (props) => {
                                             const { children, className, node, ...rest } = props;
                                             const match = /language-(\w+)/.exec(className || '')
                                             return match ? (
-                                                <div className={cn("relative my-4 border", msg.role === 'user' ? "border-white/5" : "border-black/5")}>
-                                                    <div className={cn("flex items-center justify-between px-3 py-1 border-b", msg.role === 'user' ? "border-white/5 text-white/20" : "border-black/5 text-black/30")}>
+                                                <div className={cn("relative my-4 border rounded-lg overflow-hidden", msg.role === 'user' ? "border-white/5" : "border-black/5")}>
+                                                    <div className={cn("flex items-center justify-between px-3 py-1.5 border-b", msg.role === 'user' ? "border-white/5 text-white/20" : "border-black/5 text-black/30 bg-black/[0.02]")}>
                                                         <span className="text-[8px] font-mono uppercase">{match[1]}</span>
                                                     </div>
                                                     <code {...rest} className={cn(className, "block p-4 overflow-x-auto text-[11px] font-mono")}>
@@ -225,14 +223,14 @@ export function ChatPanel({ onSendMessage, onClearHistory }: ChatPanelProps) {
                                                     </code>
                                                 </div>
                                             ) : (
-                                                <code {...rest} className={cn("px-1 py-0.5 font-mono text-[11px]", msg.role === 'user' ? "bg-white/5 text-white/60" : "bg-black/5 text-black/70")}>
+                                                <code {...rest} className={cn("px-1.5 py-0.5 font-mono text-[11px] rounded-md", msg.role === 'user' ? "bg-white/5 text-white/60" : "bg-black/5 text-black/70")}>
                                                     {children}
                                                 </code>
                                             )
                                         },
                                         pre: (props) => <pre className="bg-transparent p-0 m-0" {...props} />,
                                         p: (props) => <p className="mb-3 last:mb-0" {...props} />,
-                                        strong: (props) => <strong className="font-bold" {...props} />,
+                                        strong: (props) => <strong className="font-semibold" {...props} />,
                                         a: (props) => <a className="underline underline-offset-4 opacity-50 hover:opacity-100 transition-opacity" target="_blank" rel="noopener noreferrer" {...props} />,
                                     }}
                                 >
@@ -266,66 +264,60 @@ export function ChatPanel({ onSendMessage, onClearHistory }: ChatPanelProps) {
             <AnimatePresence>
                 {showScrollButton && (
                     <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="absolute bottom-28 right-8 z-30"
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 10 }}
+                        className="absolute bottom-24 right-8 z-30"
                     >
-                        <Button
-                            size="icon"
+                        <button
                             onClick={scrollToBottom}
-                            className="size-8 rounded-none bg-white text-black hover:bg-white/90 border border-white"
+                            className="size-8 flex items-center justify-center rounded-full bg-white text-black hover:bg-white/90 border border-white shadow-lg transition-all"
                         >
                             <ChevronDown className="size-4" />
-                        </Button>
+                        </button>
                     </motion.div>
                 )}
             </AnimatePresence>
 
             {/* Ultra-minimal Input */}
-            <div className="p-8 shrink-0 bg-black">
+            <div className="p-6 pb-8 shrink-0 bg-transparent">
                 <form onSubmit={handleSubmit} className="relative">
-                    <div className="relative flex items-center border-b border-white/20 focus-within:border-white transition-colors duration-500">
-                        <Button
+                    <div className="relative flex items-center border border-white/[0.08] bg-white/[0.02] focus-within:bg-white/[0.04] focus-within:border-white/20 transition-all duration-500 rounded-2xl overflow-hidden px-2">
+                        <button
                             type="button"
-                            size="icon"
-                            variant="ghost"
                             onClick={handleAttachDocument}
-                            className="h-10 w-10 shrink-0 text-white/20 hover:text-white rounded-none"
+                            className="h-12 w-10 shrink-0 flex items-center justify-center text-white/20 hover:text-white transition-colors"
                         >
                             <Paperclip className="size-3.5" />
-                        </Button>
+                        </button>
 
                         <Input
                             value={input}
                             onChange={(e) => setInput(e.target.value)}
-                            placeholder="COMM //"
-                            className="flex-1 h-12 bg-transparent border-none focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-white/10 text-white font-mono text-[12px] px-2"
+                            placeholder="Type a message..."
+                            className="flex-1 h-12 bg-transparent border-none focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-white/10 text-[13px] text-white/80 px-2"
                         />
 
                         {onClearHistory && state.chatMessages.length > 0 && (
-                            <Button
+                            <button
                                 type="button"
-                                size="icon"
-                                variant="ghost"
                                 onClick={() => onClearHistory()}
-                                className="h-10 w-10 shrink-0 text-white/5 hover:text-white rounded-none"
+                                className="h-12 w-10 shrink-0 flex items-center justify-center text-white/10 hover:text-white transition-colors border-l border-white/[0.03]"
                             >
                                 <Trash2 className="size-3.5" />
-                            </Button>
+                            </button>
                         )}
 
-                        <Button
+                        <button
                             type="submit"
-                            size="icon"
                             disabled={!input.trim() || state.isChatProcessing}
                             className={cn(
-                                "h-10 w-10 shrink-0 transition-opacity rounded-none",
+                                "h-12 w-12 shrink-0 flex items-center justify-center transition-all bg-white/[0.02] border-l border-white/[0.03] hover:bg-white hover:text-black",
                                 !input.trim() || state.isChatProcessing ? "opacity-0 pointer-events-none" : "opacity-100"
                             )}
                         >
-                            <Send className="size-3.5 text-white" />
-                        </Button>
+                            <Send className="size-3.5" />
+                        </button>
                     </div>
                 </form>
 
