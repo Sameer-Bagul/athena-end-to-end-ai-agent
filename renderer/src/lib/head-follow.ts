@@ -50,19 +50,28 @@ export function createHeadFollower(vrm: VRM) {
             currentPose.lean = THREE.MathUtils.lerp(currentPose.lean, targetPose.lean, damp);
 
             const head = vrm.humanoid?.getNormalizedBoneNode("head");
+            const neck = vrm.humanoid?.getNormalizedBoneNode("neck");
             const chest = vrm.humanoid?.getNormalizedBoneNode("upperChest") || vrm.humanoid?.getNormalizedBoneNode("chest");
 
             if (head) {
-                // Apply Head Rotation (Y=Yaw, X=Pitch, Z=Roll)
-                head.rotation.y = currentPose.yaw;
-                head.rotation.x = currentPose.pitch;
-                head.rotation.z = currentPose.roll;
+                // 70% of rotation on head
+                head.rotation.y = currentPose.yaw * 0.7;
+                head.rotation.x = currentPose.pitch * 0.7;
+                head.rotation.z = currentPose.roll * 0.7;
+            }
+
+            if (neck) {
+                // 20% on neck
+                neck.rotation.y = currentPose.yaw * 0.2;
+                neck.rotation.x = currentPose.pitch * 0.2;
+                neck.rotation.z = currentPose.roll * 0.2;
             }
 
             if (chest) {
-                // Apply Lean (rotate chest forward)
-                // Max lean ~ 15 degrees
-                chest.rotation.x = currentPose.lean * 0.3;
+                // 10% on chest + Lean
+                chest.rotation.y = currentPose.yaw * 0.1;
+                chest.rotation.x = (currentPose.pitch * 0.1) + (currentPose.lean * 0.3);
+                chest.rotation.z = currentPose.roll * 0.1;
             }
         }
     };

@@ -44,5 +44,7 @@ electron_1.contextBridge.exposeInMainWorld("athena", {
         getStatus: () => electron_1.ipcRenderer.invoke("rag:status"),
         clear: () => electron_1.ipcRenderer.invoke("rag:clear"),
         getContext: (input) => electron_1.ipcRenderer.invoke("rag:get-context", input)
-    }
+    },
+    // Logging to Main Terminal
+    log: (...args) => electron_1.ipcRenderer.send("logger:log", ...args)
 });

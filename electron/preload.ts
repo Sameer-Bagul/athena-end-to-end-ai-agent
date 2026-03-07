@@ -49,5 +49,8 @@ contextBridge.exposeInMainWorld("athena", {
     getStatus: () => ipcRenderer.invoke("rag:status"),
     clear: () => ipcRenderer.invoke("rag:clear"),
     getContext: (input: string) => ipcRenderer.invoke("rag:get-context", input)
-  }
+  },
+
+  // Logging to Main Terminal
+  log: (...args: any[]) => ipcRenderer.send("logger:log", ...args)
 });

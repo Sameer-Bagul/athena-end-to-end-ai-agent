@@ -108,14 +108,19 @@ function createWindow() {
     else {
         mainWindow.loadFile(path_1.default.join(__dirname, "../../renderer/dist/index.html"));
     }
-    // Grant microphone permission
+    // Broaden permission handler
     mainWindow.webContents.session.setPermissionRequestHandler((webContents, permission, callback) => {
-        if (permission === 'media') {
+        const allowed = ['media', 'audioCapture', 'videoCapture', 'camera', 'microphone'];
+        if (allowed.includes(permission)) {
             callback(true);
         }
         else {
             callback(false);
         }
+    });
+    // Logging IPC for debugging renderer in terminal
+    electron_1.ipcMain.on("logger:log", (event, ...args) => {
+        console.log("🖥️ [Renderer]", ...args);
     });
     mainWindow.on('closed', () => {
         mainWindow = null;
@@ -169,7 +174,8 @@ function createWidgetWindow() {
     });
     // Grant permissions
     widgetWindow.webContents.session.setPermissionRequestHandler((webContents, permission, callback) => {
-        if (permission === 'media')
+        const allowed = ['media', 'audioCapture', 'videoCapture', 'camera', 'microphone'];
+        if (allowed.includes(permission))
             callback(true);
         else
             callback(false);

@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 import { VRM } from '@pixiv/three-vrm';
+import { logger } from './logger';
+import type { FaceLandmarkerResult } from '@mediapipe/tasks-vision';
 
 // Define types for our dynamically imported modules
 type HeadFollower = {
@@ -8,38 +10,36 @@ type HeadFollower = {
     setPose: (yaw: number, pitch: number, roll: number, distance: number) => void;
 };
 
-type FaceLandmarkerResult = import('@mediapipe/tasks-vision').FaceLandmarkerResult;
-
 export class NaturalPresenceManager {
     private vrm: VRM | null = null;
-    // private scene: THREE.Scene | null = null; // Unused
     private headFollower: HeadFollower | null = null;
     private lookTargetObj: THREE.Object3D | null = null;
 
     private stopBlinking: (() => void) | null = null;
     private stopIdle: (() => void) | null = null;
-    private faceTracker: any | null = null; // Type as any to avoid eager import of FaceTracker class
+    private faceTracker: any | null = null;
 
     // State
     private isFaceDetected = false;
     private lastFaceTime = 0;
     private isInitialized = false;
+    private currentDeviceId = "";
 
     constructor() { }
 
-    public async initialize(vrm: VRM, camera: THREE.Camera) {
+    public async initialize(vrm: VRM, camera: THREE.Camera, deviceId: string = "") {
         if (this.isInitialized) this.dispose();
 
         this.vrm = vrm;
+        this.currentDeviceId = deviceId;
 
-        console.log("✨ [NaturalPresence] Initializing with Camera reference...");
+        logger.log("✨ [NaturalPresence] Initializing with Camera reference...");
 
         // 0. Setup LookAt Target
         this.lookTargetObj = camera.getObjectByName("LookTarget") as THREE.Object3D;
         if (!this.lookTargetObj) {
             this.lookTargetObj = new THREE.Object3D();
             this.lookTargetObj.name = "LookTarget";
-            // Attach to CAMERA so tracking is screen-relative
             camera.add(this.lookTargetObj);
         }
 
@@ -48,7 +48,7 @@ export class NaturalPresenceManager {
         }
 
         try {
-            // 1. Load Modules Parallel
+            logger.log("✨ [NaturalPresence] Step 1: Loading modules...");
             const [
                 { startBlinking },
                 { startIdle },
@@ -72,40 +72,48 @@ export class NaturalPresenceManager {
 
             // 5. Start Face Tracking
             this.faceTracker = new FaceTracker();
-            // Warn: FaceTracker usually asks for permission immediately upon startTracking
-            // We might want to delay this? For now, we init immediately as per behavior.
-            this.faceTracker.startTracking(this.handleFaceResults).catch((e: any) => {
-                console.error("❌ [NaturalPresence] Face Tracking failed:", e);
+            this.faceTracker.startTracking((results: FaceLandmarkerResult) => {
+                if (!this.isInitialized) logger.log("✨ [NaturalPresence] First face tracking result received!");
+                this.handleFaceResults(results);
+            }, this.currentDeviceId).catch((e: any) => {
+                logger.error("❌ [NaturalPresence] Face Tracking failed:", e);
             });
 
             this.isInitialized = true;
-            console.log("✨ [NaturalPresence] fully initialized.");
+            logger.log("✨ [NaturalPresence] initialization call finished.");
 
         } catch (error) {
-            console.error("❌ [NaturalPresence] Failed to load modules:", error);
+            logger.error("❌ [NaturalPresence] Failed to load modules:", error);
         }
     }
 
-    /**
-     * Called every frame from main loop
-     */
+    public async setCameraDevice(deviceId: string) {
+        if (!this.faceTracker || this.currentDeviceId === deviceId) return;
+
+        logger.log("✨ [NaturalPresence] Switching camera to:", deviceId);
+        this.currentDeviceId = deviceId;
+
+        // Stop current tracking
+        this.faceTracker.stop();
+
+        // Start again with new device
+        this.faceTracker.startTracking((results: FaceLandmarkerResult) => {
+            this.handleFaceResults(results);
+        }, deviceId).catch((e: any) => {
+            logger.error("❌ [NaturalPresence] Failed to switch camera:", e);
+        });
+    }
+
     public update(_delta: number) {
         if (!this.vrm || !this.headFollower) return;
-
-        // Head Follower needs frame update for smoothing
         this.headFollower.update();
     }
 
     private handleIdleTarget = (target: THREE.Vector3) => {
-        // Only apply idle if NO face detected recently
         if (!this.isFaceDetected && (Date.now() - this.lastFaceTime > 1000)) {
             if (this.lookTargetObj && this.headFollower) {
-                // Target is attached to CAMERA. Position (0,0,0) = looking at lens.
-                // Idle noise gives us small x/y offsets.
-                // We want to look roughly at the camera, wandering slightly.
                 const scale = 0.5;
-                this.lookTargetObj.position.set(target.x * scale, target.y * scale * 0.5, 2.0); // Z=2.0 is behind camera (distance)
-
+                this.lookTargetObj.position.set(target.x * scale, target.y * scale * 0.5, 2.0);
                 this.headFollower.setTarget(target);
             }
         }
@@ -123,72 +131,54 @@ export class NaturalPresenceManager {
             const rightEye = result.faceLandmarks[0][263];
 
             // 1. Yaw/Pitch
-            // Calculate raw angles from screenspace
             const x = (nose.x - 0.5) * 2.0;
             const y = -(nose.y - 0.5) * 2.0;
 
-            // Base Sensitivity
             let headYaw = x * 0.5;
             let headPitch = y * 0.35;
 
-            // CLAMP to Human Limits (Neck constraints)
-            // Yaw: +/- 50 degrees (approx 0.87 radians)
-            // Pitch: +/- 30 degrees (approx 0.52 radians)
             const maxYaw = 0.8;
             const maxPitch = 0.5;
 
             headYaw = THREE.MathUtils.clamp(headYaw, -maxYaw, maxYaw);
             headPitch = THREE.MathUtils.clamp(headPitch, -maxPitch, maxPitch);
 
-            // 2. Roll
-            const dY = (rightEye.y - leftEye.y) * -1;
-            const dX = rightEye.x - leftEye.x;
-
-            // Disable roll mimicry - Avatar should stay upright
+            // 2. Roll (Disabled)
             const roll = 0;
 
             // 3. Distance
-            const dist = Math.sqrt(dX * dX + dY * dY);
+            const dX = rightEye.x - leftEye.x;
+            const dist = Math.abs(dX);
 
-            // Apply
-            // LookTarget is now child of CAMERA.
-            // Z=0 is the lens. Z > 0 is behind camera (user). Z < 0 is in front (world).
-            // We want the avatar to look "through" the screen at the user.
-            // Placing it slightly behind the camera (Z=0.5) helps convergence.
-            // 4. Saccades (Micro-movements)
-            // Human eyes jitter slightly. We add a tiny noise offset.
-            const time = Date.now() * 0.002;
-            const saccadeX = (Math.sin(time * 13) + Math.cos(time * 29)) * 0.02; // Very small jitter
-            const saccadeY = (Math.cos(time * 17) + Math.sin(time * 23)) * 0.02;
+            // 4. Saccades & Convergence
+            const time = Date.now() * 0.001;
+            const saccadeStrength = 0.015;
+            const saccadeX = (Math.floor(Math.sin(time * 5) * 2) / 2) * saccadeStrength;
+            const saccadeY = (Math.floor(Math.cos(time * 7) * 2) / 2) * saccadeStrength;
 
-            // Apply
-            // Z=1.0 puts the target 1 meter behid the camera (virtual screen plane), preventing cross-eyedness
-            const lookSensitivity = 1.5; // Tuned for better directness
+            const userZ = THREE.MathUtils.lerp(1.5, 0.5, THREE.MathUtils.smoothstep(dist, 0.1, 0.4));
+
+            const lookSensitivity = 1.8;
             this.lookTargetObj.position.set(
                 (x * lookSensitivity * -1) + saccadeX,
                 (y * lookSensitivity) + saccadeY,
-                1.0
+                userZ
             );
 
             this.headFollower.setPose(headYaw * -1, headPitch, roll, dist);
-
         } else {
             this.isFaceDetected = false;
         }
     };
 
     public dispose() {
-        console.log("🧹 [NaturalPresence] Disposing...");
         if (this.stopBlinking) this.stopBlinking();
         if (this.stopIdle) this.stopIdle();
-
-        if (this.faceTracker) {
-            this.faceTracker.stop();
-            this.faceTracker = null;
-        }
-
+        if (this.faceTracker) this.faceTracker.stop();
         this.headFollower = null;
         this.vrm = null;
         this.isInitialized = false;
     }
 }
+
+export const naturalPresenceManager = new NaturalPresenceManager();

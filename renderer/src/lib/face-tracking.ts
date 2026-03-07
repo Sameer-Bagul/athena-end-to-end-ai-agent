@@ -1,3 +1,4 @@
+import { logger } from "./logger";
 import {
     FaceLandmarker,
     FilesetResolver,
@@ -12,7 +13,7 @@ export class FaceTracker {
     private onResults: ((result: FaceLandmarkerResult) => void) | null = null;
 
     async initialize() {
-        console.log("📸 [FaceTracker] Initializing MediaPipe...");
+        logger.log("📸 [FaceTracker] Initializing MediaPipe...");
         const filesetResolver = await FilesetResolver.forVisionTasks(
             "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm"
         );
@@ -27,10 +28,10 @@ export class FaceTracker {
             runningMode: "VIDEO",
             numFaces: 1
         });
-        console.log("📸 [FaceTracker] MediaPipe Initialized.");
+        logger.log("📸 [FaceTracker] MediaPipe Initialized.");
     }
 
-    async startTracking(callback: (result: FaceLandmarkerResult) => void) {
+    async startTracking(callback: (result: FaceLandmarkerResult) => void, deviceId?: string) {
         if (!this.faceLandmarker) {
             await this.initialize();
         }
@@ -38,30 +39,96 @@ export class FaceTracker {
         this.onResults = callback;
 
         try {
+            // 1. Enumerate Devices
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            const videoDevices = devices.filter(d => d.kind === "videoinput");
+            logger.log("📸 [FaceTracker] Available video devices:", videoDevices.map(d => d.label || "Unnamed Device"));
+
+            // 2. Select requested device or find the best hardware camera
+            let selectedDeviceId = deviceId || "";
+
+            if (!selectedDeviceId) {
+                const hardwareKeywords = ["integrated", "usb", "fhd", "camera", "webcam"];
+                const bestDevice = videoDevices.find(d =>
+                    hardwareKeywords.some(kw => d.label.toLowerCase().includes(kw)) &&
+                    !d.label.toLowerCase().includes("iriun") &&
+                    !d.label.toLowerCase().includes("droidcam")
+                );
+
+                if (bestDevice) {
+                    logger.log("✨ [FaceTracker] Prioritizing hardware device:", bestDevice.label);
+                    selectedDeviceId = bestDevice.deviceId;
+                } else if (videoDevices.length > 0) {
+                    logger.log("⚠️ [FaceTracker] No explicit hardware found, picking first device:", videoDevices[0].label);
+                    selectedDeviceId = videoDevices[0].deviceId;
+                }
+            } else {
+                logger.log("📸 [FaceTracker] Using requested device:", selectedDeviceId);
+            }
+
             this.video = document.createElement("video");
             this.video.autoplay = true;
             this.video.playsInline = true;
 
-            const stream = await navigator.mediaDevices.getUserMedia({
-                video: { width: 640, height: 480 } // Lower res for perf
-            });
+            const constraints: MediaStreamConstraints = {
+                video: selectedDeviceId
+                    ? { deviceId: { exact: selectedDeviceId }, width: { ideal: 1280 }, height: { ideal: 720 } }
+                    : { width: { ideal: 1280 }, height: { ideal: 720 } }
+            };
+
+            logger.log("📸 [FaceTracker] Requesting stream with constraints:", JSON.stringify(constraints));
+            const stream = await navigator.mediaDevices.getUserMedia(constraints);
 
             this.video.srcObject = stream;
-            await this.video.play();
 
-            this.predictWebcam();
+            // Wait for video to be ready
+            return new Promise((resolve, reject) => {
+                if (!this.video) return reject("Video element is null");
+
+                let checkAttempts = 0;
+                this.video.onloadedmetadata = () => {
+                    this.video!.play().then(() => {
+                        // Check for the "2x2" issue
+                        const checkResolution = () => {
+                            if (!this.video) return;
+                            if (this.video!.videoWidth > 10 && this.video!.videoHeight > 10) {
+                                logger.log("✅ [FaceTracker] Camera stream active:", this.video!.videoWidth, "x", this.video!.videoHeight);
+                                this.predictWebcam();
+                                resolve(undefined);
+                            } else if (checkAttempts < 10) {
+                                checkAttempts++;
+                                logger.log(`⚠️ [FaceTracker] Resolution low (${this.video!.videoWidth}x${this.video!.videoHeight}), waiting...`);
+                                setTimeout(checkResolution, 200);
+                            } else {
+                                logger.error("❌ [FaceTracker] Camera stuck at low resolution (2x2). Likely blocked or inactive.");
+                                reject("Camera stuck at 2x2");
+                            }
+                        };
+                        checkResolution();
+                    }).catch(reject);
+                };
+
+                this.video.onerror = (e) => {
+                    logger.error("📸 [FaceTracker] Video element error:", e);
+                    reject(e);
+                };
+            });
         } catch (err) {
-            console.error("📸 [FaceTracker] Failed to access webcam:", err);
+            logger.error("📸 [FaceTracker] Failed to access webcam:", err);
             throw err;
         }
     }
 
     predictWebcam = () => {
-        if (!this.faceLandmarker || !this.video) return;
+        if (!this.faceLandmarker || !this.video) {
+            // logger.warn("📸 [FaceTracker] Predict failed: landmarker or video null");
+            return;
+        }
 
         if (this.video.currentTime !== this.lastVideoTime) {
             this.lastVideoTime = this.video.currentTime;
             const results = this.faceLandmarker.detectForVideo(this.video, performance.now());
+
             if (this.onResults) {
                 this.onResults(results);
             }
@@ -71,14 +138,15 @@ export class FaceTracker {
     };
 
     stop() {
-        if (this.video && this.video.srcObject) {
+        if (this.video) {
             const stream = this.video.srcObject as MediaStream;
-            stream.getTracks().forEach(track => track.stop());
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+            }
             this.video = null;
         }
         if (this.requestAnimationFrameId) {
             cancelAnimationFrame(this.requestAnimationFrameId);
         }
-        // Note: FaceLandmarker doesn't strictly need disposal unless switching models
     }
 }

@@ -65,6 +65,12 @@ export interface AppState {
 
     // RAG Status
     ragStatus: { isReady: boolean, indexedFiles: string[] };
+
+    // Camera
+    cameraDeviceId: string;
+
+    // Animation Status
+    currentAnimation: string;
 }
 
 export interface AppActions {
@@ -105,6 +111,8 @@ export interface AppActions {
     toggleRightCollapse: () => void;
     updateLastMessage: (content: string) => void;
     refreshRagStatus: () => Promise<void>;
+    setCameraDeviceId: (id: string) => void;
+    setCurrentAnimation: (anim: string) => void;
 }
 
 const StoreContext = React.createContext<{ state: AppState; actions: AppActions } | null>(null);
@@ -149,7 +157,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     // Chat
     const [chatMessages, setChatMessages] = React.useState<ChatMessage[]>([
-        { role: 'assistant', content: 'Initializing...' }
+        { role: 'assistant', content: "Hi Sameer! I'm here and ready to help. How are you doing today?" }
     ]);
     const [isChatProcessing, setIsChatProcessing] = React.useState(false);
 
@@ -226,11 +234,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const [isLeftCollapsed, setIsLeftCollapsed] = React.useState(true);
     const [isRightCollapsed, setIsRightCollapsed] = React.useState(true);
 
-    // RAG
     const [ragStatus, setRagStatus] = React.useState<{ isReady: boolean, indexedFiles: string[] }>({
         isReady: false,
         indexedFiles: []
     });
+
+    // Camera
+    const [cameraDeviceId, setCameraDeviceId] = React.useState<string>(() => {
+        return localStorage.getItem("athena-camera-id") || "";
+    });
+
+    const [currentAnimation, setCurrentAnimation] = React.useState<string>("Idle");
 
     const refreshRagStatus = React.useCallback(async () => {
         // @ts-ignore
@@ -271,6 +285,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         localStorage.setItem("athena-ai-config", JSON.stringify(aiConfig));
     }, [aiConfig]);
 
+    React.useEffect(() => {
+        localStorage.setItem("athena-camera-id", cameraDeviceId);
+    }, [cameraDeviceId]);
+
     // Load Chat History
     React.useEffect(() => {
         const loadHistory = async () => {
@@ -279,7 +297,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                 // @ts-ignore
                 const history = await window.athena.loadChatHistory();
                 if (history?.length) setChatMessages(history);
-                else setChatMessages([{ role: 'assistant', content: 'Greetings. I am Athena.' }]);
+                else setChatMessages([{ role: 'assistant', content: "Hello! I'm Athena. It's great to see you again. Is there anything I can help you with?" }]);
             }
         };
         loadHistory();
@@ -369,7 +387,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                 return newHistory;
             });
         },
-        refreshRagStatus
+        refreshRagStatus,
+        setCameraDeviceId,
+        setCurrentAnimation
     };
 
     const state: AppState = {
@@ -381,7 +401,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         widgetSettings, showSettings,
         userProfile, pluginConfig, aiConfig,
         isLeftCollapsed, isRightCollapsed,
-        ragStatus
+        ragStatus,
+        cameraDeviceId,
+        currentAnimation
     };
 
     return (

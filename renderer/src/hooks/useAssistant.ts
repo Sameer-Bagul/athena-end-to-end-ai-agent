@@ -3,6 +3,7 @@ import { useAppStore } from "../context/AppContext";
 import { selectAnimationAndExpression } from "../lib/aiAnimationSelector";
 import { sendMessageToOllama, generateSpeech } from "../lib/api";
 import { ToolRegistry } from "../services/tools/core/registry";
+import { ANIMATION_METADATA } from "../lib/animationMetadata";
 
 export function useAssistant() {
     const { state, actions } = useAppStore();
@@ -67,17 +68,23 @@ export function useAssistant() {
             }
 
             // 1. Setup Prompt
-            // Structure prompt to explicitly prioritize tool and document context if available
-            let fullPrompt = text;
+            const animContext = ANIMATION_METADATA.map(m => `- ${m.file.replace('.fbx', '')}: ${m.description}`).join('\n');
+            const systemPrompt = `I am Athena, your supportive AI companion. 
+I have the following body language and animations available to me (triggered by my speech context):
+${animContext}
+
+### STYLE GUIDELINES
+- Maintain a warm, helpful, and caring personality.
+- I'll use information from my tools or documents naturally if provided.
+- **IMPORTANT**: I can explicitly control my body language by including an animation name in brackets at the start or end of a sentence, like: "(Greeting) Hello!" or "That's amazing! (ExcitedDance)".
+- I should only use one hint per sentence and keep it natural. 
+- I can also let my natural keyword detection handle it if I don't provide a hint.`;
+
+            let fullPrompt = systemPrompt;
             if (context) {
-                fullPrompt = `SYSTEM INSTRUCTION: You are Athena, a sophisticated neural network. 
-Use the provided contexts (Tools or Documents) to formulate a precise and efficient response. 
-If the answer is in the [DOCUMENT CONTEXT], prioritize it above all else. 
-Maintain your clinical, sharp, and immersive persona at all times.
-
-${context}
-
-User Query: ${text}`;
+                fullPrompt = `${systemPrompt}\n\n[CONTEXT INFO]\n${context}\n[END CONTEXT]\n\nUser: ${text}`;
+            } else {
+                fullPrompt = `${systemPrompt}\n\nUser: ${text}`;
             }
 
             // 2. Prepare Streaming State
@@ -93,11 +100,17 @@ User Query: ${text}`;
             const queueSentence = (sentence: string) => {
                 console.log(`🎤 [Stream] Queuing speech: "${sentence}"`);
 
-                // Use AI-driven selector for both animation and facial expression
+                // 1. Extract and Clean Animations Hints for TTS
+                // We use the full sentence for the selector to catch hints
                 const { animation, facialExpressions } = selectAnimationAndExpression(sentence);
 
+                // 2. Clean text for TTS (remove anything in brackets like (Greeting))
+                const cleanSentence = sentence.replace(/\(([^)]+)\)/g, '').trim();
+
+                if (cleanSentence.length === 0) return;
+
                 // Start generation immediately
-                const audioPromise = generateSpeech(sentence, state.selectedCharacter.voiceStyle)
+                const audioPromise = generateSpeech(cleanSentence, state.selectedCharacter.voiceStyle)
                     .catch(e => {
                         console.error("TTS Gen Error:", e);
                         return null;

@@ -52,7 +52,7 @@ export function VRMControlPanel({ onOpenWidget }: VRMControlPanelProps) {
         });
     }, [actions, processInput]);
     // 6. Resizable Chat Panel logic
-    const [chatWidth, setChatWidth] = React.useState(320);
+    const [chatWidth, setChatWidth] = React.useState(600);
     const isResizing = React.useRef(false);
 
     const startResizing = React.useCallback(() => {
@@ -114,6 +114,7 @@ export function VRMControlPanel({ onOpenWidget }: VRMControlPanelProps) {
                     cameraMode={state.cameraMode}
                     isPlaying={state.isPlaying}
                     lightIntensity={1.2}
+                    cameraDeviceId={state.cameraDeviceId}
                     cameraFov={45}
                     gridVisible={false}
                     shadowsEnabled={true}

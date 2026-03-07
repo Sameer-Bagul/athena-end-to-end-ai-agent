@@ -132,13 +132,19 @@ function createWindow() {
     );
   }
 
-  // Grant microphone permission
+  // Broaden permission handler
   mainWindow.webContents.session.setPermissionRequestHandler((webContents, permission, callback) => {
-    if (permission === 'media') {
+    const allowed = ['media', 'audioCapture', 'videoCapture', 'camera', 'microphone'];
+    if (allowed.includes(permission)) {
       callback(true);
     } else {
       callback(false);
     }
+  });
+
+  // Logging IPC for debugging renderer in terminal
+  ipcMain.on("logger:log", (event, ...args) => {
+    console.log("🖥️ [Renderer]", ...args);
   });
 
   mainWindow.on('closed', () => {
@@ -202,7 +208,8 @@ function createWidgetWindow() {
 
   // Grant permissions
   widgetWindow.webContents.session.setPermissionRequestHandler((webContents, permission, callback) => {
-    if (permission === 'media') callback(true);
+    const allowed = ['media', 'audioCapture', 'videoCapture', 'camera', 'microphone'];
+    if (allowed.includes(permission)) callback(true);
     else callback(false);
   });
 }

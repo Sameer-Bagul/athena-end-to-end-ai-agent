@@ -6,6 +6,7 @@ import { AthenaScene } from '../three/AthenaScene';
 import { AnimationManager, AnimationAction } from '../three/AnimationManager';
 import { LipSyncManager } from '../three/LipSyncManager';
 import { NaturalPresenceManager } from '../lib/NaturalPresenceManager';
+import { useAppStore } from '../context/AppContext';
 
 import type { FacialExpression } from '../lib/facialMapping';
 
@@ -30,6 +31,7 @@ interface ThreeStageProps {
   backgroundColor: string;
   speechText?: string;
   cameraMode: string;
+  cameraDeviceId?: string;
   onReady?: () => void;
   onDrop?: (file: File) => void;
   onError?: (error: string) => void;
@@ -49,16 +51,25 @@ const ThreeStageComponent = forwardRef<ThreeStageHandle, ThreeStageProps>(({
   backgroundColor,
   speechText,
   cameraMode,
+  cameraDeviceId,
   onReady,
   onError,
   onThumbnailGenerated
 }, ref) => {
+  const { actions } = useAppStore();
   const containerRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<AthenaScene | null>(null);
   const animationManagerRef = useRef<AnimationManager | null>(null);
   const lipSyncRef = useRef<LipSyncManager | null>(null);
   const naturalPresenceRef = useRef<NaturalPresenceManager>(new NaturalPresenceManager());
   const vrmRef = useRef<VRM | null>(null);
+
+  // Helper to format animation name for UI
+  const formatAnimStatus = (action: string) => {
+    if (!action) return "Idle";
+    // TALK_NORMAL -> Talk Normal
+    return action.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+  };
 
   // State for loading
   const [isLoading, setIsLoading] = useState(true);
@@ -86,6 +97,7 @@ const ThreeStageComponent = forwardRef<ThreeStageHandle, ThreeStageProps>(({
             animationManagerRef.current.play(AnimationAction.THINKING);
           }
         }
+        actions.setCurrentAnimation(formatAnimStatus(action));
       }
 
       // 2. Play Audio & Lip Sync
@@ -96,6 +108,7 @@ const ThreeStageComponent = forwardRef<ThreeStageHandle, ThreeStageProps>(({
       // 3. Revert to Idle (Relax) after speech finishes
       if (animationManagerRef.current) {
         animationManagerRef.current.play(AnimationAction.RELAX);
+        actions.setCurrentAnimation("Idle");
       }
     },
     stopAudio: () => {
@@ -106,6 +119,7 @@ const ThreeStageComponent = forwardRef<ThreeStageHandle, ThreeStageProps>(({
     playAnimationAction: (action: AnimationAction) => {
       if (animationManagerRef.current) {
         animationManagerRef.current.play(action);
+        actions.setCurrentAnimation(formatAnimStatus(action));
       }
     },
     captureScreenshot: (width?: number, height?: number) => {
@@ -162,11 +176,14 @@ const ThreeStageComponent = forwardRef<ThreeStageHandle, ThreeStageProps>(({
     if (isPlaying) {
       // PLAY: Resume/Replay the custom animation
       if (animationUrl) {
+        const name = animationUrl.split('/').pop()?.replace('.vrma', '').replace('.fbx', '') || "Animation";
+        actions.setCurrentAnimation(formatAnimStatus(name));
         animationManagerRef.current.loadAnimationFromUrl(animationUrl).catch(e => console.error("Resume Anim Error:", e));
       }
     } else {
       // STOP: Switch to Static Stand Pose (User Request)
       animationManagerRef.current.resetToStandPose();
+      actions.setCurrentAnimation("Paused");
     }
   }, [isPlaying, isVrmReady]); // Trigger when Play state toggles
 
@@ -177,8 +194,14 @@ const ThreeStageComponent = forwardRef<ThreeStageHandle, ThreeStageProps>(({
     }
   }, [animationSpeed]);
   useEffect(() => {
-    // sceneRef.current?.setShadowsEnabled(shadowsEnabled);
   }, [shadowsEnabled]);
+
+  // Sync Camera Device changes to Natural Presence
+  useEffect(() => {
+    if (cameraDeviceId !== undefined) {
+      naturalPresenceRef.current.setCameraDevice(cameraDeviceId);
+    }
+  }, [cameraDeviceId]);
 
   // Debug: specific log to see WHY this effect runs
   useEffect(() => {
@@ -239,7 +262,7 @@ const ThreeStageComponent = forwardRef<ThreeStageHandle, ThreeStageProps>(({
 
         // --- NEW: Natural Presence Features (Blink, Idle, Head Follow) ---
         // Initialize Natural Presence (Async)
-        naturalPresenceRef.current.initialize(vrm, sceneRef.current!.getCamera());
+        naturalPresenceRef.current.initialize(vrm, sceneRef.current!.getCamera(), cameraDeviceId);
 
         // -------------------------------------------------------------
 

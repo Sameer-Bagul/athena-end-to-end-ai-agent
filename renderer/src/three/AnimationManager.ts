@@ -25,36 +25,66 @@ import { retargetAnimation } from 'vrm-mixamo-retarget';
  */
 export const AnimationAction = {
   ANGRY: 'ANGRY',
-  BLUSH: 'BLUSH',
-  CLAPPING: 'CLAPPING',
-  GOODBYE: 'GOODBYE',
-  JUMP: 'JUMP',
+  ARMS_STRETCH: 'ARMS_STRETCH',
+  BUTTON_PUSH: 'BUTTON_PUSH',
+  DANCE_BBOY: 'DANCE_BBOY',
+  DANCE_HIPHOP: 'DANCE_HIPHOP',
+  DANCE_RUMBA: 'DANCE_RUMBA',
+  DEFEATED: 'DEFEATED',
+  DISMISS: 'DISMISS',
+  EXCITED_DANCE: 'EXCITED_DANCE',
+  GREETING: 'GREETING',
+  DRUNK: 'DRUNK',
+  IDLE: 'IDLE',
+  IDLE_ALT: 'IDLE_ALT',
+  JUMP_SINGLE: 'JUMP_SINGLE',
+  JUMP_BIG: 'JUMP_BIG',
+  LAYING: 'LAYING',
   LOOK_AROUND: 'LOOK_AROUND',
-  RELAX: 'RELAX',
-  SAD: 'SAD',
-  SLEEPY: 'SLEEPY',
+  POINT: 'POINT',
+  SALUTE: 'SALUTE',
   SURPRISED: 'SURPRISED',
-  THINKING: 'THINKING',
+  TALK_ARGUE: 'TALK_ARGUE',
+  TALK_BIG: 'TALK_BIG',
+  TALK_NORMAL: 'TALK_NORMAL',
+  TALK_PHONE: 'TALK_PHONE',
+  RAP: 'RAP',
+  SING: 'SING',
+  RELAX: 'RELAX', // Compatibility
+  THINKING: 'THINKING', // Compatibility
 } as const;
 
 export type AnimationAction = typeof AnimationAction[keyof typeof AnimationAction];
 
-/**
- * Animation file mapping
- * Maps enum values to VRMA filenames
- */
 const ANIMATION_FILES: Record<AnimationAction, string> = {
   [AnimationAction.ANGRY]: 'angry.fbx',
-  [AnimationAction.BLUSH]: 'nervousLookAround.fbx',
-  [AnimationAction.CLAPPING]: 'victory.fbx',
-  [AnimationAction.GOODBYE]: 'dismissingGesture.fbx',
-  [AnimationAction.JUMP]: 'jump.fbx',
+  [AnimationAction.ARMS_STRETCH]: 'armStretching.fbx',
+  [AnimationAction.BUTTON_PUSH]: 'buttonPushing.fbx',
+  [AnimationAction.DANCE_BBOY]: 'danceBboyHipHop.fbx',
+  [AnimationAction.DANCE_HIPHOP]: 'danceHipHop.fbx',
+  [AnimationAction.DANCE_RUMBA]: 'danceRumba.fbx',
+  [AnimationAction.DEFEATED]: 'defeated.fbx',
+  [AnimationAction.DISMISS]: 'dismissingGesture.fbx',
+  [AnimationAction.EXCITED_DANCE]: 'excitedDance.fbx',
+  [AnimationAction.GREETING]: 'greeting.fbx',
+  [AnimationAction.DRUNK]: 'Drunk.fbx',
+  [AnimationAction.IDLE]: 'Idle.fbx',
+  [AnimationAction.IDLE_ALT]: 'idle1.fbx',
+  [AnimationAction.JUMP_SINGLE]: 'SingleBigjump.fbx',
+  [AnimationAction.JUMP_BIG]: 'bigJumps.fbx',
+  [AnimationAction.LAYING]: 'layingFemalePose.fbx',
   [AnimationAction.LOOK_AROUND]: 'nervousLookAround.fbx',
-  [AnimationAction.RELAX]: 'Idle.fbx', // Default requested by user
-  [AnimationAction.SAD]: 'defeated.fbx',
-  [AnimationAction.SLEEPY]: 'idleDrunk.fbx',
+  [AnimationAction.POINT]: 'pointForward.fbx',
+  [AnimationAction.SALUTE]: 'salute.fbx',
   [AnimationAction.SURPRISED]: 'surprised.fbx',
-  [AnimationAction.THINKING]: 'Talking.fbx', // AI Response requested by user
+  [AnimationAction.TALK_ARGUE]: 'talkingArguing.fbx',
+  [AnimationAction.TALK_BIG]: 'talkingBig.fbx',
+  [AnimationAction.TALK_NORMAL]: 'talking1.fbx',
+  [AnimationAction.TALK_PHONE]: 'talkingOnPhone.fbx',
+  [AnimationAction.RAP]: 'Rapping.fbx',
+  [AnimationAction.SING]: 'Singing.fbx',
+  [AnimationAction.RELAX]: 'Idle.fbx',
+  [AnimationAction.THINKING]: 'Talking.fbx',
 };
 
 /**

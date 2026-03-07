@@ -140,7 +140,7 @@ export function ChatPanel({ onSendMessage, onClearHistory }: ChatPanelProps) {
                                 className={cn("size-1 rounded-full", state.isChatProcessing ? "bg-primary" : "bg-white/20")}
                             />
                             <span className="text-[10px] text-white/40 font-medium tracking-tight">
-                                {state.isChatProcessing ? "Processing" : "Idle"}
+                                {state.isChatProcessing ? "Processing" : state.currentAnimation}
                             </span>
                         </div>
                     </div>
