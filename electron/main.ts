@@ -8,6 +8,8 @@ import { chatWithLLM } from "../backend/llm";
 import { speak } from "../backend/tts";
 import { transcribe } from "../backend/stt";
 import { ragService } from "../backend/rag";
+import { downloadFile } from "../backend/downloader";
+import { NON_OLLAMA_MODELS, getLocalModelDir, isModelInstalled, deleteModel } from "../backend/modelRegistry";
 import { dialog } from "electron";
 
 const isDev = process.env.NODE_ENV === "development";
@@ -42,7 +44,11 @@ function startPythonServer() {
 
   pythonServerProcess = spawn(pythonBin, [scriptPath], {
     stdio: "pipe",
-    cwd: path.join(projectRoot, "services")
+    cwd: path.join(projectRoot, "services"),
+    env: {
+      ...process.env,
+      ATHENA_USER_DATA: app.getPath('userData')
+    }
   });
 
   pythonServerProcess.stdout.on("data", (data: any) => {
@@ -86,7 +92,11 @@ function startTTSServer() {
 
   ttsServerProcess = spawn("node", [ttsScript], {
     stdio: "pipe",
-    cwd: ttsServicePath // Critical for relative imports/models in TTS
+    cwd: ttsServicePath, // Critical for relative imports/models in TTS
+    env: {
+      ...process.env,
+      ATHENA_USER_DATA: app.getPath('userData')
+    }
   });
 
   ttsServerProcess.stdout.on("data", (data: any) => {
@@ -263,6 +273,7 @@ ipcMain.handle("window:close", (event) => {
 
 // IPC handlers for LLM and TTS
 ipcMain.handle("llm:chat", async (_, messages) => {
+  console.log(`[IPC] 💬 Request: llm:chat (${messages.length} messages)`);
   return await chatWithLLM(messages);
 });
 
@@ -303,10 +314,12 @@ ipcMain.handle("rag:get-context", async (_, input) => {
 });
 
 ipcMain.handle("tts:generate", async (_, { text, voiceStyle }) => {
+  console.log(`[IPC] 🗣️ Request: tts:generate (${text.substring(0, 30)}...)`);
   return await speak(text, voiceStyle);
 });
 
 ipcMain.handle("stt:transcribe", async (_, buffer: Buffer) => {
+  console.log(`[IPC] 👂 Request: stt:transcribe (${buffer.byteLength} bytes)`);
   return await transcribe(buffer);
 });
 
@@ -355,6 +368,128 @@ ipcMain.handle("chat:load-history", async () => {
   } catch (error) {
     console.error("Failed to load chat history:", error);
     return null;
+  }
+});
+// --- Ollama Management Handlers ---
+ipcMain.handle("ollama:check-status", async () => {
+  try {
+    const res = await fetch("http://localhost:11434/api/tags");
+    return { ok: res.ok };
+  } catch (e) {
+    return { ok: false };
+  }
+});
+
+ipcMain.handle("ollama:list-models", async () => {
+  try {
+    const res = await fetch("http://localhost:11434/api/tags");
+    if (!res.ok) throw new Error("Failed to fetch models");
+    const data = await res.json();
+    return data.models || [];
+  } catch (e: any) {
+    return { error: e.message };
+  }
+});
+
+ipcMain.handle("ollama:delete-model", async (_, modelName) => {
+  try {
+    const res = await fetch("http://localhost:11434/api/delete", {
+      method: "DELETE",
+      body: JSON.stringify({ name: modelName })
+    });
+    return { ok: res.ok };
+  } catch (e: any) {
+    return { error: e.message };
+  }
+});
+
+// We handle pull as an event-based stream since it takes time
+ipcMain.on("ollama:pull-model", async (event, modelName) => {
+  try {
+    const response = await fetch("http://localhost:11434/api/pull", {
+      method: "POST",
+      body: JSON.stringify({ name: modelName, stream: true })
+    });
+
+    if (!response.ok || !response.body) {
+      event.sender.send("ollama:pull-progress", { model: modelName, status: "error", error: "Connection failed" });
+      return;
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      const chunk = decoder.decode(value);
+      const lines = chunk.split("\n").filter(Boolean);
+
+      for (const line of lines) {
+        try {
+          const json = JSON.parse(line);
+          event.sender.send("ollama:pull-progress", { model: modelName, ...json });
+        } catch (e) {
+          // Fragmented JSON
+        }
+      }
+    }
+  } catch (err: any) {
+    event.sender.send("ollama:pull-progress", { model: modelName, status: "error", error: err.message });
+  }
+});
+
+// --- General Model Management (Whisper/TTS) ---
+ipcMain.handle("model:check-status", async (_, modelId) => {
+  return { isInstalled: isModelInstalled(modelId) };
+});
+
+ipcMain.on("model:pull", async (event, modelId) => {
+  const modelDef = NON_OLLAMA_MODELS[modelId];
+  if (!modelDef) {
+    event.sender.send("model:pull-progress", { model: modelId, status: "error", error: "Model not found in registry" });
+    return;
+  }
+
+  const modelDir = getLocalModelDir(modelDef.category, modelId);
+
+  try {
+    for (const file of modelDef.files) {
+      const destPath = path.join(modelDir, file.name);
+
+      // Skip if already exists (basic check)
+      if (fs.existsSync(destPath)) continue;
+
+      event.sender.send("model:pull-progress", {
+        model: modelId,
+        status: "downloading",
+        detail: `Downloading ${file.name}...`
+      });
+
+      await downloadFile(file.url, destPath, (progress) => {
+        // We could send per-file progress, but let's keep it simple for now or aggregate
+        event.sender.send("model:pull-progress", {
+          model: modelId,
+          status: "downloading",
+          completed: progress.completed,
+          total: progress.total
+        });
+      });
+    }
+
+    event.sender.send("model:pull-progress", { model: modelId, status: "success" });
+  } catch (err: any) {
+    console.error(`❌ [Electron] Failed to download model ${modelId}:`, err);
+    event.sender.send("model:pull-progress", { model: modelId, status: "error", error: err.message });
+  }
+});
+
+ipcMain.handle("model:delete", async (_, modelId) => {
+  try {
+    return { success: deleteModel(modelId) };
+  } catch (err: any) {
+    return { error: err.message };
   }
 });
 

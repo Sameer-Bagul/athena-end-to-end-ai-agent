@@ -19,7 +19,7 @@ export const animationFacialMap: AnimationFacialMap = {
   'Jump.fbx': [
     { name: 'Surprised', value: 1.0 },
   ],
-  'Idle.fbx': [
+  'idle1.fbx': [
     { name: 'Neutral', value: 0.5 },
   ],
   // Add more mappings as needed

@@ -1,5 +1,5 @@
 export const AVAILABLE_ANIMATIONS = [
-    "Idle.fbx",
+    "idle1.fbx",
     "Talking.fbx",
     "angry.fbx",
     "armStretching.fbx",
@@ -12,7 +12,6 @@ export const AVAILABLE_ANIMATIONS = [
     "excitedDance.fbx",
     "greeting.fbx",
     "Drunk.fbx",
-    "idle1.fbx",
     "SingleBigjump.fbx",
     "bigJumps.fbx",
     "layingFemalePose.fbx",

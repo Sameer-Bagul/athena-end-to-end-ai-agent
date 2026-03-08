@@ -7,14 +7,46 @@ import tempfile
 
 app = FastAPI()
 
-# Initialize Model (CPU for compatibility, INT8 quantization default)
-print("Loading Whisper Model (base.en)...", flush=True)
-model = WhisperModel("base.en", device="cpu", compute_type="int8")
-print("Model Loaded.", flush=True)
+# Global model cache to avoid re-loading same model
+current_model_name = "tiny.en"
+model = None
+
+def get_model(name: str):
+    global model, current_model_name
+    if model is None or name != current_model_name:
+        print(f"Loading Whisper Model ({name})...", flush=True)
+        
+        # Check if we have a locally downloaded version in ATHENA_USER_DATA
+        user_data = os.environ.get("ATHENA_USER_DATA")
+        local_path = None
+        if user_data:
+            possible_path = os.path.join(user_data, "models", "intelligence", name)
+            if os.path.exists(possible_path) and os.path.exists(os.path.join(possible_path, "model.bin")):
+                local_path = possible_path
+                print(f"Using local model from: {local_path}", flush=True)
+
+        # Load from local_path if exists, otherwise fallback to standard cache
+        model = WhisperModel(local_path or name, device="cpu", compute_type="int8")
+        current_model_name = name
+        print(f"Model {name} Loaded.", flush=True)
+    return model
+
+@app.get("/status")
+async def status(model_name: str = "tiny.en"):
+    """Check if a model is downloaded/ready"""
+    # faster-whisper downloads to ~/.cache/huggingface/hub by default
+    # We can check if it exists or just return currently loaded info
+    return {
+        "loaded_model": current_model_name,
+        "is_ready": model is not None,
+        "available": ["tiny.en", "base.en"]
+    }
 
 @app.post("/stt")
-async def stt(file: UploadFile = File(...)):
-    print(f"Received request: {file.filename}", flush=True)
+async def stt(file: UploadFile = File(...), model_name: str = "tiny.en"):
+    print(f"Received request: {file.filename} using {model_name}", flush=True)
+    
+    active_model = get_model(model_name)
     
     suffix = ".wav" 
     if file.filename.endswith(".webm"):
@@ -25,17 +57,11 @@ async def stt(file: UploadFile = File(...)):
         tmp_path = tmp.name
     
     try:
-        file_size = os.path.getsize(tmp_path)
-        print(f"Processing file: {tmp_path} ({file_size} bytes)", flush=True)
-        
-        segments, info = model.transcribe(tmp_path, beam_size=5)
+        segments, info = active_model.transcribe(tmp_path, beam_size=5)
         text = "".join([segment.text for segment in segments]).strip()
         
         print(f"Transcribed ({info.language}): {text}", flush=True)
         return {"text": text}
-    except Exception as e:
-        print(f"Error processing audio: {e}", flush=True)
-        return {"error": str(e)}
     finally:
         if os.path.exists(tmp_path):
             os.remove(tmp_path)

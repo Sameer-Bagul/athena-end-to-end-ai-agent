@@ -45,6 +45,29 @@ electron_1.contextBridge.exposeInMainWorld("athena", {
         clear: () => electron_1.ipcRenderer.invoke("rag:clear"),
         getContext: (input) => electron_1.ipcRenderer.invoke("rag:get-context", input)
     },
+    // Ollama Management
+    ollama: {
+        checkStatus: () => electron_1.ipcRenderer.invoke("ollama:check-status"),
+        listModels: () => electron_1.ipcRenderer.invoke("ollama:list-models"),
+        pullModel: (name) => electron_1.ipcRenderer.send("ollama:pull-model", name),
+        onPullProgress: (callback) => {
+            const subscription = (_, data) => callback(data);
+            electron_1.ipcRenderer.on("ollama:pull-progress", subscription);
+            return () => electron_1.ipcRenderer.removeListener("ollama:pull-progress", subscription);
+        },
+        deleteModel: (name) => electron_1.ipcRenderer.invoke("ollama:delete-model", name)
+    },
+    // General Model Management (Whisper/TTS)
+    models: {
+        checkStatus: (modelId) => electron_1.ipcRenderer.invoke("model:check-status", modelId),
+        pull: (modelId) => electron_1.ipcRenderer.send("model:pull", modelId),
+        delete: (modelId) => electron_1.ipcRenderer.invoke("model:delete", modelId),
+        onProgress: (callback) => {
+            const subscription = (_, data) => callback(data);
+            electron_1.ipcRenderer.on("model:pull-progress", subscription);
+            return () => electron_1.ipcRenderer.removeListener("model:pull-progress", subscription);
+        }
+    },
     // Logging to Main Terminal
     log: (...args) => electron_1.ipcRenderer.send("logger:log", ...args)
 });

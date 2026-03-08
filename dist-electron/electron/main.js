@@ -12,6 +12,8 @@ const llm_1 = require("../backend/llm");
 const tts_1 = require("../backend/tts");
 const stt_1 = require("../backend/stt");
 const rag_1 = require("../backend/rag");
+const downloader_1 = require("../backend/downloader");
+const modelRegistry_1 = require("../backend/modelRegistry");
 const electron_2 = require("electron");
 const isDev = process.env.NODE_ENV === "development";
 // Hack to try and unblock Google Speech API in Electron
@@ -38,7 +40,11 @@ function startPythonServer() {
     }
     pythonServerProcess = (0, child_process_1.spawn)(pythonBin, [scriptPath], {
         stdio: "pipe",
-        cwd: path_1.default.join(projectRoot, "services")
+        cwd: path_1.default.join(projectRoot, "services"),
+        env: {
+            ...process.env,
+            ATHENA_USER_DATA: electron_1.app.getPath('userData')
+        }
     });
     pythonServerProcess.stdout.on("data", (data) => {
         console.log(`🐍 [Python] ${data.toString().trim()}`);
@@ -72,7 +78,11 @@ function startTTSServer() {
     // Let's use simple 'node' for now, assuming dev env. 
     ttsServerProcess = (0, child_process_1.spawn)("node", [ttsScript], {
         stdio: "pipe",
-        cwd: ttsServicePath // Critical for relative imports/models in TTS
+        cwd: ttsServicePath, // Critical for relative imports/models in TTS
+        env: {
+            ...process.env,
+            ATHENA_USER_DATA: electron_1.app.getPath('userData')
+        }
     });
     ttsServerProcess.stdout.on("data", (data) => {
         console.log(`🗣️ [TTS] ${data.toString().trim()}`);
@@ -226,6 +236,7 @@ electron_1.ipcMain.handle("window:close", (event) => {
 });
 // IPC handlers for LLM and TTS
 electron_1.ipcMain.handle("llm:chat", async (_, messages) => {
+    console.log(`[IPC] 💬 Request: llm:chat (${messages.length} messages)`);
     return await (0, llm_1.chatWithLLM)(messages);
 });
 // RAG Handlers
@@ -261,9 +272,11 @@ electron_1.ipcMain.handle("rag:get-context", async (_, input) => {
     return await rag_1.ragService.getRelevantContext(input);
 });
 electron_1.ipcMain.handle("tts:generate", async (_, { text, voiceStyle }) => {
+    console.log(`[IPC] 🗣️ Request: tts:generate (${text.substring(0, 30)}...)`);
     return await (0, tts_1.speak)(text, voiceStyle);
 });
 electron_1.ipcMain.handle("stt:transcribe", async (_, buffer) => {
+    console.log(`[IPC] 👂 Request: stt:transcribe (${buffer.byteLength} bytes)`);
     return await (0, stt_1.transcribe)(buffer);
 });
 // Tool Proxy Handlers
@@ -309,6 +322,121 @@ electron_1.ipcMain.handle("chat:load-history", async () => {
     catch (error) {
         console.error("Failed to load chat history:", error);
         return null;
+    }
+});
+// --- Ollama Management Handlers ---
+electron_1.ipcMain.handle("ollama:check-status", async () => {
+    try {
+        const res = await fetch("http://localhost:11434/api/tags");
+        return { ok: res.ok };
+    }
+    catch (e) {
+        return { ok: false };
+    }
+});
+electron_1.ipcMain.handle("ollama:list-models", async () => {
+    try {
+        const res = await fetch("http://localhost:11434/api/tags");
+        if (!res.ok)
+            throw new Error("Failed to fetch models");
+        const data = await res.json();
+        return data.models || [];
+    }
+    catch (e) {
+        return { error: e.message };
+    }
+});
+electron_1.ipcMain.handle("ollama:delete-model", async (_, modelName) => {
+    try {
+        const res = await fetch("http://localhost:11434/api/delete", {
+            method: "DELETE",
+            body: JSON.stringify({ name: modelName })
+        });
+        return { ok: res.ok };
+    }
+    catch (e) {
+        return { error: e.message };
+    }
+});
+// We handle pull as an event-based stream since it takes time
+electron_1.ipcMain.on("ollama:pull-model", async (event, modelName) => {
+    try {
+        const response = await fetch("http://localhost:11434/api/pull", {
+            method: "POST",
+            body: JSON.stringify({ name: modelName, stream: true })
+        });
+        if (!response.ok || !response.body) {
+            event.sender.send("ollama:pull-progress", { model: modelName, status: "error", error: "Connection failed" });
+            return;
+        }
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done)
+                break;
+            const chunk = decoder.decode(value);
+            const lines = chunk.split("\n").filter(Boolean);
+            for (const line of lines) {
+                try {
+                    const json = JSON.parse(line);
+                    event.sender.send("ollama:pull-progress", { model: modelName, ...json });
+                }
+                catch (e) {
+                    // Fragmented JSON
+                }
+            }
+        }
+    }
+    catch (err) {
+        event.sender.send("ollama:pull-progress", { model: modelName, status: "error", error: err.message });
+    }
+});
+// --- General Model Management (Whisper/TTS) ---
+electron_1.ipcMain.handle("model:check-status", async (_, modelId) => {
+    return { isInstalled: (0, modelRegistry_1.isModelInstalled)(modelId) };
+});
+electron_1.ipcMain.on("model:pull", async (event, modelId) => {
+    const modelDef = modelRegistry_1.NON_OLLAMA_MODELS[modelId];
+    if (!modelDef) {
+        event.sender.send("model:pull-progress", { model: modelId, status: "error", error: "Model not found in registry" });
+        return;
+    }
+    const modelDir = (0, modelRegistry_1.getLocalModelDir)(modelDef.category, modelId);
+    try {
+        for (const file of modelDef.files) {
+            const destPath = path_1.default.join(modelDir, file.name);
+            // Skip if already exists (basic check)
+            if (fs_1.default.existsSync(destPath))
+                continue;
+            event.sender.send("model:pull-progress", {
+                model: modelId,
+                status: "downloading",
+                detail: `Downloading ${file.name}...`
+            });
+            await (0, downloader_1.downloadFile)(file.url, destPath, (progress) => {
+                // We could send per-file progress, but let's keep it simple for now or aggregate
+                event.sender.send("model:pull-progress", {
+                    model: modelId,
+                    status: "downloading",
+                    completed: progress.completed,
+                    total: progress.total
+                });
+            });
+        }
+        event.sender.send("model:pull-progress", { model: modelId, status: "success" });
+    }
+    catch (err) {
+        console.error(`❌ [Electron] Failed to download model ${modelId}:`, err);
+        event.sender.send("model:pull-progress", { model: modelId, status: "error", error: err.message });
+    }
+});
+electron_1.ipcMain.handle("model:delete", async (_, modelId) => {
+    try {
+        return { success: (0, modelRegistry_1.deleteModel)(modelId) };
+    }
+    catch (err) {
+        return { error: err.message };
     }
 });
 // Bypass microphone permission prompts and enable speech API

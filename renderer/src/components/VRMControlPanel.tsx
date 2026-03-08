@@ -29,7 +29,7 @@ export function VRMControlPanel({ onOpenWidget }: VRMControlPanelProps) {
         actions.addMessage({ role: 'user', content: text });
         await processInput(text, {
             source: 'voice',
-            onPlayAudio: async (blob: Blob, animation?: string, facialExpressions?: any[]) => {
+            onPlayAudio: async (blob: Blob | null, animation?: string, facialExpressions?: any[]) => {
                 if (stageRef.current) await stageRef.current.playAudio(blob, animation, facialExpressions);
             }
         });
@@ -46,11 +46,22 @@ export function VRMControlPanel({ onOpenWidget }: VRMControlPanelProps) {
         actions.addMessage({ role: 'user', content: text });
         await processInput(text, {
             source: 'text',
-            onPlayAudio: async (blob: Blob, animation?: string, facialExpressions?: any[]) => {
+            onPlayAudio: async (blob: Blob | null, animation?: string, facialExpressions?: any[]) => {
                 if (stageRef.current) await stageRef.current.playAudio(blob, animation, facialExpressions);
             }
         });
     }, [actions, processInput]);
+
+    const handleVrmDrop = React.useCallback((f: File) => {
+        actions.setVrmFile(f);
+    }, [actions]);
+
+    const handleExpressionChange = React.useCallback((name: string, value: number) => {
+        if (stageRef.current && stageRef.current.animationManager) {
+            stageRef.current.animationManager.setExpression(name, value);
+        }
+    }, []);
+
     // 6. Resizable Chat Panel logic
     const [chatWidth, setChatWidth] = React.useState(600);
     const isResizing = React.useRef(false);
@@ -94,11 +105,7 @@ export function VRMControlPanel({ onOpenWidget }: VRMControlPanelProps) {
                         onToggleListening={toggleListening}
                         onVrmUpload={() => { }}
                         onAnimationUpload={() => { }}
-                        onExpressionChange={(name, value) => {
-                            if (stageRef.current && stageRef.current.animationManager) {
-                                stageRef.current.animationManager.setExpression(name, value);
-                            }
-                        }}
+                        onExpressionChange={handleExpressionChange}
                     />
 
                 </div>
@@ -119,7 +126,7 @@ export function VRMControlPanel({ onOpenWidget }: VRMControlPanelProps) {
                     gridVisible={false}
                     shadowsEnabled={true}
                     backgroundColor="#020205"
-                    onDrop={(f) => actions.setVrmFile(f)}
+                    onDrop={handleVrmDrop}
                 />
 
                 {/* Overlays / UI Buttons */}

@@ -12,7 +12,20 @@ export class TTSEngine {
 
   async init() {
     console.log('[TTS] Loading TTS pipeline...');
-    this.tts = await loadTextToSpeech(this.onnxDir, false);
+
+    // Check if we have a locally downloaded version in ATHENA_USER_DATA
+    const userData = process.env.ATHENA_USER_DATA;
+    let onnxDir = this.onnxDir;
+
+    if (userData) {
+      const possiblePath = path.join(userData, "models", "presence", "standard-v1");
+      if (fs.existsSync(possiblePath) && fs.existsSync(path.join(possiblePath, "duration_predictor.onnx"))) {
+        onnxDir = possiblePath;
+        console.log(`[TTS] Using local model from: ${onnxDir}`);
+      }
+    }
+
+    this.tts = await loadTextToSpeech(onnxDir, false);
     console.log('[TTS] Engine ready');
   }
 

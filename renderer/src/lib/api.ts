@@ -44,8 +44,8 @@ export async function sendMessageToOllama(
         // Fallback defaults
         config = {
             priority: ['ollama', 'gemini', 'grok', 'lmstudio'],
-            ollama: [{ baseUrl: "http://localhost:11434", model: "dolphin-mistral:latest" }],
-            lmstudio: [{ baseUrl: "http://localhost:1234/v1", model: "local-model" }],
+            ollama: [{ baseUrl: "http://localhost:11434", model: "dolphin-mistral:latest", numCtx: 2048, numThread: 0, numGpu: -1 }],
+            lmstudio: [{ baseUrl: "http://localhost:1234/v1", model: "local-model", numCtx: 2048, numThread: 0 }],
             grok: [{ apiKey: "", model: "grok-beta" }],
             gemini: [{ apiKey: "", model: "gemini-pro" }]
         };

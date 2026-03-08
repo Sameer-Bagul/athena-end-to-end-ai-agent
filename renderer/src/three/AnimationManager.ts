@@ -68,7 +68,7 @@ const ANIMATION_FILES: Record<AnimationAction, string> = {
   [AnimationAction.EXCITED_DANCE]: 'excitedDance.fbx',
   [AnimationAction.GREETING]: 'greeting.fbx',
   [AnimationAction.DRUNK]: 'Drunk.fbx',
-  [AnimationAction.IDLE]: 'Idle.fbx',
+  [AnimationAction.IDLE]: 'idle1.fbx',
   [AnimationAction.IDLE_ALT]: 'idle1.fbx',
   [AnimationAction.JUMP_SINGLE]: 'SingleBigjump.fbx',
   [AnimationAction.JUMP_BIG]: 'bigJumps.fbx',
@@ -83,7 +83,7 @@ const ANIMATION_FILES: Record<AnimationAction, string> = {
   [AnimationAction.TALK_PHONE]: 'talkingOnPhone.fbx',
   [AnimationAction.RAP]: 'Rapping.fbx',
   [AnimationAction.SING]: 'Singing.fbx',
-  [AnimationAction.RELAX]: 'Idle.fbx',
+  [AnimationAction.RELAX]: 'idle1.fbx',
   [AnimationAction.THINKING]: 'Talking.fbx',
 };
 

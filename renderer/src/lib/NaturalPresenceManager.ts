@@ -35,6 +35,9 @@ export class NaturalPresenceManager {
 
         logger.log("✨ [NaturalPresence] Initializing with Camera reference...");
 
+        // Setup visibility listener
+        document.addEventListener("visibilitychange", this.handleVisibilityChange);
+
         // 0. Setup LookAt Target
         this.lookTargetObj = camera.getObjectByName("LookTarget") as THREE.Object3D;
         if (!this.lookTargetObj) {
@@ -87,6 +90,33 @@ export class NaturalPresenceManager {
         }
     }
 
+    private handleVisibilityChange = () => {
+        if (document.hidden) {
+            logger.log("⏸️ [NaturalPresence] App hidden, pausing background systems...");
+            if (this.faceTracker) this.faceTracker.stop();
+            if (this.stopIdle) {
+                this.stopIdle();
+                this.stopIdle = null;
+            }
+        } else if (this.isInitialized && this.vrm) {
+            logger.log("▶️ [NaturalPresence] App visible, resuming background systems...");
+            // Resume Face Tracking
+            if (this.faceTracker) {
+                this.faceTracker.startTracking((results: FaceLandmarkerResult) => {
+                    this.handleFaceResults(results);
+                }, this.currentDeviceId).catch((e: any) => {
+                    logger.error("❌ [NaturalPresence] Resume Tracking failed:", e);
+                });
+            }
+            // Resume Idle
+            if (!this.stopIdle) {
+                import('./idle').then(({ startIdle }) => {
+                    this.stopIdle = startIdle(this.handleIdleTarget);
+                });
+            }
+        }
+    };
+
     public async setCameraDevice(deviceId: string) {
         if (!this.faceTracker || this.currentDeviceId === deviceId) return;
 
@@ -105,7 +135,7 @@ export class NaturalPresenceManager {
     }
 
     public update(_delta: number) {
-        if (!this.vrm || !this.headFollower) return;
+        if (!this.vrm || !this.headFollower || document.hidden) return;
         this.headFollower.update();
     }
 
@@ -120,7 +150,7 @@ export class NaturalPresenceManager {
     };
 
     private handleFaceResults = (result: FaceLandmarkerResult) => {
-        if (!this.headFollower || !this.lookTargetObj) return;
+        if (document.hidden || !this.headFollower || !this.lookTargetObj) return;
 
         if (result.faceLandmarks.length > 0) {
             this.isFaceDetected = true;
@@ -172,6 +202,7 @@ export class NaturalPresenceManager {
     };
 
     public dispose() {
+        document.removeEventListener("visibilitychange", this.handleVisibilityChange);
         if (this.stopBlinking) this.stopBlinking();
         if (this.stopIdle) this.stopIdle();
         if (this.faceTracker) this.faceTracker.stop();

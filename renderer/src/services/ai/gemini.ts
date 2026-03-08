@@ -16,6 +16,7 @@ export class GeminiProvider implements AIProvider {
         onChunk: (token: string) => void,
         signal?: AbortSignal
     ): Promise<string> {
+        console.log(`✨ [Gemini] Sending prompt to ${this.model}: "${prompt.substring(0, 100)}${prompt.length > 100 ? '...' : ''}"`);
         // Using REST API for simplicity without adding dependency
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${this.model}:streamGenerateContent?key=${this.apiKey}`;
 
@@ -93,6 +94,7 @@ export class GeminiProvider implements AIProvider {
                 }
             }
         }
+        console.log(`✨ [Gemini] Response complete. Length: ${fullResponse.length} chars`);
         return fullResponse;
     }
 }

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, memo, useImperativeHandle, forwardRef } from 'react';
+import { useEffect, useRef, useState, memo, useImperativeHandle, forwardRef, useCallback } from 'react';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { VRM, VRMLoaderPlugin, VRMUtils } from '@pixiv/three-vrm';
@@ -11,16 +11,16 @@ import { useAppStore } from '../context/AppContext';
 import type { FacialExpression } from '../lib/facialMapping';
 
 export interface ThreeStageHandle {
-  playAudio: (blob: Blob, animation?: string, facialExpressions?: FacialExpression[], isMuted?: boolean) => Promise<void>;
+  playAudio: (blob: Blob | null, animation?: string, facialExpressions?: FacialExpression[], isMuted?: boolean) => Promise<void>;
   stopAudio: () => void;
   playAnimationAction: (action: AnimationAction) => void;
   captureScreenshot: (width?: number, height?: number) => string;
-  animationManager?: AnimationManager; // Expose animationManager
+  animationManager?: AnimationManager;
 }
 
 interface ThreeStageProps {
   vrmUrl: string;
-  animationUrl?: string; // Legacy/File-based animation
+  animationUrl?: string;
   isPlaying: boolean;
   animationSpeed: number;
   lightIntensity: number;
@@ -47,9 +47,7 @@ const ThreeStageComponent = forwardRef<ThreeStageHandle, ThreeStageProps>(({
   cameraFov,
   gridVisible,
   environmentVisible,
-  shadowsEnabled,
   backgroundColor,
-  speechText,
   cameraMode,
   cameraDeviceId,
   onReady,
@@ -64,51 +62,54 @@ const ThreeStageComponent = forwardRef<ThreeStageHandle, ThreeStageProps>(({
   const naturalPresenceRef = useRef<NaturalPresenceManager>(new NaturalPresenceManager());
   const vrmRef = useRef<VRM | null>(null);
 
-  // Helper to format animation name for UI
-  const formatAnimStatus = (action: string) => {
-    if (!action) return "Idle";
-    // TALK_NORMAL -> Talk Normal
-    return action.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
-  };
+  // Refs for callbacks to prevent unnecessary effect re-runs
+  const onReadyRef = useRef(onReady);
+  const onErrorRef = useRef(onError);
+  const onThumbnailGeneratedRef = useRef(onThumbnailGenerated);
+  const actionsRef = useRef(actions);
 
-  // State for loading
+  useEffect(() => { onReadyRef.current = onReady; }, [onReady]);
+  useEffect(() => { onErrorRef.current = onError; }, [onError]);
+  useEffect(() => { onThumbnailGeneratedRef.current = onThumbnailGenerated; }, [onThumbnailGenerated]);
+  useEffect(() => { actionsRef.current = actions; }, [actions]);
+
+  // Helper to format animation name for UI
+  const formatAnimStatus = useCallback((action: string) => {
+    if (!action) return "Idle";
+    return action.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+  }, []);
+
   const [isLoading, setIsLoading] = useState(true);
   const [loadingStatus, setLoadingStatus] = useState("Initializing scene...");
   const [error, setError] = useState<string | null>(null);
   const [isVrmReady, setIsVrmReady] = useState(false);
 
-  // Expose methods to parent
   useImperativeHandle(ref, () => ({
-    playAudio: async (blob: Blob, animation?: string, facialExpressions?: FacialExpression[], isMuted: boolean = false) => {
-      // 1. Start Body Animation (Gestures)
+    playAudio: async (blob: Blob | null, animation?: string, facialExpressions?: FacialExpression[], isMuted: boolean = false) => {
       if (animationManagerRef.current) {
-        // Default to THINKING (Talking gesture) if no specific animation requested
         const action = (animation as AnimationAction) || AnimationAction.THINKING;
 
-        // Play with separate facial expressions if provided
         if (facialExpressions && facialExpressions.length > 0) {
           animationManagerRef.current.playWithFacial(action, facialExpressions);
         } else {
-          // Fallback to standard play (which uses default mapping)
-          // If specific emotion loop, or just talking, play it
           if (animationManagerRef.current.isAnimationLoaded(action)) {
             animationManagerRef.current.play(action);
           } else {
             animationManagerRef.current.play(AnimationAction.THINKING);
           }
         }
-        actions.setCurrentAnimation(formatAnimStatus(action));
+        actionsRef.current.setCurrentAnimation(formatAnimStatus(action));
       }
 
-      // 2. Play Audio & Lip Sync
-      if (lipSyncRef.current) {
+      if (lipSyncRef.current && blob) {
         await lipSyncRef.current.playAudio(blob, isMuted);
+      } else if (!blob) {
+        await new Promise(r => setTimeout(r, 2000));
       }
 
-      // 3. Revert to Idle (Relax) after speech finishes
       if (animationManagerRef.current) {
         animationManagerRef.current.play(AnimationAction.RELAX);
-        actions.setCurrentAnimation("Idle");
+        actionsRef.current.setCurrentAnimation("Idle");
       }
     },
     stopAudio: () => {
@@ -119,7 +120,7 @@ const ThreeStageComponent = forwardRef<ThreeStageHandle, ThreeStageProps>(({
     playAnimationAction: (action: AnimationAction) => {
       if (animationManagerRef.current) {
         animationManagerRef.current.play(action);
-        actions.setCurrentAnimation(formatAnimStatus(action));
+        actionsRef.current.setCurrentAnimation(formatAnimStatus(action));
       }
     },
     captureScreenshot: (width?: number, height?: number) => {
@@ -131,7 +132,7 @@ const ThreeStageComponent = forwardRef<ThreeStageHandle, ThreeStageProps>(({
     animationManager: animationManagerRef.current ?? undefined
   }));
 
-  // Initialize Scene
+  // 1. Scene Initialization (Once)
   useEffect(() => {
     if (!containerRef.current) return;
 
@@ -139,24 +140,19 @@ const ThreeStageComponent = forwardRef<ThreeStageHandle, ThreeStageProps>(({
     scene.init(containerRef.current);
     sceneRef.current = scene;
 
-    // Managers
     animationManagerRef.current = new AnimationManager();
     lipSyncRef.current = new LipSyncManager();
 
-    // Register ONE stable update callback
     const updateCallback = (delta: number) => {
-      // Update VRM if loaded
       if (vrmRef.current) {
         vrmRef.current.update(delta);
       }
-      // Update Managers (they persist across models)
       if (animationManagerRef.current) {
         animationManagerRef.current.update(delta);
       }
       if (lipSyncRef.current) {
         lipSyncRef.current.update(delta);
       }
-      // Update Natural Presence
       naturalPresenceRef.current.update(delta);
     };
     scene.onUpdate(updateCallback);
@@ -169,58 +165,30 @@ const ThreeStageComponent = forwardRef<ThreeStageHandle, ThreeStageProps>(({
     };
   }, []);
 
-  // Handle Play/Pause (Switch to Idle vs Custom)
+  // 2. Play/Pause state (Stand pose)
   useEffect(() => {
     if (!animationManagerRef.current || !isVrmReady) return;
 
     if (isPlaying) {
-      // PLAY: Resume/Replay the custom animation
       if (animationUrl) {
         const name = animationUrl.split('/').pop()?.replace('.vrma', '').replace('.fbx', '') || "Animation";
-        actions.setCurrentAnimation(formatAnimStatus(name));
+        actionsRef.current.setCurrentAnimation(formatAnimStatus(name));
         animationManagerRef.current.loadAnimationFromUrl(animationUrl).catch(e => console.error("Resume Anim Error:", e));
       }
     } else {
-      // STOP: Switch to Static Stand Pose (User Request)
       animationManagerRef.current.resetToStandPose();
-      actions.setCurrentAnimation("Paused");
+      actionsRef.current.setCurrentAnimation("Paused");
     }
-  }, [isPlaying, isVrmReady]); // Trigger when Play state toggles
+  }, [isPlaying, isVrmReady, animationUrl, formatAnimStatus]);
 
-  // Update Animation Speed
-  useEffect(() => {
-    if (animationManagerRef.current) {
-      animationManagerRef.current.setTimeScale(animationSpeed);
-    }
-  }, [animationSpeed]);
-  useEffect(() => {
-  }, [shadowsEnabled]);
-
-  // Sync Camera Device changes to Natural Presence
-  useEffect(() => {
-    if (cameraDeviceId !== undefined) {
-      naturalPresenceRef.current.setCameraDevice(cameraDeviceId);
-    }
-  }, [cameraDeviceId]);
-
-  // Debug: specific log to see WHY this effect runs
-  useEffect(() => {
-    console.log("[ThreeStage] VRM Load Effect Triggered");
-    console.log(" - vrmUrl:", vrmUrl);
-    console.log(" - onThumbnailGenerated changed?", onThumbnailGenerated);
-  }, [vrmUrl, onThumbnailGenerated]);
-
-  // Load VRM
+  // 3. VRM Loading (Strictly on vrmUrl change)
   useEffect(() => {
     if (!sceneRef.current || !vrmUrl) return;
 
     let isCancelled = false;
-    console.log(`[ThreeStage] Starting VRM Load: ${vrmUrl} `);
-
     const loadVRM = async () => {
       try {
         setIsLoading(true);
-        // ... (rest of function)
         setIsVrmReady(false);
         setLoadingStatus(`Loading VRM: ${vrmUrl.split('/').pop()}...`);
         setError(null);
@@ -228,26 +196,18 @@ const ThreeStageComponent = forwardRef<ThreeStageHandle, ThreeStageProps>(({
         const loader = new GLTFLoader();
         loader.register((parser) => new VRMLoaderPlugin(parser));
 
-        const gltf = await loader.loadAsync(vrmUrl, (_progress) => {
-          // Progress callback
-        });
+        const gltf = await loader.loadAsync(vrmUrl);
 
         if (isCancelled) {
-          // If cancelled, dispose what we just loaded
           VRMUtils.deepDispose(gltf.scene);
           return;
         }
 
         const vrm = gltf.userData.vrm as VRM;
-        if (!vrm) {
-          throw new Error("Failed to parse VRM.");
-        }
+        if (!vrm) throw new Error("Failed to parse VRM.");
 
-        // Success: Replace old model with new one in a single transaction
         if (vrmRef.current) {
-          // Cleanup old behaviors
           naturalPresenceRef.current.dispose();
-
           sceneRef.current!.remove(vrmRef.current.scene);
           VRMUtils.deepDispose(vrmRef.current.scene);
           vrmRef.current = null;
@@ -256,62 +216,39 @@ const ThreeStageComponent = forwardRef<ThreeStageHandle, ThreeStageProps>(({
         vrmRef.current = vrm;
         sceneRef.current!.add(vrm.scene);
 
-        // Initialize Managers
         animationManagerRef.current!.initialize(vrm);
         lipSyncRef.current!.setVRM(vrm);
-
-        // --- NEW: Natural Presence Features (Blink, Idle, Head Follow) ---
-        // Initialize Natural Presence (Async)
         naturalPresenceRef.current.initialize(vrm, sceneRef.current!.getCamera(), cameraDeviceId);
 
-        // -------------------------------------------------------------
-
-        // Preload standard animations
         try {
           await animationManagerRef.current!.loadAllAnimations();
         } catch (e) {
           console.warn("Failed to load standard animations", e);
         }
 
-        vrm.scene.rotation.y = Math.PI; // Face the camera
+        vrm.scene.rotation.y = Math.PI;
 
-        // --- Auto-Thumbnail Generation ---
-        // 1. Position camera to face
         const headNode = vrm.humanoid.getNormalizedBoneNode('head');
         if (headNode) {
           const headPos = new THREE.Vector3();
           headNode.getWorldPosition(headPos);
-          const targetPos = headPos.clone().add(new THREE.Vector3(0, 0.05, 0.5)); // Close up
+          const targetPos = headPos.clone().add(new THREE.Vector3(0, 0.05, 0.5));
           sceneRef.current!.setCameraTarget(targetPos, headPos);
 
-          // 2. Force Render & Capture
-          // Add a small delay to ensure textures/shaders are fully ready on GPU
           setTimeout(() => {
-            if (!sceneRef.current || !vrm) return;
-
-            // Ensure transforms
-            vrm.update(0.016);
-
-            // Capture
+            if (isCancelled || !sceneRef.current || !vrmRef.current) return;
+            vrmRef.current.update(0.016);
             const screenshot = sceneRef.current.captureScreenshot();
-            if (onThumbnailGenerated && screenshot) {
-              onThumbnailGenerated(screenshot);
+            if (onThumbnailGeneratedRef.current && screenshot) {
+              onThumbnailGeneratedRef.current(screenshot);
             }
-
-            // 3. Reset Camera - REMOVED
-            // We let the cameraMode effect handle positioning once isVrmReady is set
-            // sceneRef.current.setCameraTarget(...)
           }, 150);
         }
-        // ---------------------------------
-
-        // NOTE: We do NOT register a new onUpdate callback here.
-        // The main scene loop handles vrmRef.current directly.
 
         setIsVrmReady(true);
         setLoadingStatus("Ready");
         setIsLoading(false);
-        if (onReady) onReady();
+        if (onReadyRef.current) onReadyRef.current();
 
       } catch (err: any) {
         if (!isCancelled) {
@@ -319,49 +256,32 @@ const ThreeStageComponent = forwardRef<ThreeStageHandle, ThreeStageProps>(({
           setError(err.message || "Failed to load VRM");
           setIsLoading(false);
           setIsVrmReady(false);
-          if (onError) onError(err.message);
+          if (onErrorRef.current) onErrorRef.current(err.message);
         }
       }
     };
 
     loadVRM();
+    return () => { isCancelled = true; };
+  }, [vrmUrl]); // ONLY depend on vrmUrl
 
-    return () => {
-      isCancelled = true;
-    };
-  }, [vrmUrl, onThumbnailGenerated]);
-
-  // Handle Animation Loading
+  // 4. Camera Device Management
   useEffect(() => {
-    // Animation loading logic needs to re-run when animationUrl changes OR when vrm becomes ready
-    if (!animationManagerRef.current || !animationUrl || !isVrmReady) return;
+    if (cameraDeviceId !== undefined) {
+      naturalPresenceRef.current.setCameraDevice(cameraDeviceId);
+    }
+  }, [cameraDeviceId]);
 
-    const loadAnim = async () => {
-      try {
-        if (animationUrl.startsWith('/') || animationUrl.startsWith('blob:') || animationUrl.startsWith('animations/')) {
-          // We might want to ensure we don't load if it's already same?
-          // AnimationManager might handle it, but for safety:
-          await animationManagerRef.current!.loadAnimationFromUrl(animationUrl);
-        }
-      } catch (err) {
-        console.error('[ThreeStage] Animation Load Error:', err);
-      }
-    };
-
-    loadAnim();
-  }, [animationUrl, isVrmReady]);
-
-  // Handle Speech (Legacy prop)
+  // 5. Animation Speed and Time Scale
   useEffect(() => {
-    // Legacy support or removal? 
-    // LipSyncManager now expects playAudio(blob). 
-    // If speechText is still passed, we might ignore it or try to fetch?
-    // For now, let's ignore it as we are moving to blob based flow.
-  }, [speechText]);
+    if (animationManagerRef.current) {
+      animationManagerRef.current.setTimeScale(animationSpeed);
+    }
+  }, [animationSpeed]);
 
-  // Handle Camera Mode
+  // 6. Camera Mode (Zoom/Face/Half)
   useEffect(() => {
-    if (!sceneRef.current || !vrmRef.current) return;
+    if (!sceneRef.current || !vrmRef.current || !isVrmReady) return;
 
     const headNode = vrmRef.current.humanoid.getNormalizedBoneNode('head');
     if (!headNode) return;
@@ -370,12 +290,8 @@ const ThreeStageComponent = forwardRef<ThreeStageHandle, ThreeStageProps>(({
     headNode.getWorldPosition(headPos);
 
     if (cameraMode === 'face') {
-      // Zoom closer and aim slightly higher for "eyes" focus
-      // Head bone is at neck. Eyes are ~10cm up.
       const eyePos = headPos.clone().add(new THREE.Vector3(0, 0.12, 0));
-      const cameraOffset = new THREE.Vector3(0, 0.0, 0.35); // Level with eyes, 35cm away
-      const targetPos = eyePos.clone().add(cameraOffset);
-
+      const targetPos = eyePos.clone().add(new THREE.Vector3(0, 0.0, 0.35));
       sceneRef.current.setCameraTarget(targetPos, eyePos);
     } else if (cameraMode === 'half') {
       const hipsNode = vrmRef.current.humanoid.getNormalizedBoneNode('hips');
@@ -387,50 +303,34 @@ const ThreeStageComponent = forwardRef<ThreeStageHandle, ThreeStageProps>(({
         sceneRef.current.setCameraTarget(targetPos, chestPos);
       }
     } else {
-      sceneRef.current.setCameraTarget(
-        new THREE.Vector3(0, 1.2, 2.5),
-        new THREE.Vector3(0, 1.0, 0)
-      );
+      sceneRef.current.setCameraTarget(new THREE.Vector3(0, 1.2, 2.5), new THREE.Vector3(0, 1.0, 0));
     }
   }, [cameraMode, isVrmReady]);
 
-  // Update scene properties
+  // 7. Light/Grid/Background Cleanup
   useEffect(() => {
-    if (!sceneRef.current) return;
-    sceneRef.current.setLightIntensity(lightIntensity);
+    if (sceneRef.current) sceneRef.current.setLightIntensity(lightIntensity);
   }, [lightIntensity]);
 
   useEffect(() => {
-    if (!sceneRef.current) return;
-    sceneRef.current.setGridVisible(gridVisible ?? true);
+    if (sceneRef.current) sceneRef.current.setGridVisible(gridVisible);
   }, [gridVisible]);
 
   useEffect(() => {
-    if (!sceneRef.current) return;
-    // Default to true if undefined
-    sceneRef.current.setEnvironmentVisible(environmentVisible ?? true);
+    if (sceneRef.current) sceneRef.current.setEnvironmentVisible(environmentVisible ?? true);
   }, [environmentVisible]);
 
   useEffect(() => {
-    if (!sceneRef.current) return;
-    if (typeof cameraFov === 'number') {
-      sceneRef.current.setCameraFov(cameraFov);
-    }
+    if (sceneRef.current) sceneRef.current.setCameraFov(cameraFov);
   }, [cameraFov]);
 
   useEffect(() => {
-    if (!sceneRef.current) return;
-    sceneRef.current.setBackgroundColor(backgroundColor ?? '#0f0f1e');
+    if (sceneRef.current) sceneRef.current.setBackgroundColor(backgroundColor ?? '#0f0f1e');
   }, [backgroundColor]);
-
 
   return (
     <div className="relative w-full h-full overflow-hidden">
-      <div
-        ref={containerRef}
-        className="absolute inset-0"
-      />
-
+      <div ref={containerRef} className="absolute inset-0" />
       {isLoading && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/60 backdrop-blur-md">
           <div className="text-center px-8 py-6 bg-black/40 rounded-2xl border border-white/10">
@@ -442,7 +342,6 @@ const ThreeStageComponent = forwardRef<ThreeStageHandle, ThreeStageProps>(({
           </div>
         </div>
       )}
-
       {error && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/60 backdrop-blur-md">
           <div className="text-center max-w-lg px-8 py-6 bg-red-950/80 rounded-2xl border border-red-500/20">

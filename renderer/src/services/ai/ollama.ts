@@ -3,13 +3,16 @@ import type { AIProvider } from "./types";
 
 export class OllamaProvider implements AIProvider {
     name = "Ollama";
-    private config: { baseUrl: string; model: string };
+    private config: { baseUrl: string; model: string; numCtx?: number; numThread?: number; numGpu?: number };
 
-    constructor(config: { baseUrl: string; model: string }) {
+    constructor(config: { baseUrl: string; model: string; numCtx?: number; numThread?: number; numGpu?: number }) {
         // Sanitize: ensure no trailing slash for base, remove accidental quotes
         this.config = {
             baseUrl: config.baseUrl.trim().replace(/\/$/, ""),
-            model: config.model.trim().replace(/["']/g, "")
+            model: config.model.trim().replace(/["']/g, ""),
+            numCtx: config.numCtx,
+            numThread: config.numThread,
+            numGpu: config.numGpu
         };
     }
 
@@ -19,6 +22,7 @@ export class OllamaProvider implements AIProvider {
         onChunk: (token: string) => void,
         signal?: AbortSignal
     ): Promise<string> {
+        console.log(`🧠 [Ollama] Sending prompt (Ctx: ${this.config.numCtx || 'def'}): "${prompt.substring(0, 100)}${prompt.length > 100 ? '...' : ''}"`);
         const response = await fetch(`${this.config.baseUrl}/api/generate`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -28,7 +32,10 @@ export class OllamaProvider implements AIProvider {
                 prompt: `${systemPrompt}\n\nUser: ${prompt}\nassistant:`,
                 stream: true,
                 options: {
-                    stop: ["User:", "\nUser:", "assistant:", "\nassistant:"]
+                    stop: ["User:", "\nUser:", "assistant:", "\nassistant:"],
+                    num_ctx: this.config.numCtx || 2048,
+                    num_thread: this.config.numThread || 0,
+                    num_gpu: this.config.numGpu ?? -1
                 }
             }),
         });
@@ -62,6 +69,7 @@ export class OllamaProvider implements AIProvider {
                 }
             }
         }
+        console.log(`🧠 [Ollama] Response complete. Length: ${fullResponse.length} chars`);
         return fullResponse;
     }
 }

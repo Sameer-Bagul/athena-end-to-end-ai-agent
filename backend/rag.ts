@@ -56,7 +56,7 @@ export class RagService {
             chunkOverlap: 100,
         });
         const splitDocs = await textSplitter.splitDocuments(docs);
-        console.log(`[RAG] Split into ${splitDocs.length} chunks.`);
+        console.log(`[RAG] ✂️ Split into ${splitDocs.length} chunks for indexing.`);
 
         try {
             if (!this.vectorStore) {
@@ -96,7 +96,7 @@ export class RagService {
         try {
             const docs = await retriever.invoke(input);
             const contexts = docs.map((doc: any) => doc.pageContent);
-            console.log(`[RAG] Found ${contexts.length} relevant chunks.`);
+            console.log(`[RAG] ✅ Found ${contexts.length} relevant chunks for context.`);
             return contexts;
         } catch (error: any) {
             console.error(`❌ [RAG] Retrieval error: ${error.message}`);

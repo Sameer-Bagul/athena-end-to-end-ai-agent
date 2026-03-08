@@ -51,6 +51,31 @@ contextBridge.exposeInMainWorld("athena", {
     getContext: (input: string) => ipcRenderer.invoke("rag:get-context", input)
   },
 
+  // Ollama Management
+  ollama: {
+    checkStatus: () => ipcRenderer.invoke("ollama:check-status"),
+    listModels: () => ipcRenderer.invoke("ollama:list-models"),
+    pullModel: (name: string) => ipcRenderer.send("ollama:pull-model", name),
+    onPullProgress: (callback: (data: any) => void) => {
+      const subscription = (_: any, data: any) => callback(data);
+      ipcRenderer.on("ollama:pull-progress", subscription);
+      return () => ipcRenderer.removeListener("ollama:pull-progress", subscription);
+    },
+    deleteModel: (name: string) => ipcRenderer.invoke("ollama:delete-model", name)
+  },
+
+  // General Model Management (Whisper/TTS)
+  models: {
+    checkStatus: (modelId: string) => ipcRenderer.invoke("model:check-status", modelId),
+    pull: (modelId: string) => ipcRenderer.send("model:pull", modelId),
+    delete: (modelId: string) => ipcRenderer.invoke("model:delete", modelId),
+    onProgress: (callback: (data: any) => void) => {
+      const subscription = (_: any, data: any) => callback(data);
+      ipcRenderer.on("model:pull-progress", subscription);
+      return () => ipcRenderer.removeListener("model:pull-progress", subscription);
+    }
+  },
+
   // Logging to Main Terminal
   log: (...args: any[]) => ipcRenderer.send("logger:log", ...args)
 });

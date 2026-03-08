@@ -17,10 +17,8 @@ function App() {
     }
 
     // 2. Check onboarding (Main Window only)
-    const isComplete = localStorage.getItem("athena_onboarding_complete");
-    if (!isComplete) {
-      setShowOnboarding(true);
-    }
+    const isComplete = localStorage.getItem("athena_onboarding_complete") === "true";
+    setShowOnboarding(!isComplete);
     setLoading(false);
   }, []);
 

@@ -34,7 +34,9 @@ async function transcribe(input) {
                 console.error('[BACKEND STT] Python Error:', json.error);
                 return "";
             }
-            return json.text || "";
+            const text = json.text || "";
+            console.log(`[BACKEND STT] Transcription finished: "${text}"`);
+            return text;
         }
         catch (error) {
             if (error.code === 'ECONNREFUSED') {

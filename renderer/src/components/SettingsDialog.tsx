@@ -1,5 +1,6 @@
 import * as React from "react";
-import { X, Keyboard, Activity, Link as LinkIcon, User, Newspaper, CloudSun, BrainCircuit, Server, Zap, Cpu } from "lucide-react";
+import { X, Keyboard, Activity, Link as LinkIcon, User, Newspaper, CloudSun, BrainCircuit, Server, Zap, Cpu, Brain } from "lucide-react";
+import { ModelHub } from "./ModelHub";
 
 import { cn } from "../lib/utils";
 import { Button } from "./ui/button";
@@ -28,7 +29,7 @@ interface SettingsDialogProps {
 
 export function SettingsDialog({ isOpen, onClose, settings: _initialSettings, onUpdate }: SettingsDialogProps) {
     const { state, actions } = useAppStore();
-    const [activeTab, setActiveTab] = React.useState<'general' | 'profile' | 'ai' | 'widget' | 'plugins'>('general');
+    const [activeTab, setActiveTab] = React.useState<'general' | 'profile' | 'ai' | 'cognition' | 'widget' | 'plugins'>('general');
     const [wakeWord] = React.useState("Alt + Space");
 
     // Local state
@@ -99,6 +100,7 @@ export function SettingsDialog({ isOpen, onClose, settings: _initialSettings, on
                         <NavButton active={activeTab === 'general'} onClick={() => setActiveTab('general')} icon={<Keyboard className="size-4" />} label="General" />
                         <NavButton active={activeTab === 'profile'} onClick={() => setActiveTab('profile')} icon={<User className="size-4" />} label="Identity" />
                         <NavButton active={activeTab === 'ai'} onClick={() => setActiveTab('ai')} icon={<BrainCircuit className="size-4" />} label="Intelligence" />
+                        <NavButton active={activeTab === 'cognition'} onClick={() => setActiveTab('cognition')} icon={<Brain className="size-4" />} label="Cognition" />
                         <NavButton active={activeTab === 'widget'} onClick={() => setActiveTab('widget')} icon={<Activity className="size-4" />} label="Widget" />
                         <NavButton active={activeTab === 'plugins'} onClick={() => setActiveTab('plugins')} icon={<LinkIcon className="size-4" />} label="Connect" />
                     </div>
@@ -210,8 +212,9 @@ export function SettingsDialog({ isOpen, onClose, settings: _initialSettings, on
                                         <Label className="text-[10px] font-bold text-white/40 uppercase tracking-widest mb-3 block">Node Configuration</Label>
 
                                         <ConfigGroup title="Ollama" icon={<Server className="size-4" />} configs={ollamaConfig} setConfigs={setOllamaConfig}
-                                            template={{ baseUrl: "http://localhost:11434", model: "dolphin-mistral" }}
+                                            template={{ baseUrl: "http://localhost:11434", model: "dolphin-mistral", numCtx: 2048, numThread: 0, numGpu: -1 }}
                                             fields={['baseUrl', 'model']} onBlur={handleAiUpdate}
+                                            showPerformance
                                         />
 
                                         <ConfigGroup title="Gemini" icon={<BrainCircuit className="size-4" />} configs={geminiConfig} setConfigs={setGeminiConfig}
@@ -225,8 +228,9 @@ export function SettingsDialog({ isOpen, onClose, settings: _initialSettings, on
                                         />
 
                                         <ConfigGroup title="LM Studio" icon={<Cpu className="size-4" />} configs={lmStudioConfig} setConfigs={setLmStudioConfig}
-                                            template={{ baseUrl: "http://localhost:1234/v1", model: "local-model" }}
+                                            template={{ baseUrl: "http://localhost:1234/v1", model: "local-model", numCtx: 2048, numThread: 0 }}
                                             fields={['baseUrl', 'model']} onBlur={handleAiUpdate}
+                                            showPerformance
                                         />
                                     </div>
                                 </Section>
@@ -247,6 +251,13 @@ export function SettingsDialog({ isOpen, onClose, settings: _initialSettings, on
                                         <MinimalSlider label="Corner Radius" value={state.widgetSettings.borderRadius} min={0} max={100} step={2}
                                             onChange={(v) => onUpdate({ ...state.widgetSettings, borderRadius: v })} unit="px" />
                                     </div>
+                                </Section>
+                            )}
+
+                            {/* COGNITION TAB */}
+                            {activeTab === 'cognition' && (
+                                <Section title="Cognitive Models" description="Download and manage Athena's local brains.">
+                                    <ModelHub />
                                 </Section>
                             )}
 
@@ -318,45 +329,98 @@ interface ConfigGroupProps {
     template: any;
     fields: string[];
     onBlur: () => void;
+    showPerformance?: boolean;
 }
 
-function ConfigGroup({ title, icon, configs, setConfigs, template, fields, onBlur }: ConfigGroupProps) {
+function ConfigGroup({ title, icon, configs, setConfigs, template, fields, onBlur, showPerformance }: ConfigGroupProps) {
     return (
         <div className="p-4 rounded-xl bg-white/[0.02] border border-white/5 space-y-4 hover:border-white/10 transition-colors">
             <div className="flex items-center gap-2 text-white/70">
                 {icon} <span className="text-sm font-medium">{title}</span>
             </div>
             {configs.map((c: any, i: number) => (
-                <div key={i} className="flex gap-2 items-start animate-in fade-in slide-in-from-left-2">
-                    <div className={cn("grid gap-2 flex-1", fields.length > 1 ? "grid-cols-2" : "grid-cols-1")}>
-                        {fields.map((f: string) => (
-                            <Input key={f}
-                                value={c[f]} placeholder={f === 'baseUrl' ? 'Base URL' : f === 'apiKey' ? 'API Key' : 'Model'}
-                                onChange={e => {
-                                    const n = [...configs];
-                                    // Sanitize accidental quotes immediately on input for key/model
-                                    let val = e.target.value;
-                                    if (f !== 'baseUrl') val = val.replace(/["']/g, "");
-                                    n[i][f] = val;
-                                    setConfigs(n);
-                                }}
-                                onBlur={() => {
-                                    // Trim on blur
-                                    const n = [...configs];
-                                    if (typeof n[i][f] === 'string') n[i][f] = n[i][f].trim();
-                                    setConfigs(n);
-                                    onBlur();
-                                }}
-                                className="bg-black/20 border-white/5 focus:border-white/20 text-xs font-mono text-white/80 h-9"
-                            />
-                        ))}
+                <div key={i} className="flex flex-col gap-2 p-3 rounded-xl bg-black/20 border border-white/5 animate-in fade-in slide-in-from-left-2">
+                    <div className="flex gap-2 items-start">
+                        <div className={cn("grid gap-2 flex-1", fields.length > 1 ? "grid-cols-2" : "grid-cols-1")}>
+                            {fields.map((f: string) => (
+                                <Input key={f}
+                                    value={c[f]} placeholder={f === 'baseUrl' ? 'Base URL' : f === 'apiKey' ? 'API Key' : 'Model'}
+                                    onChange={e => {
+                                        const n = [...configs];
+                                        let val = e.target.value;
+                                        if (f !== 'baseUrl') val = val.replace(/["']/g, "");
+                                        n[i][f] = val;
+                                        setConfigs(n);
+                                    }}
+                                    onBlur={() => {
+                                        const n = [...configs];
+                                        if (typeof n[i][f] === 'string') n[i][f] = n[i][f].trim();
+                                        setConfigs(n);
+                                        onBlur();
+                                    }}
+                                    className="bg-black/10 border-white/5 focus:border-white/20 text-xs font-mono text-white/80 h-9"
+                                />
+                            ))}
+                        </div>
+                        <Button variant="ghost" size="icon" className="size-9 text-white/20 hover:text-red-400 hover:bg-red-400/10"
+                            onClick={() => setConfigs(configs.filter((_: any, idx: number) => idx !== i))}
+                            disabled={configs.length <= 1 && i === 0}
+                        >
+                            <X className="size-4" />
+                        </Button>
                     </div>
-                    <Button variant="ghost" size="icon" className="size-9 text-white/20 hover:text-red-400 hover:bg-red-400/10"
-                        onClick={() => setConfigs(configs.filter((_: any, idx: number) => idx !== i))}
-                        disabled={configs.length <= 1 && i === 0}
-                    >
-                        <X className="size-4" />
-                    </Button>
+
+                    {showPerformance && (
+                        <div className="pt-2 px-1 grid grid-cols-2 gap-x-6 gap-y-4 border-t border-white/5 mt-1">
+                            <div className="space-y-2">
+                                <div className="flex justify-between text-[10px] text-white/40 uppercase tracking-tighter">
+                                    <span>Context Window</span>
+                                    <span>{c.numCtx || 2048}</span>
+                                </div>
+                                <Slider
+                                    value={[c.numCtx || 2048]} min={512} max={8192} step={512}
+                                    onValueChange={([v]) => {
+                                        const n = [...configs];
+                                        n[i].numCtx = v;
+                                        setConfigs(n);
+                                        onBlur();
+                                    }}
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <div className="flex justify-between text-[10px] text-white/40 uppercase tracking-tighter">
+                                    <span>Threads</span>
+                                    <span>{c.numThread === 0 ? 'Auto' : c.numThread}</span>
+                                </div>
+                                <Slider
+                                    value={[c.numThread || 0]} min={0} max={32} step={1}
+                                    onValueChange={([v]) => {
+                                        const n = [...configs];
+                                        n[i].numThread = v;
+                                        setConfigs(n);
+                                        onBlur();
+                                    }}
+                                />
+                            </div>
+                            {title === "Ollama" && (
+                                <div className="col-span-2 space-y-2 pt-1">
+                                    <div className="flex justify-between text-[10px] text-white/40 uppercase tracking-tighter">
+                                        <span>GPU Offload (Layers)</span>
+                                        <span>{c.numGpu === -1 ? 'Auto' : c.numGpu}</span>
+                                    </div>
+                                    <Slider
+                                        value={[c.numGpu === -1 ? 0 : (c.numGpu || 0)]} min={0} max={100} step={1}
+                                        onValueChange={([v]) => {
+                                            const n = [...configs];
+                                            n[i].numGpu = v === 0 ? -1 : v;
+                                            setConfigs(n);
+                                            onBlur();
+                                        }}
+                                    />
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </div>
             ))}
             <Button variant="ghost" size="sm" className="w-full border border-dashed border-white/5 text-xs text-white/30 hover:text-white hover:bg-white/5"

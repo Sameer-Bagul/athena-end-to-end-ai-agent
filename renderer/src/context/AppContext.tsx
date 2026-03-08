@@ -3,6 +3,7 @@ import { AVAILABLE_MODELS } from "../lib/models";
 import type { CharacterProfile } from "../lib/models";
 import type { ChatMessage } from "../components/ChatPanel";
 import type { WidgetSettings } from "../components/SettingsDialog";
+import { aiModuleManager } from "../services/ai/aiModuleManager";
 
 // --- Types ---
 export interface UserProfile {
@@ -19,8 +20,8 @@ export type AiProviderType = 'ollama' | 'lmstudio' | 'grok' | 'gemini';
 
 export interface AiConfig {
     priority: AiProviderType[];
-    ollama: { baseUrl: string; model: string }[];
-    lmstudio: { baseUrl: string; model: string }[];
+    ollama: { baseUrl: string; model: string; numCtx?: number; numThread?: number; numGpu?: number }[];
+    lmstudio: { baseUrl: string; model: string; numCtx?: number; numThread?: number }[];
     grok: { apiKey: string; model: string }[];
     gemini: { apiKey: string; model: string }[];
 }
@@ -71,6 +72,9 @@ export interface AppState {
 
     // Animation Status
     currentAnimation: string;
+
+    // Model Downloads
+    downloadingModels: Record<string, { progress: number, status: string }>; // modelName -> { percentage, status }
 }
 
 export interface AppActions {
@@ -113,6 +117,8 @@ export interface AppActions {
     refreshRagStatus: () => Promise<void>;
     setCameraDeviceId: (id: string) => void;
     setCurrentAnimation: (anim: string) => void;
+    setDownloadingModels: (models: Record<string, { progress: number, status: string }>) => void;
+    startModelPull: (model: any) => void;
 }
 
 const StoreContext = React.createContext<{ state: AppState; actions: AppActions } | null>(null);
@@ -192,8 +198,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             // Defaults (Now arrays)
             const defaults: AiConfig = {
                 priority: ['ollama', 'gemini', 'grok', 'lmstudio'],
-                ollama: [{ baseUrl: "http://localhost:11434", model: "dolphin-mistral:latest" }],
-                lmstudio: [{ baseUrl: "http://localhost:1234/v1", model: "local-model" }],
+                ollama: [{ baseUrl: "http://localhost:11434", model: "dolphin-mistral:latest", numCtx: 2048, numThread: 0, numGpu: -1 }],
+                lmstudio: [{ baseUrl: "http://localhost:1234/v1", model: "local-model", numCtx: 2048, numThread: 0 }],
                 grok: [{ apiKey: "", model: "grok-beta" }],
                 gemini: [{ apiKey: "", model: "gemini-pro" }]
             };
@@ -222,8 +228,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         } catch {
             return {
                 priority: ['ollama', 'gemini', 'grok', 'lmstudio'],
-                ollama: [{ baseUrl: "http://localhost:11434", model: "dolphin-mistral:latest" }],
-                lmstudio: [{ baseUrl: "http://localhost:1234/v1", model: "local-model" }],
+                ollama: [{ baseUrl: "http://localhost:11434", model: "dolphin-mistral:latest", numCtx: 2048, numThread: 0, numGpu: -1 }],
+                lmstudio: [{ baseUrl: "http://localhost:1234/v1", model: "local-model", numCtx: 2048, numThread: 0 }],
                 grok: [{ apiKey: "", model: "grok-beta" }],
                 gemini: [{ apiKey: "", model: "gemini-pro" }]
             };
@@ -245,6 +251,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
 
     const [currentAnimation, setCurrentAnimation] = React.useState<string>("Idle");
+    const [downloadingModels, setDownloadingModelsState] = React.useState<Record<string, { progress: number, status: string }>>({});
 
     const refreshRagStatus = React.useCallback(async () => {
         // @ts-ignore
@@ -389,7 +396,39 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         },
         refreshRagStatus,
         setCameraDeviceId,
-        setCurrentAnimation
+        setCurrentAnimation,
+        setDownloadingModels: setDownloadingModelsState,
+        startModelPull: (model: any) => {
+            setDownloadingModelsState(prev => ({ ...prev, [model.name]: { progress: 0, status: 'Initializing...' } }));
+            aiModuleManager.pullModel(model, (progress) => {
+                if (progress.status === "downloading" && progress.total && progress.completed) {
+                    const percent = Math.round((progress.completed / progress.total) * 100);
+                    setDownloadingModelsState(prev => ({
+                        ...prev,
+                        [model.name]: { progress: percent, status: 'Downloading...' }
+                    }));
+                } else if (progress.status === "success") {
+                    setDownloadingModelsState(prev => {
+                        const next = { ...prev };
+                        delete next[model.name];
+                        return next;
+                    });
+                } else if (progress.status === "error") {
+                    setDownloadingModelsState(prev => {
+                        const next = { ...prev };
+                        delete next[model.name];
+                        return next;
+                    });
+                    alert(`Failed to download ${model.name}: ${progress.error}`);
+                } else {
+                    // Capture intermediate statuses like "pulling manifest", "verifying", etc.
+                    setDownloadingModelsState(prev => ({
+                        ...prev,
+                        [model.name]: { progress: prev[model.name]?.progress || 0, status: progress.status }
+                    }));
+                }
+            });
+        }
     };
 
     const state: AppState = {
@@ -403,7 +442,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         isLeftCollapsed, isRightCollapsed,
         ragStatus,
         cameraDeviceId,
-        currentAnimation
+        currentAnimation,
+        downloadingModels
     };
 
     return (

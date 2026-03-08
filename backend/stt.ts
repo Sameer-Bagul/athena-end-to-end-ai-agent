@@ -33,7 +33,9 @@ export async function transcribe(input: any): Promise<string> {
                 return "";
             }
 
-            return json.text || "";
+            const text = json.text || "";
+            console.log(`[BACKEND STT] Transcription finished: "${text}"`);
+            return text;
 
         } catch (error: any) {
             if (error.code === 'ECONNREFUSED') {

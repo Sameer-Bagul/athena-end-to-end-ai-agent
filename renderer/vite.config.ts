@@ -11,33 +11,33 @@ export default defineConfig({
   build: {
     outDir: "dist",
     emptyOutDir: true,
-    commonjsOptions: {
-      include: [/onnxruntime-web/, /node_modules/]
-    },
     sourcemap: false,
     rollupOptions: {
       output: {
         manualChunks: (id) => {
           if (id.includes('node_modules')) {
-            if (id.includes('three') || id.includes('@react-three')) {
+            if (id.includes('three/examples') || id.includes('three/build')) {
+              return 'vendor-three-core';
+            }
+            if (id.includes('three')) {
               return 'vendor-three';
             }
             if (id.includes('@pixiv/three-vrm') || id.includes('vrm-mixamo-retarget')) {
               return 'vendor-vrm';
             }
-            if (id.includes('@mediapipe/tasks-vision')) {
+            if (id.includes('@mediapipe')) {
               return 'vendor-mediapipe';
             }
-            if (id.includes('react') || id.includes('react-dom')) {
+            if (id.includes('react')) {
               return 'vendor-react';
+            }
+            if (id.includes('lucide-react')) {
+              return 'vendor-icons';
             }
           }
         }
       }
     }
-  },
-  optimizeDeps: {
-    exclude: ["onnxruntime-web"]
   },
   worker: {
     format: "es"

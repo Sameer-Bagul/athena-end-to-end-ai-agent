@@ -1,19 +1,21 @@
 import { motion } from "framer-motion";
 import { useEffect } from "react";
+import { useAppStore } from "../../../context/AppContext";
 
 interface FirstInteractionProps {
     onComplete: () => void;
-    userName: string;
 }
 
-export function FirstInteraction({ onComplete, userName }: FirstInteractionProps) {
+export function FirstInteraction({ onComplete }: FirstInteractionProps) {
+    const { state } = useAppStore();
 
     useEffect(() => {
         // Simulate "Waking up" delay
-        setTimeout(() => {
+        const timer = setTimeout(() => {
             onComplete();
         }, 4000); // 4 seconds total
-    }, []);
+        return () => clearTimeout(timer);
+    }, [onComplete]);
 
     return (
         <div className="flex flex-col items-center justify-center h-full text-center">
@@ -36,18 +38,18 @@ export function FirstInteraction({ onComplete, userName }: FirstInteractionProps
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 1 }}
-                className="text-2xl font-light text-white mb-2"
+                className="text-3xl font-light text-white mb-2"
             >
-                Hello, <span className="font-normal text-cyan-300">{userName}</span>.
+                Hello, <span className="font-bold text-cyan-300">{state.userProfile.name || "User"}</span>.
             </motion.h2>
 
             <motion.p
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 2.5 }}
-                className="text-white/40 text-sm font-mono"
+                className="text-white/40 text-[10px] uppercase font-bold tracking-[0.3em]"
             >
-                System Online. Listening...
+                Neural Synthesis Complete.
             </motion.p>
         </div>
     );
