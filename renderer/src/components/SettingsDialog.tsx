@@ -1,5 +1,5 @@
 import * as React from "react";
-import { X, Keyboard, Activity, Link as LinkIcon, User, Newspaper, CloudSun, BrainCircuit, Server, Zap, Cpu, Brain } from "lucide-react";
+import { X, Keyboard, Activity, Link as LinkIcon, User, Newspaper, CloudSun, BrainCircuit, Server, Zap, Cpu, Brain, Box, Palette, Sun } from "lucide-react";
 import { ModelHub } from "./ModelHub";
 
 import { cn } from "../lib/utils";
@@ -29,7 +29,7 @@ interface SettingsDialogProps {
 
 export function SettingsDialog({ isOpen, onClose, settings: _initialSettings, onUpdate }: SettingsDialogProps) {
     const { state, actions } = useAppStore();
-    const [activeTab, setActiveTab] = React.useState<'general' | 'profile' | 'ai' | 'cognition' | 'widget' | 'plugins'>('general');
+    const [activeTab, setActiveTab] = React.useState<'general' | 'profile' | 'ai' | 'cognition' | 'widget' | 'plugins' | 'env'>('general');
     const [wakeWord] = React.useState("Alt + Space");
 
     // Local state
@@ -103,6 +103,7 @@ export function SettingsDialog({ isOpen, onClose, settings: _initialSettings, on
                         <NavButton active={activeTab === 'cognition'} onClick={() => setActiveTab('cognition')} icon={<Brain className="size-4" />} label="Cognition" />
                         <NavButton active={activeTab === 'widget'} onClick={() => setActiveTab('widget')} icon={<Activity className="size-4" />} label="Widget" />
                         <NavButton active={activeTab === 'plugins'} onClick={() => setActiveTab('plugins')} icon={<LinkIcon className="size-4" />} label="Connect" />
+                        <NavButton active={activeTab === 'env'} onClick={() => setActiveTab('env')} icon={<Box className="size-4" />} label="Environment" />
                     </div>
 
                     <div className="px-3 mt-auto">
@@ -269,6 +270,69 @@ export function SettingsDialog({ isOpen, onClose, settings: _initialSettings, on
                                             value={newsKey} setValue={setNewsKey} onBlur={handlePluginUpdate} placeholder="newsapi.org Key" />
                                         <PluginCard icon={<CloudSun className="text-blue-400" />} title="OpenWeather"
                                             value={weatherKey} setValue={setWeatherKey} onBlur={handlePluginUpdate} placeholder="openweathermap.org Key" />
+                                    </div>
+                                </Section>
+                            )}
+
+                            {/* ENVIRONMENT TAB */}
+                            {activeTab === 'env' && (
+                                <Section title="3D Environment" description="Customize Athena's physical workspace and lighting.">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 p-1">
+                                        {/* Atmosphere */}
+                                        <div className="space-y-6">
+                                            <div className="flex items-center gap-2 text-white/40 mb-2">
+                                                <Palette className="size-4" />
+                                                <span className="text-[10px] font-bold uppercase tracking-widest">Atmosphere</span>
+                                            </div>
+                                            <div className="space-y-4">
+                                                <div className="flex items-center justify-between">
+                                                    <Label className="text-xs text-white/60">Background</Label>
+                                                    <input type="color" value={state.sceneSettings.bgColor}
+                                                        onChange={(e) => actions.setSceneSettings({ bgColor: e.target.value })}
+                                                        className="size-8 rounded-lg bg-transparent border-none cursor-pointer p-0" />
+                                                </div>
+                                                <div className="flex items-center justify-between">
+                                                    <Label className="text-xs text-white/60">Grid Color</Label>
+                                                    <input type="color" value={state.sceneSettings.gridColor}
+                                                        onChange={(e) => actions.setSceneSettings({ gridColor: e.target.value })}
+                                                        className="size-8 rounded-lg bg-transparent border-none cursor-pointer p-0" />
+                                                </div>
+                                                <MinimalSlider label="Floor Opacity" value={state.sceneSettings.floorOpacity} min={0} max={1} step={0.05}
+                                                    onChange={(v) => actions.setSceneSettings({ floorOpacity: v })} />
+                                                <MinimalSlider label="Fog Density" value={state.sceneSettings.fogDensity} min={0} max={0.05} step={0.001}
+                                                    onChange={(v) => actions.setSceneSettings({ fogDensity: v })} />
+                                            </div>
+                                        </div>
+
+                                        {/* Illumination */}
+                                        <div className="space-y-6">
+                                            <div className="flex items-center gap-2 text-white/40 mb-2">
+                                                <Sun className="size-4" />
+                                                <span className="text-[10px] font-bold uppercase tracking-widest">Illumination</span>
+                                            </div>
+                                            <div className="space-y-4">
+                                                <div className="flex items-center justify-between">
+                                                    <Label className="text-xs text-white/60">Key Light</Label>
+                                                    <input type="color" value={state.sceneSettings.keyLightColor}
+                                                        onChange={(e) => actions.setSceneSettings({ keyLightColor: e.target.value })}
+                                                        className="size-8 rounded-lg bg-transparent border-none cursor-pointer p-0" />
+                                                </div>
+                                                <div className="flex items-center justify-between">
+                                                    <Label className="text-xs text-white/60">Fill Light</Label>
+                                                    <input type="color" value={state.sceneSettings.fillLightColor}
+                                                        onChange={(e) => actions.setSceneSettings({ fillLightColor: e.target.value })}
+                                                        className="size-8 rounded-lg bg-transparent border-none cursor-pointer p-0" />
+                                                </div>
+                                                <div className="flex items-center justify-between">
+                                                    <Label className="text-xs text-white/60">Back Light</Label>
+                                                    <input type="color" value={state.sceneSettings.backLightColor}
+                                                        onChange={(e) => actions.setSceneSettings({ backLightColor: e.target.value })}
+                                                        className="size-8 rounded-lg bg-transparent border-none cursor-pointer p-0" />
+                                                </div>
+                                                <MinimalSlider label="Ambient" value={state.sceneSettings.ambientIntensity} min={0} max={2} step={0.1}
+                                                    onChange={(v) => actions.setSceneSettings({ ambientIntensity: v })} />
+                                            </div>
+                                        </div>
                                     </div>
                                 </Section>
                             )}

@@ -47,14 +47,13 @@ const ThreeStageComponent = forwardRef<ThreeStageHandle, ThreeStageProps>(({
   cameraFov,
   gridVisible,
   environmentVisible,
-  backgroundColor,
   cameraMode,
   cameraDeviceId,
   onReady,
   onError,
   onThumbnailGenerated
 }, ref) => {
-  const { actions } = useAppStore();
+  const { state, actions } = useAppStore();
   const containerRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<AthenaScene | null>(null);
   const animationManagerRef = useRef<AnimationManager | null>(null);
@@ -324,9 +323,16 @@ const ThreeStageComponent = forwardRef<ThreeStageHandle, ThreeStageProps>(({
     if (sceneRef.current) sceneRef.current.setCameraFov(cameraFov);
   }, [cameraFov]);
 
+  // Dynamic Scene Settings
   useEffect(() => {
-    if (sceneRef.current) sceneRef.current.setBackgroundColor(backgroundColor ?? '#0f0f1e');
-  }, [backgroundColor]);
+    const s = state.sceneSettings;
+    if (!sceneRef.current || !s) return;
+
+    sceneRef.current.setBackground(s.bgColor, s.bgColor, s.bgColor); // Simplified for now
+    sceneRef.current.setLightColors(s.keyLightColor, s.fillLightColor, s.backLightColor);
+    sceneRef.current.setGridColor(s.gridColor, s.gridColor);
+    sceneRef.current.setFloorSettings(s.floorOpacity, s.bgColor);
+  }, [state.sceneSettings, isVrmReady]);
 
   return (
     <div className="relative w-full h-full overflow-hidden">

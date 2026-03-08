@@ -132,7 +132,7 @@ export function ChatPanel({ onSendMessage, onClearHistory }: ChatPanelProps) {
                         <Bot className="size-3 text-white/40" />
                     </div>
                     <div className="flex flex-col">
-                        <h3 className="text-[13px] font-semibold text-white/90">Athena</h3>
+                        <h3 className="text-[13px] font-semibold text-white/90">{state.selectedCharacter.name}</h3>
                         <div className="flex items-center gap-1.5 mt-0.5">
                             <motion.div
                                 animate={state.isChatProcessing ? { opacity: [1, 0, 1] } : {}}
@@ -194,7 +194,7 @@ export function ChatPanel({ onSendMessage, onClearHistory }: ChatPanelProps) {
                                 "text-[8px] font-medium text-white/40 opacity-40 group-hover:opacity-100 transition-opacity",
                                 msg.role === "user" ? "text-right" : "text-left"
                             )}>
-                                {msg.role === "user" ? "You" : "Athena"}
+                                {msg.role === "user" ? "You" : state.selectedCharacter.name}
                             </div>
 
                             <div className={cn(

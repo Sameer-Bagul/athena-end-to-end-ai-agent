@@ -16,6 +16,17 @@ export interface PluginConfig {
     weatherApiKey: string;
 }
 
+export interface SceneSettings {
+    bgColor: string;
+    gridColor: string;
+    floorOpacity: number;
+    ambientIntensity: number;
+    keyLightColor: string;
+    fillLightColor: string;
+    backLightColor: string;
+    fogDensity: number;
+}
+
 export type AiProviderType = 'ollama' | 'lmstudio' | 'grok' | 'gemini';
 
 export interface AiConfig {
@@ -59,6 +70,7 @@ export interface AppState {
     userProfile: UserProfile;
     pluginConfig: PluginConfig;
     aiConfig: AiConfig;
+    sceneSettings: SceneSettings;
 
     // UI state for collapsed panels
     isLeftCollapsed: boolean;
@@ -109,6 +121,7 @@ export interface AppActions {
     setUserProfile: (profile: UserProfile) => void;
     setPluginConfig: (config: PluginConfig) => void;
     setAiConfig: (config: AiConfig) => void;
+    setSceneSettings: (settings: Partial<SceneSettings>) => void;
 
     // UI
     toggleLeftCollapse: () => void;
@@ -162,9 +175,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const [currentTranscript, setCurrentTranscript] = React.useState("");
 
     // Chat
-    const [chatMessages, setChatMessages] = React.useState<ChatMessage[]>([
-        { role: 'assistant', content: "Hi Sameer! I'm here and ready to help. How are you doing today?" }
-    ]);
+    const [chatMessages, setChatMessages] = React.useState<ChatMessage[]>(() => {
+        const name = (JSON.parse(localStorage.getItem("athena-user-profile") || "{}")).name || "there";
+        return [{ role: 'assistant', content: `Hi ${name}! I'm here and ready to help. How are you doing today?` }];
+    });
     const [isChatProcessing, setIsChatProcessing] = React.useState(false);
 
     // Settings
@@ -236,6 +250,34 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
     });
 
+    const [sceneSettings, setSceneSettingsState] = React.useState<SceneSettings>(() => {
+        try {
+            const saved = localStorage.getItem("athena-scene-settings");
+            const defaults: SceneSettings = {
+                bgColor: "#0f0f1e",
+                gridColor: "#4b0082",
+                floorOpacity: 0.5,
+                ambientIntensity: 0.6,
+                keyLightColor: "#ffffff",
+                fillLightColor: "#00ffff",
+                backLightColor: "#ff00ff",
+                fogDensity: 0.015
+            };
+            return saved ? { ...defaults, ...JSON.parse(saved) } : defaults;
+        } catch {
+            return {
+                bgColor: "#0f0f1e",
+                gridColor: "#4b0082",
+                floorOpacity: 0.5,
+                ambientIntensity: 0.6,
+                keyLightColor: "#ffffff",
+                fillLightColor: "#00ffff",
+                backLightColor: "#ff00ff",
+                fogDensity: 0.015
+            };
+        }
+    });
+
     // UI
     const [isLeftCollapsed, setIsLeftCollapsed] = React.useState(true);
     const [isRightCollapsed, setIsRightCollapsed] = React.useState(true);
@@ -293,6 +335,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }, [aiConfig]);
 
     React.useEffect(() => {
+        localStorage.setItem("athena-scene-settings", JSON.stringify(sceneSettings));
+    }, [sceneSettings]);
+
+    React.useEffect(() => {
         localStorage.setItem("athena-camera-id", cameraDeviceId);
     }, [cameraDeviceId]);
 
@@ -304,7 +350,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                 // @ts-ignore
                 const history = await window.athena.loadChatHistory();
                 if (history?.length) setChatMessages(history);
-                else setChatMessages([{ role: 'assistant', content: "Hello! I'm Athena. It's great to see you again. Is there anything I can help you with?" }]);
+                else {
+                    const name = userProfile.name || "there";
+                    setChatMessages([{ role: 'assistant', content: `Hello ${name}! I'm Athena. It's great to see you. Is there anything I can help you with?` }]);
+                }
             }
         };
         loadHistory();
@@ -382,6 +431,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setPluginConfig,
         setAiConfig,
 
+        setSceneSettings: (s) => setSceneSettingsState(prev => ({ ...prev, ...s })),
+
         toggleLeftCollapse: () => setIsLeftCollapsed(p => !p),
         toggleRightCollapse: () => setIsRightCollapsed(p => !p),
         updateLastMessage: (content: string) => {
@@ -438,7 +489,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         isListening, voiceStatus, currentTranscript,
         chatMessages, isChatProcessing,
         widgetSettings, showSettings,
-        userProfile, pluginConfig, aiConfig,
+        userProfile, pluginConfig, aiConfig, sceneSettings,
         isLeftCollapsed, isRightCollapsed,
         ragStatus,
         cameraDeviceId,

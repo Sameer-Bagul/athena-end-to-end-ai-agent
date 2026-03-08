@@ -96,8 +96,8 @@ export function VRMControlPanel({ onOpenWidget }: VRMControlPanelProps) {
             {/* Left Side Panel */}
             <aside
                 className={cn(
-                    "h-full z-20 relative bg-[#050505]/80 backdrop-blur-3xl transition-all duration-700 ease-in-out flex flex-col overflow-hidden",
-                    state.isLeftCollapsed ? "w-0 border-none px-0" : "w-[360px] border-r border-white/[0.03] shadow-[40px_0_100px_rgba(0,0,0,0.8)]"
+                    "h-full z-20 relative transition-all duration-700 ease-in-out flex flex-col overflow-hidden",
+                    state.isLeftCollapsed ? "w-0 border-none px-0" : "w-[360px] border-r border-white/[0.03]"
                 )}
             >
                 <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col">

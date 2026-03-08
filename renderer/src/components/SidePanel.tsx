@@ -95,7 +95,7 @@ export function SidePanel({ onToggleListening, onExpressionChange }: SidePanelPr
             {/* Header */}
             <div className="flex items-center justify-between px-6 h-16 shrink-0 border-b border-white/[0.03]">
                 <div className="flex flex-col">
-                    <span className="text-[11px] font-medium text-white/40 uppercase tracking-widest">Athena</span>
+                    <span className="text-[11px] font-medium text-white/40 uppercase tracking-widest">{state.selectedCharacter.name}</span>
                     <h2 className="text-[13px] font-semibold text-white/90 leading-tight tracking-tight">Core Controller</h2>
                 </div>
 

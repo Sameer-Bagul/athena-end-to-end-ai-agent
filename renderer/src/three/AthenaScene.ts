@@ -111,20 +111,16 @@ export class AthenaScene {
    * Setup environment elements
    * Adds procedural gradient sky, neon grid, and atmosphere
    */
-  private setupEnvironment(): void {
-    // 1. Procedural Gradient Skybox using CanvasTexture
+  public setBackground(skyColor: string, middleColor: string, horizonColor: string): void {
     const canvas = document.createElement('canvas');
     canvas.width = 2;
     canvas.height = 512;
     const context = canvas.getContext('2d');
     if (context) {
       const gradient = context.createLinearGradient(0, 0, 0, 512);
-      // Top: Deep Purple/Night
-      gradient.addColorStop(0, '#0f0c29');
-      // Middle: Vibrant Cyan/Blue (Horizon)
-      gradient.addColorStop(0.5, '#302b63');
-      // Bottom: Brighter Cyan/White glow near horizon line
-      gradient.addColorStop(1, '#24243e');
+      gradient.addColorStop(0, skyColor);
+      gradient.addColorStop(0.5, middleColor);
+      gradient.addColorStop(1, horizonColor);
 
       context.fillStyle = gradient;
       context.fillRect(0, 0, 2, 512);
@@ -132,10 +128,19 @@ export class AthenaScene {
       const texture = new THREE.CanvasTexture(canvas);
       texture.colorSpace = THREE.SRGBColorSpace;
       this.scene.background = texture;
+
+      // Update fog to match horizon
+      if (this.scene.fog instanceof THREE.FogExp2) {
+        this.scene.fog.color.set(horizonColor);
+      }
     } else {
-      // Fallback
-      this.scene.background = new THREE.Color(0x1a1a2e);
+      this.scene.background = new THREE.Color(middleColor);
     }
+  }
+
+  private setupEnvironment(): void {
+    // 1. Procedural Gradient Skybox
+    this.setBackground('#0f0c29', '#302b63', '#24243e');
     console.log('🟢 [AthenaScene] Added procedural gradient sky');
 
     // 2. Neon Grid Helper
@@ -233,6 +238,34 @@ export class AthenaScene {
     if (this.keyLight) this.keyLight.intensity = 1.5 * scale;
     if (this.fillLight) this.fillLight.intensity = 0.8 * scale;
     if (this.backLight) this.backLight.intensity = 1.0 * scale;
+  }
+
+  public setLightColors(key: string, fill: string, back: string): void {
+    if (this.keyLight) this.keyLight.color.set(key);
+    if (this.fillLight) this.fillLight.color.set(fill);
+    if (this.backLight) this.backLight.color.set(back);
+  }
+
+  public setGridColor(center: string, grid: string): void {
+    if (this.gridHelper) {
+      this.scene.remove(this.gridHelper);
+      this.gridHelper.geometry.dispose();
+      (this.gridHelper.material as THREE.Material).dispose();
+
+      this.gridHelper = new THREE.GridHelper(50, 50, new THREE.Color(center), new THREE.Color(grid));
+      this.gridHelper.position.y = 0;
+      (this.gridHelper.material as THREE.Material).transparent = true;
+      (this.gridHelper.material as THREE.Material).opacity = 0.3;
+      this.scene.add(this.gridHelper);
+    }
+  }
+
+  public setFloorSettings(opacity: number, color?: string): void {
+    if (this.ground) {
+      const mat = this.ground.material as THREE.MeshStandardMaterial;
+      mat.opacity = opacity;
+      if (color) mat.color.set(color);
+    }
   }
 
   /**
