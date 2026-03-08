@@ -1,5 +1,14 @@
 import axios from 'axios';
 import FormData from 'form-data';
+import { Agent } from 'http';
+
+// Connection pooling for better performance
+const httpAgent = new Agent({
+    keepAlive: true,
+    maxSockets: 5,
+    maxFreeSockets: 2,
+    timeout: 30000
+});
 
 export async function transcribe(input: any): Promise<string> {
     const MAX_RETRIES = 5;
@@ -22,6 +31,7 @@ export async function transcribe(input: any): Promise<string> {
                     ...form.getHeaders(),
                     'Content-Length': form.getLengthSync()
                 },
+                httpAgent,
                 maxBodyLength: Infinity,
                 maxContentLength: Infinity,
                 timeout: 30000 // 30s timeout for processing

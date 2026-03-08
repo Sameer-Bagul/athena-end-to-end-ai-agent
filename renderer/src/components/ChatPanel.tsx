@@ -18,7 +18,7 @@ interface ChatPanelProps {
     onClearHistory?: () => void;
 }
 
-export function ChatPanel({ onSendMessage, onClearHistory }: ChatPanelProps) {
+export const ChatPanel = React.memo(function ChatPanel({ onSendMessage, onClearHistory }: ChatPanelProps) {
     const { state, actions } = useAppStore();
     const [input, setInput] = React.useState("");
     const scrollRef = React.useRef<HTMLDivElement>(null);
@@ -328,4 +328,4 @@ export function ChatPanel({ onSendMessage, onClearHistory }: ChatPanelProps) {
             </div>
         </motion.div >
     );
-}
+});

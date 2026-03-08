@@ -403,26 +403,67 @@ export class AnimationManager {
    * Loads all defined animations in parallel
    */
   public async loadAllAnimations(): Promise<void> {
-    const loadPromises = Object.values(AnimationAction).map(async (action) => {
+    console.log('[AnimationManager] Starting animation preload...');
+    
+    // Priority animations (load first for immediate use)
+    const ESSENTIAL_ANIMATIONS: AnimationAction[] = [
+      AnimationAction.IDLE,
+      AnimationAction.TALK_NORMAL,
+      AnimationAction.THINKING,
+      AnimationAction.RELAX
+    ];
+
+    const SECONDARY_ANIMATIONS = (Object.values(AnimationAction) as AnimationAction[]).filter(
+      action => !(ESSENTIAL_ANIMATIONS as readonly AnimationAction[]).includes(action)
+    );
+
+    // Load essential animations first
+    const essentialPromises = ESSENTIAL_ANIMATIONS.map(async (action) => {
       try {
         await this.loadAnimation(action);
         return { action, status: 'success' };
       } catch (error) {
-        console.warn(`⚠️ Failed to load animation: ${action}`, error);
+        console.warn(`⚠️ Failed to load essential animation: ${action}`, error);
         return { action, status: 'failed', error };
       }
     });
 
-    const results = await Promise.all(loadPromises);
+    const essentialResults = await Promise.all(essentialPromises);
+    const essentialSuccess = essentialResults.filter(r => r.status === 'success').length;
+    console.log(`✅ Essential animations loaded: ${essentialSuccess}/${ESSENTIAL_ANIMATIONS.length}`);
 
-    const successCount = results.filter(r => r.status === 'success').length;
-    const failCount = results.filter(r => r.status === 'failed').length;
-
-    console.log(`✅ VRMA Animation Loading Complete: ${successCount} loaded, ${failCount} failed`);
-
-    if (successCount === 0) {
-      throw new Error('Failed to load any animations');
+    // Lazy load secondary animations in background
+    if (typeof requestIdleCallback !== 'undefined') {
+      SECONDARY_ANIMATIONS.forEach((action, index) => {
+        requestIdleCallback(() => {
+          this.loadAnimation(action as AnimationAction).catch(e => 
+            console.warn(`⚠️ Failed to lazy-load animation: ${action}`, e)
+          );
+        }, { timeout: 2000 + index * 100 }); // Stagger loading
+      });
+      console.log(`🔄 Lazy-loading ${SECONDARY_ANIMATIONS.length} secondary animations in background`);
+    } else {
+      // Fallback: Load in batches with delays
+      this.lazyLoadAnimationsBatched(SECONDARY_ANIMATIONS as AnimationAction[]);
     }
+  }
+
+  /**
+   * Lazy load animations in batches (fallback for browsers without requestIdleCallback)
+   */
+  private async lazyLoadAnimationsBatched(animations: AnimationAction[]) {
+    const BATCH_SIZE = 3;
+    for (let i = 0; i < animations.length; i += BATCH_SIZE) {
+      const batch = animations.slice(i, i + BATCH_SIZE);
+      await Promise.all(batch.map(action => 
+        this.loadAnimation(action).catch(e => 
+          console.warn(`⚠️ Failed to load ${action}:`, e)
+        )
+      ));
+      // Small delay between batches
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    console.log(`✅ Completed lazy-loading ${animations.length} secondary animations`);
   }
 
   /**
@@ -599,24 +640,38 @@ export class AnimationManager {
    */
   public dispose(): void {
     console.log('🧹 [AnimationManager] Disposing animation manager resources');
+    
+    // Stop current action
     if (this.currentAction) {
       this.currentAction.stop();
       this.currentAction = null;
     }
 
+    // Dispose all animations with deep cleanup
+    this.animations.forEach(config => {
+      config.clipAction.stop();
+      
+      // Deep dispose of animation clips
+      if (config.clip) {
+        // Clear tracks
+        config.clip.tracks = [];
+        config.clip.duration = 0;
+      }
+    });
+    this.animations.clear();
+
+    // Dispose mixer thoroughly
     if (this.mixer) {
       this.mixer.stopAllAction();
       this.mixer.uncacheRoot(this.mixer.getRoot());
       this.mixer = null;
     }
 
-    this.animations.forEach(config => {
-      config.clipAction.stop();
-      // Optional: uncache clips if needed, but usually mixer.uncacheRoot handles it
-    });
-    this.animations.clear();
-
+    // Clear VRM reference
     this.vrm = null;
+    this.currentAnimationType = AnimationAction.RELAX;
+    
+    console.log('✅ [AnimationManager] Disposal complete');
   }
 
   // * Processes root motion to allow X/Z movement relative to start,

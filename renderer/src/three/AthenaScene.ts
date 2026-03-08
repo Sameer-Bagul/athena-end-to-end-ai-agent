@@ -79,15 +79,30 @@ export class AthenaScene {
     this.scene.add(this.ambientLight);
     console.log('🟢 [AthenaScene] Added ambient light (intensity: 0.6)');
 
+    // Dynamic shadow quality based on device
+    const getShadowMapSize = () => {
+      // Check GPU capabilities
+      const canvas = document.createElement('canvas');
+      const gl = canvas.getContext('webgl2') || canvas.getContext('webgl');
+      if (!gl) return 1024;
+      
+      const maxTextureSize = gl.getParameter(gl.MAX_TEXTURE_SIZE);
+      const isHighEnd = maxTextureSize >= 8192 && navigator.hardwareConcurrency >= 8;
+      return isHighEnd ? 2048 : 1024;
+    };
+
+    const shadowMapSize = getShadowMapSize();
+
     // Key light - main light source (front-right)
     this.keyLight = new THREE.DirectionalLight(0xffffff, 1.8); // Brighter key
     this.keyLight.position.set(2, 4, 3);
     this.keyLight.castShadow = true;
-    this.keyLight.shadow.mapSize.width = 2048;
-    this.keyLight.shadow.mapSize.height = 2048;
+    this.keyLight.shadow.mapSize.width = shadowMapSize;
+    this.keyLight.shadow.mapSize.height = shadowMapSize;
     this.keyLight.shadow.bias = -0.0001;
+    this.keyLight.shadow.autoUpdate = false; // Manual updates only
     this.scene.add(this.keyLight);
-    console.log('🟢 [AthenaScene] Added key light');
+    console.log(`🟢 [AthenaScene] Added key light (shadow: ${shadowMapSize}x${shadowMapSize})`);
 
     // Fill light - Cool Blue/Cyan to match the "fresh" theme
     this.fillLight = new THREE.DirectionalLight(0x00ffff, 1.2); // Cyan tint
@@ -394,10 +409,23 @@ export class AthenaScene {
   private startRenderLoop(): void {
     let frameCount = 0;
 
-    // FPS Limiting
-    const fps = 30; // Target FPS
+    // Dynamic FPS based on device capabilities
+    const getOptimalFPS = () => {
+      const isMobile = /Android|iPhone|iPad/i.test(navigator.userAgent);
+      const isLowEnd = navigator.hardwareConcurrency <= 4;
+      const hasLowMemory = (navigator as any).deviceMemory && (navigator as any).deviceMemory < 4;
+      
+      if (isMobile || isLowEnd || hasLowMemory) {
+        return 24; // Battery/performance saving
+      }
+      return 30; // Balanced for desktop
+    };
+
+    const fps = getOptimalFPS();
     const interval = 1000 / fps;
     let lastTime = 0;
+
+    console.log(`🎬 [AthenaScene] Starting render loop at ${fps} FPS`);
 
     const animate = (currentTime: number) => {
       this.animationFrameId = requestAnimationFrame(animate);

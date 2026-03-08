@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { VRMControlPanel } from "./components/VRMControlPanel";
 import { OnboardingFlow } from "./components/onboarding/OnboardingFlow";
 import { WidgetLayout } from "./components/WidgetLayout";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 
 function App() {
   const [loading, setLoading] = useState(true);
@@ -35,26 +36,32 @@ function App() {
 
   // --- WIDGET MODE RENDER ---
   if (isWidgetWindow) {
-    return <WidgetLayout />;
+    return (
+      <ErrorBoundary>
+        <WidgetLayout />
+      </ErrorBoundary>
+    );
   }
 
   // --- MAIN APP RENDER ---
   return (
-    <div className="h-screen w-screen bg-background overflow-hidden font-sans text-foreground flex flex-col">
-      {/* No TitleBar (Using Native Frame) */}
+    <ErrorBoundary>
+      <div className="h-screen w-screen bg-background overflow-hidden font-sans text-foreground flex flex-col">
+        {/* No TitleBar (Using Native Frame) */}
 
-      <div className="flex-1 relative overflow-hidden">
-        {showOnboarding ? (
-          <div className="h-full w-full bg-black">
-            <OnboardingFlow onComplete={handleOnboardingComplete} />
-          </div>
-        ) : (
-          <VRMControlPanel
-            onOpenWidget={handleOpenWidget}
-          />
-        )}
+        <div className="flex-1 relative overflow-hidden">
+          {showOnboarding ? (
+            <div className="h-full w-full bg-black">
+              <OnboardingFlow onComplete={handleOnboardingComplete} />
+            </div>
+          ) : (
+            <VRMControlPanel
+              onOpenWidget={handleOpenWidget}
+            />
+          )}
+        </div>
       </div>
-    </div>
+    </ErrorBoundary>
   );
 }
 

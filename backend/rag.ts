@@ -12,6 +12,7 @@ import { createStuffDocumentsChain } from "@langchain/classic/chains/combine_doc
 import { createRetrievalChain } from "@langchain/classic/chains/retrieval";
 import path from "node:path";
 import fs from "node:fs";
+import { app } from "electron";
 
 export class RagService {
     private llm: Ollama;
@@ -19,11 +20,66 @@ export class RagService {
     private vectorStore: MemoryVectorStore | null = null;
     private indexedFiles: string[] = [];
     private modelName: string;
+    private persistencePath: string;
 
     constructor(modelName: string = "dolphin-mistral") {
         this.modelName = modelName;
         this.llm = new Ollama({ model: modelName });
         this.embeddings = new OllamaEmbeddings({ model: "nomic-embed-text:latest" });
+        this.persistencePath = path.join(app.getPath('userData'), 'rag-data.json');
+        
+        // Load persisted data on initialization
+        this.loadPersistedData();
+    }
+
+    /**
+     * Load persisted vector store data from disk
+     */
+    private async loadPersistedData() {
+        try {
+            if (fs.existsSync(this.persistencePath)) {
+                const data = JSON.parse(fs.readFileSync(this.persistencePath, 'utf-8'));
+                this.indexedFiles = data.indexedFiles || [];
+                console.log(`[RAG] Loaded ${this.indexedFiles.length} indexed files from persistence`);
+                
+                // Note: Full vector store serialization is complex
+                // For production, consider using a proper vector DB like Chroma or FAISS
+            }
+        } catch (error: any) {
+            console.error('[RAG] Failed to load persisted data:', error.message);
+        }
+    }
+
+    /**
+     * Persist vector store data to disk
+     */
+    private async persistData() {
+        try {
+            const data = {
+                indexedFiles: this.indexedFiles,
+                timestamp: new Date().toISOString()
+            };
+            fs.writeFileSync(this.persistencePath, JSON.stringify(data, null, 2));
+            console.log('[RAG] Data persisted successfully');
+        } catch (error: any) {
+            console.error('[RAG] Failed to persist data:', error.message);
+        }
+    }
+
+    /**
+     * Get optimal chunk size based on file extension
+     */
+    private getOptimalChunkSize(ext: string): { size: number, overlap: number } {
+        switch(ext) {
+            case '.pdf':
+                return { size: 1000, overlap: 200 }; // PDFs have structured content
+            case '.md':
+                return { size: 600, overlap: 100 };  // Markdown has clear sections
+            case '.txt':
+                return { size: 800, overlap: 150 };  // General text
+            default:
+                return { size: 800, overlap: 100 };
+        }
     }
 
     async loadDocument(filePath: string) {
@@ -51,12 +107,14 @@ export class RagService {
             throw error;
         }
 
+        // Use optimal chunk size based on file type
+        const { size, overlap } = this.getOptimalChunkSize(ext);
         const textSplitter = new RecursiveCharacterTextSplitter({
-            chunkSize: 800,
-            chunkOverlap: 100,
+            chunkSize: size,
+            chunkOverlap: overlap,
         });
         const splitDocs = await textSplitter.splitDocuments(docs);
-        console.log(`[RAG] ✂️ Split into ${splitDocs.length} chunks for indexing.`);
+        console.log(`[RAG] ✂️ Split into ${splitDocs.length} chunks (size: ${size}, overlap: ${overlap}).`);
 
         try {
             if (!this.vectorStore) {
@@ -79,6 +137,7 @@ export class RagService {
         }
 
         this.indexedFiles.push(path.basename(filePath));
+        await this.persistData(); // Persist after successful indexing
         return { success: true, fileName: path.basename(filePath) };
     }
 
@@ -147,6 +206,7 @@ export class RagService {
     clearContext() {
         this.vectorStore = null;
         this.indexedFiles = [];
+        this.persistData(); // Clear persisted data too
     }
 }
 

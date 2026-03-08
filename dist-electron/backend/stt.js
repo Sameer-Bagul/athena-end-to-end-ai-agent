@@ -6,6 +6,14 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.transcribe = transcribe;
 const axios_1 = __importDefault(require("axios"));
 const form_data_1 = __importDefault(require("form-data"));
+const http_1 = require("http");
+// Connection pooling for better performance
+const httpAgent = new http_1.Agent({
+    keepAlive: true,
+    maxSockets: 5,
+    maxFreeSockets: 2,
+    timeout: 30000
+});
 async function transcribe(input) {
     const MAX_RETRIES = 5;
     let attempt = 0;
@@ -25,6 +33,7 @@ async function transcribe(input) {
                     ...form.getHeaders(),
                     'Content-Length': form.getLengthSync()
                 },
+                httpAgent,
                 maxBodyLength: Infinity,
                 maxContentLength: Infinity,
                 timeout: 30000 // 30s timeout for processing

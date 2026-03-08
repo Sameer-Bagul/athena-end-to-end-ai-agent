@@ -519,13 +519,36 @@ app.on('will-quit', () => {
   globalShortcut.unregisterAll();
 });
 
-app.on("before-quit", () => {
-  if (pythonServerProcess) {
-    console.log("Killing Python server...");
-    pythonServerProcess.kill();
-  }
-  if (ttsServerProcess) {
-    console.log("Killing TTS server...");
-    ttsServerProcess.kill();
-  }
+app.on("before-quit", async () => {
+  console.log("🛑 [Electron] Initiating graceful shutdown...");
+  
+  // Graceful shutdown helper
+  const shutdownService = (proc: any, name: string): Promise<void> => {
+    return new Promise((resolve) => {
+      if (!proc) return resolve();
+      
+      console.log(`[Electron] Shutting down ${name}...`);
+      proc.on('exit', () => {
+        console.log(`[Electron] ${name} exited`);
+        resolve();
+      });
+      
+      proc.kill('SIGTERM'); // Graceful
+      
+      setTimeout(() => {
+        if (!proc.killed) {
+          console.warn(`[Electron] Force killing ${name}`);
+          proc.kill('SIGKILL');
+          resolve();
+        }
+      }, 5000); // Force after 5s
+    });
+  };
+  
+  await Promise.all([
+    shutdownService(pythonServerProcess, 'Python STT'),
+    shutdownService(ttsServerProcess, 'TTS')
+  ]);
+  
+  console.log("✅ [Electron] Graceful shutdown complete");
 });

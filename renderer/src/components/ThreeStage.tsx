@@ -67,10 +67,13 @@ const ThreeStageComponent = forwardRef<ThreeStageHandle, ThreeStageProps>(({
   const onThumbnailGeneratedRef = useRef(onThumbnailGenerated);
   const actionsRef = useRef(actions);
 
-  useEffect(() => { onReadyRef.current = onReady; }, [onReady]);
-  useEffect(() => { onErrorRef.current = onError; }, [onError]);
-  useEffect(() => { onThumbnailGeneratedRef.current = onThumbnailGenerated; }, [onThumbnailGenerated]);
-  useEffect(() => { actionsRef.current = actions; }, [actions]);
+  // Consolidated ref updates to reduce effect overhead
+  useEffect(() => {
+    onReadyRef.current = onReady;
+    onErrorRef.current = onError;
+    onThumbnailGeneratedRef.current = onThumbnailGenerated;
+    actionsRef.current = actions;
+  }, [onReady, onError, onThumbnailGenerated, actions]);
 
   // Helper to format animation name for UI
   const formatAnimStatus = useCallback((action: string) => {

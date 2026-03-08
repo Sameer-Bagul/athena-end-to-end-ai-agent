@@ -17,6 +17,8 @@ const combine_documents_1 = require("@langchain/classic/chains/combine_documents
 // @ts-ignore
 const retrieval_1 = require("@langchain/classic/chains/retrieval");
 const node_path_1 = __importDefault(require("node:path"));
+const node_fs_1 = __importDefault(require("node:fs"));
+const electron_1 = require("electron");
 class RagService {
     constructor(modelName = "dolphin-mistral") {
         this.vectorStore = null;
@@ -24,6 +26,57 @@ class RagService {
         this.modelName = modelName;
         this.llm = new ollama_1.Ollama({ model: modelName });
         this.embeddings = new ollama_1.OllamaEmbeddings({ model: "nomic-embed-text:latest" });
+        this.persistencePath = node_path_1.default.join(electron_1.app.getPath('userData'), 'rag-data.json');
+        // Load persisted data on initialization
+        this.loadPersistedData();
+    }
+    /**
+     * Load persisted vector store data from disk
+     */
+    async loadPersistedData() {
+        try {
+            if (node_fs_1.default.existsSync(this.persistencePath)) {
+                const data = JSON.parse(node_fs_1.default.readFileSync(this.persistencePath, 'utf-8'));
+                this.indexedFiles = data.indexedFiles || [];
+                console.log(`[RAG] Loaded ${this.indexedFiles.length} indexed files from persistence`);
+                // Note: Full vector store serialization is complex
+                // For production, consider using a proper vector DB like Chroma or FAISS
+            }
+        }
+        catch (error) {
+            console.error('[RAG] Failed to load persisted data:', error.message);
+        }
+    }
+    /**
+     * Persist vector store data to disk
+     */
+    async persistData() {
+        try {
+            const data = {
+                indexedFiles: this.indexedFiles,
+                timestamp: new Date().toISOString()
+            };
+            node_fs_1.default.writeFileSync(this.persistencePath, JSON.stringify(data, null, 2));
+            console.log('[RAG] Data persisted successfully');
+        }
+        catch (error) {
+            console.error('[RAG] Failed to persist data:', error.message);
+        }
+    }
+    /**
+     * Get optimal chunk size based on file extension
+     */
+    getOptimalChunkSize(ext) {
+        switch (ext) {
+            case '.pdf':
+                return { size: 1000, overlap: 200 }; // PDFs have structured content
+            case '.md':
+                return { size: 600, overlap: 100 }; // Markdown has clear sections
+            case '.txt':
+                return { size: 800, overlap: 150 }; // General text
+            default:
+                return { size: 800, overlap: 100 };
+        }
     }
     async loadDocument(filePath) {
         console.log(`[RAG] 📄 Loading document: ${filePath}`);
@@ -50,12 +103,14 @@ class RagService {
             }
             throw error;
         }
+        // Use optimal chunk size based on file type
+        const { size, overlap } = this.getOptimalChunkSize(ext);
         const textSplitter = new textsplitters_1.RecursiveCharacterTextSplitter({
-            chunkSize: 800,
-            chunkOverlap: 100,
+            chunkSize: size,
+            chunkOverlap: overlap,
         });
         const splitDocs = await textSplitter.splitDocuments(docs);
-        console.log(`[RAG] ✂️ Split into ${splitDocs.length} chunks for indexing.`);
+        console.log(`[RAG] ✂️ Split into ${splitDocs.length} chunks (size: ${size}, overlap: ${overlap}).`);
         try {
             if (!this.vectorStore) {
                 this.vectorStore = await memory_1.MemoryVectorStore.fromDocuments(splitDocs, this.embeddings);
@@ -75,6 +130,7 @@ class RagService {
             throw error;
         }
         this.indexedFiles.push(node_path_1.default.basename(filePath));
+        await this.persistData(); // Persist after successful indexing
         return { success: true, fileName: node_path_1.default.basename(filePath) };
     }
     async getRelevantContext(input) {
@@ -135,6 +191,7 @@ class RagService {
     clearContext() {
         this.vectorStore = null;
         this.indexedFiles = [];
+        this.persistData(); // Clear persisted data too
     }
 }
 exports.RagService = RagService;

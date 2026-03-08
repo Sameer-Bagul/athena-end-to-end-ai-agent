@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, useMemo } from "react";
 import { useAppStore } from "../context/AppContext";
 import { selectAnimationAndExpression } from "../lib/aiAnimationSelector";
 import { sendMessageToOllama, generateSpeech } from "../lib/api";
@@ -7,6 +7,12 @@ import { ANIMATION_METADATA } from "../lib/animationMetadata";
 
 export function useAssistant() {
     const { state, actions } = useAppStore();
+
+    // Memoize animation context (only compute once)
+    const animContext = useMemo(
+        () => ANIMATION_METADATA.map(m => `- ${m.file.replace('.fbx', '')}: ${m.description}`).join('\n'),
+        []
+    );
 
     // Audio Queue Logic
     const audioQueueRef = useRef<(() => Promise<void>)[]>([]);
@@ -64,7 +70,6 @@ export function useAssistant() {
             }
 
             // 1. Setup Prompt
-            const animContext = ANIMATION_METADATA.map(m => `- ${m.file.replace('.fbx', '')}: ${m.description}`).join('\n');
             const userName = state.userProfile.name || "User";
             const char = state.selectedCharacter;
 
