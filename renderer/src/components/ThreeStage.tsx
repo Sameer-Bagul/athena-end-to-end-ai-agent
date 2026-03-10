@@ -252,20 +252,21 @@ const ThreeStageComponent = forwardRef<ThreeStageHandle, ThreeStageProps>(({
         setIsLoading(false);
         if (onReadyRef.current) onReadyRef.current();
 
-      } catch (err: any) {
+      } catch (err) {
         if (!isCancelled) {
-          console.error("VRM Load Error:", err);
-          setError(err.message || "Failed to load VRM");
+          const error = err as Error;
+          console.error("VRM Load Error:", error);
+          setError(error.message || "Failed to load VRM");
           setIsLoading(false);
           setIsVrmReady(false);
-          if (onErrorRef.current) onErrorRef.current(err.message);
+          if (onErrorRef.current) onErrorRef.current(error.message);
         }
       }
     };
 
     loadVRM();
     return () => { isCancelled = true; };
-  }, [vrmUrl]); // ONLY depend on vrmUrl
+  }, [vrmUrl, cameraDeviceId]);
 
   // 4. Camera Device Management
   useEffect(() => {

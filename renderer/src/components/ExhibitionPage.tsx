@@ -31,23 +31,23 @@ export function ExhibitionPage({ onSelect, onCancel, initialModelId }: Exhibitio
     // Animation constants for the exhibition
     const EXHIBITION_ANIMATION = "animations/VRMA_03.vrma";
 
-    const handleNext = () => {
+    const handleNext = React.useCallback(() => {
         playClick();
         setIsTransitioning(true);
         setTimeout(() => {
             setCurrentIndex((prev) => (prev + 1) % AVAILABLE_MODELS.length);
             setIsTransitioning(false);
         }, 300);
-    };
+    }, []);
 
-    const handlePrev = () => {
+    const handlePrev = React.useCallback(() => {
         playClick();
         setIsTransitioning(true);
         setTimeout(() => {
             setCurrentIndex((prev) => (prev - 1 + AVAILABLE_MODELS.length) % AVAILABLE_MODELS.length);
             setIsTransitioning(false);
         }, 300);
-    };
+    }, []);
 
     const handleTakePhoto = () => {
         const audio = new Audio("sounds/cameraClick.mp3");
@@ -66,23 +66,23 @@ export function ExhibitionPage({ onSelect, onCancel, initialModelId }: Exhibitio
         }
     };
 
-    const handleKeyDown = (e: KeyboardEvent) => {
+    const handleKeyDown = React.useCallback((e: KeyboardEvent) => {
         if (e.key === "ArrowRight") handleNext();
         if (e.key === "ArrowLeft") handlePrev();
         if (e.key === "Escape") onCancel();
         if (e.key === "Enter") onSelect(currentModel.id);
-    };
+    }, [currentModel, handleNext, handlePrev, onCancel, onSelect]);
 
     React.useEffect(() => {
         window.addEventListener("keydown", handleKeyDown);
         return () => window.removeEventListener("keydown", handleKeyDown);
-    }, [currentModel]);
+    }, [handleKeyDown]);
 
     return (
         <div className="fixed inset-0 z-50 bg-black flex animate-in fade-in duration-500 font-sans selection:bg-primary/20">
 
             {/* LEFT: 3D Stage (60%) */}
-            <div className="w-[60%] h-full relative border-r border-white/10 bg-gradient-to-b from-black/80 to-[#050510]">
+            <div className="w-[60%] h-full relative border-r border-white/10 bg-linear-to-b from-black/80 to-[#050510]">
                 {/* Photo Mode Button */}
                 <div className="absolute top-6 left-6 z-20">
                     <Button
@@ -128,8 +128,8 @@ export function ExhibitionPage({ onSelect, onCancel, initialModelId }: Exhibitio
             <div className="w-[40%] h-full bg-[#09090b] flex flex-col relative overflow-hidden">
                 {/* Background Decoration */}
                 <div className="absolute inset-0 z-0 opacity-20 pointer-events-none">
-                    <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary/10 rounded-full blur-[120px] animate-pulse-slow" />
-                    <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-secondary/10 rounded-full blur-[100px]" />
+                    <div className="absolute top-0 right-0 w-125 h-125 bg-primary/10 rounded-full blur-[120px] animate-pulse-slow" />
+                    <div className="absolute bottom-0 left-0 w-100 h-100 bg-secondary/10 rounded-full blur-[100px]" />
                 </div>
 
                 <div className="relative z-10 flex flex-col h-full overflow-y-auto custom-scrollbar">
@@ -183,7 +183,7 @@ export function ExhibitionPage({ onSelect, onCancel, initialModelId }: Exhibitio
                         {currentModel.backstory && (
                             <div className="space-y-4 animate-in slide-in-from-right-4 duration-500 delay-100">
                                 <h3 className="text-sm font-bold text-white uppercase tracking-widest flex items-center gap-2">
-                                    <span className="w-8 h-[1px] bg-primary/50"></span>
+                                    <span className="w-8 h-px bg-primary/50"></span>
                                     Archive Data
                                 </h3>
                                 <p className="text-muted-foreground leading-relaxed">
@@ -226,7 +226,7 @@ export function ExhibitionPage({ onSelect, onCancel, initialModelId }: Exhibitio
 
                         {/* Relationships */}
                         {currentModel.relationships && (
-                            <div className="p-5 rounded-xl bg-gradient-to-br from-white/5 to-transparent border border-white/5 space-y-2">
+                            <div className="p-5 rounded-xl bg-linear-to-br from-white/5 to-transparent border border-white/5 space-y-2">
                                 <span className="text-xs font-mono text-primary/80 uppercase tracking-widest">Network Connections</span>
                                 <p className="text-sm text-white/80 leading-relaxed italic">
                                     "{currentModel.relationships}"
@@ -238,7 +238,7 @@ export function ExhibitionPage({ onSelect, onCancel, initialModelId }: Exhibitio
                 </div>
 
                 {/* Footer Actions */}
-                <div className="relative z-10 mt-auto p-6 pt-0 flex items-center gap-4 bg-gradient-to-t from-[#09090b] to-transparent">
+                <div className="relative z-10 mt-auto p-6 pt-0 flex items-center gap-4 bg-linear-to-t from-[#09090b] to-transparent">
                     <Button
                         variant="outline"
                         size="icon"

@@ -25,14 +25,14 @@ export const ChatPanel = React.memo(function ChatPanel({ onSendMessage, onClearH
     const messagesEndRef = React.useRef<HTMLDivElement>(null);
     const [showScrollButton, setShowScrollButton] = React.useState(false);
 
+    const scrollToBottom = () => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    };
+
     // Auto-scroll
     React.useEffect(() => {
         scrollToBottom();
     }, [state.chatMessages, state.isChatProcessing]);
-
-    const scrollToBottom = () => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    };
 
     const handleScroll = () => {
         if (scrollRef.current) {
@@ -50,9 +50,9 @@ export const ChatPanel = React.memo(function ChatPanel({ onSendMessage, onClearH
     };
 
     const handleAttachDocument = async () => {
-        // @ts-ignore
+        // @ts-expect-error - athena global not typed
         if (window.athena?.rag?.uploadDocument) {
-            // @ts-ignore
+            // @ts-expect-error - athena global not typed
             const result = await window.athena.rag.uploadDocument();
             if (result && !result.canceled && !result.error) {
                 actions.refreshRagStatus();
@@ -63,9 +63,9 @@ export const ChatPanel = React.memo(function ChatPanel({ onSendMessage, onClearH
     };
 
     const handleClearRag = async () => {
-        // @ts-ignore
+        // @ts-expect-error - athena global not typed
         if (window.athena?.rag?.clear) {
-            // @ts-ignore
+            // @ts-expect-error - athena global not typed
             await window.athena.rag.clear();
             actions.refreshRagStatus();
         }
@@ -74,7 +74,7 @@ export const ChatPanel = React.memo(function ChatPanel({ onSendMessage, onClearH
     // --- Collapsed View (Floating Icon) ---
     if (state.isRightCollapsed) {
         return (
-            <div className="fixed bottom-8 right-8 z-[100]">
+            <div className="fixed bottom-8 right-8 z-100">
                 <motion.div
                     initial={{ scale: 0, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
@@ -126,9 +126,9 @@ export const ChatPanel = React.memo(function ChatPanel({ onSendMessage, onClearH
             className="h-full max-h-full flex flex-col relative w-full font-sans bg-transparent border-l border-white/5 overflow-hidden"
         >
             {/* Minimal Header */}
-            <div className="shrink-0 z-20 border-b border-white/[0.03] bg-transparent flex items-center justify-between px-6 py-4 h-16">
+            <div className="shrink-0 z-20 border-b border-white/3 bg-transparent flex items-center justify-between px-6 py-4 h-16">
                 <div className="flex items-center gap-3">
-                    <div className="size-6 flex items-center justify-center bg-white/[0.05] border border-white/10 rounded-full">
+                    <div className="size-6 flex items-center justify-center bg-white/5 border border-white/10 rounded-full">
                         <Bot className="size-3 text-white/40" />
                     </div>
                     <div className="flex flex-col">
@@ -148,7 +148,7 @@ export const ChatPanel = React.memo(function ChatPanel({ onSendMessage, onClearH
 
                 <div className="flex items-center gap-3">
                     {state.ragStatus.isReady && (
-                        <div className="flex items-center gap-2 px-2 py-1 bg-white/[0.02] border border-white/[0.05] rounded-md">
+                        <div className="flex items-center gap-2 px-2 py-1 bg-white/2 border border-white/5 rounded-md">
                             <FileText className="size-2.5 text-white/20" />
                             <span className="text-[8px] font-mono text-white/40">{state.ragStatus.indexedFiles.length}</span>
                             <button onClick={handleClearRag} className="hover:text-white text-white/10 transition-colors">
@@ -200,8 +200,8 @@ export const ChatPanel = React.memo(function ChatPanel({ onSendMessage, onClearH
                             <div className={cn(
                                 "px-5 py-3.5 text-[13px] leading-relaxed max-w-[92%] transition-all duration-300",
                                 msg.role === "user"
-                                    ? "bg-white/[0.03] text-white/80 border border-white/[0.05] rounded-2xl rounded-tr-none"
-                                    : "bg-white/[0.9] text-black border border-white rounded-2xl rounded-tl-none font-medium shadow-[0_4px_20px_rgba(255,255,255,0.1)]"
+                                    ? "bg-white/3 text-white/80 border border-white/5 rounded-2xl rounded-tr-none"
+                                    : "bg-white/9 text-black border border-white rounded-2xl rounded-tl-none font-medium shadow-[0_4px_20px_rgba(255,255,255,0.1)]"
                             )}>
                                 <ReactMarkdown
                                     remarkPlugins={[remarkGfm]}
@@ -211,11 +211,11 @@ export const ChatPanel = React.memo(function ChatPanel({ onSendMessage, onClearH
                                         li: (props) => <li className={msg.role === 'user' ? "text-white/70" : "text-black/80"} {...props} />,
                                         blockquote: (props) => <blockquote className={cn("border-l-2 px-4 my-4 italic", msg.role === 'user' ? "border-white/10 text-white/40" : "border-black/20 text-black/50")} {...props} />,
                                         code: (props) => {
-                                            const { children, className, node, ...rest } = props;
+                                            const { children, className, ...rest } = props;
                                             const match = /language-(\w+)/.exec(className || '')
                                             return match ? (
                                                 <div className={cn("relative my-4 border rounded-lg overflow-hidden", msg.role === 'user' ? "border-white/5" : "border-black/5")}>
-                                                    <div className={cn("flex items-center justify-between px-3 py-1.5 border-b", msg.role === 'user' ? "border-white/5 text-white/20" : "border-black/5 text-black/30 bg-black/[0.02]")}>
+                                                    <div className={cn("flex items-center justify-between px-3 py-1.5 border-b", msg.role === 'user' ? "border-white/5 text-white/20" : "border-black/5 text-black/30 bg-black/2")}>
                                                         <span className="text-[8px] font-mono uppercase">{match[1]}</span>
                                                     </div>
                                                     <code {...rest} className={cn(className, "block p-4 overflow-x-auto text-[11px] font-mono")}>
@@ -282,7 +282,7 @@ export const ChatPanel = React.memo(function ChatPanel({ onSendMessage, onClearH
             {/* Ultra-minimal Input */}
             <div className="p-6 pb-8 shrink-0 bg-transparent">
                 <form onSubmit={handleSubmit} className="relative">
-                    <div className="relative flex items-center border border-white/[0.08] bg-white/[0.02] focus-within:bg-white/[0.04] focus-within:border-white/20 transition-all duration-500 rounded-2xl overflow-hidden px-2">
+                    <div className="relative flex items-center border border-white/8 bg-white/2 focus-within:bg-white/4 focus-within:border-white/20 transition-all duration-500 rounded-2xl overflow-hidden px-2">
                         <button
                             type="button"
                             onClick={handleAttachDocument}
@@ -302,7 +302,7 @@ export const ChatPanel = React.memo(function ChatPanel({ onSendMessage, onClearH
                             <button
                                 type="button"
                                 onClick={() => onClearHistory()}
-                                className="h-12 w-10 shrink-0 flex items-center justify-center text-white/10 hover:text-white transition-colors border-l border-white/[0.03]"
+                                className="h-12 w-10 shrink-0 flex items-center justify-center text-white/10 hover:text-white transition-colors border-l border-white/3"
                             >
                                 <Trash2 className="size-3.5" />
                             </button>
@@ -312,7 +312,7 @@ export const ChatPanel = React.memo(function ChatPanel({ onSendMessage, onClearH
                             type="submit"
                             disabled={!input.trim() || state.isChatProcessing}
                             className={cn(
-                                "h-12 w-12 shrink-0 flex items-center justify-center transition-all bg-white/[0.02] border-l border-white/[0.03] hover:bg-white hover:text-black",
+                                "h-12 w-12 shrink-0 flex items-center justify-center transition-all bg-white/2 border-l border-white/3 hover:bg-white hover:text-black",
                                 !input.trim() || state.isChatProcessing ? "opacity-0 pointer-events-none" : "opacity-100"
                             )}
                         >

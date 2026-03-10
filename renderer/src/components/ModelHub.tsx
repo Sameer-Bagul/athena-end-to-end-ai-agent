@@ -91,8 +91,8 @@ export function ModelHub() {
                                         className={cn(
                                             "group relative p-5 rounded-2xl border transition-all duration-500",
                                             model.isInstalled
-                                                ? "bg-green-500/[0.02] border-green-500/20 hover:border-green-500/40"
-                                                : "bg-white/[0.02] border-white/5 hover:border-white/10"
+                                                ? "bg-green-500/2 border-green-500/20 hover:border-green-500/40"
+                                                : "bg-white/2 border-white/5 hover:border-white/10"
                                         )}
                                     >
                                         <div className="flex gap-2 mb-4">
@@ -118,7 +118,7 @@ export function ModelHub() {
                                             {isDownloading ? (
                                                 <div className="flex-1 space-y-2">
                                                     <div className="flex justify-between text-[8px] text-white/30 uppercase tracking-widest font-bold">
-                                                        <span className="truncate max-w-[120px]">{statusText}</span>
+                                                        <span className="truncate max-w-30">{statusText}</span>
                                                         <span>{progress}%</span>
                                                     </div>
                                                     <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden">

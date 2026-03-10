@@ -27,7 +27,7 @@ interface SettingsDialogProps {
     onUpdate: (s: WidgetSettings) => void;
 }
 
-export function SettingsDialog({ isOpen, onClose, settings: _initialSettings, onUpdate }: SettingsDialogProps) {
+export function SettingsDialog({ isOpen, onClose, onUpdate }: SettingsDialogProps) {
     const { state, actions } = useAppStore();
     const [activeTab, setActiveTab] = React.useState<'general' | 'profile' | 'ai' | 'cognition' | 'widget' | 'plugins' | 'env'>('general');
     const [wakeWord] = React.useState("Alt + Space");
@@ -65,7 +65,7 @@ export function SettingsDialog({ isOpen, onClose, settings: _initialSettings, on
     const handleProfileUpdate = () => actions.setUserProfile({ name: profileName, bio: profileBio });
     const handlePluginUpdate = () => actions.setPluginConfig({ newsApiKey: newsKey, weatherApiKey: weatherKey });
 
-    const handleAiUpdate = () => {
+    const handleAiUpdate = React.useCallback(() => {
         actions.setAiConfig({
             priority: aiPriority,
             ollama: ollamaConfig,
@@ -73,11 +73,11 @@ export function SettingsDialog({ isOpen, onClose, settings: _initialSettings, on
             grok: grokConfig,
             gemini: geminiConfig
         });
-    };
+    }, [actions, aiPriority, ollamaConfig, lmStudioConfig, grokConfig, geminiConfig]);
 
     React.useEffect(() => {
         if (isOpen) handleAiUpdate();
-    }, [aiPriority]);
+    }, [isOpen, handleAiUpdate, aiPriority]);
 
     if (!isOpen) return null;
 
@@ -87,10 +87,10 @@ export function SettingsDialog({ isOpen, onClose, settings: _initialSettings, on
             <div className="absolute inset-0 bg-black/10 backdrop-blur-sm" onClick={onClose} />
 
             {/* Main Diamond/Glass Container */}
-            <div className="relative w-[900px] h-[600px] bg-black/80 backdrop-blur-2xl border border-white/5 rounded-3xl shadow-2xl flex overflow-hidden ring-1 ring-white/10">
+            <div className="relative w-225 h-150 bg-black/80 backdrop-blur-2xl border border-white/5 rounded-3xl shadow-2xl flex overflow-hidden ring-1 ring-white/10">
 
                 {/* Minimal Sidebar */}
-                <div className="w-16 md:w-64 flex flex-col border-r border-white/5 pt-6 pb-4 bg-white/[0.02]">
+                <div className="w-16 md:w-64 flex flex-col border-r border-white/5 pt-6 pb-4 bg-white/2">
                     <div className="px-6 mb-6">
                         <h2 className="text-xs font-semibold tracking-[0.2em] text-white/40 uppercase hidden md:block">Settings</h2>
                         <div className="md:hidden flex justify-center"><Activity className="size-5 text-white/40" /></div>
@@ -123,7 +123,7 @@ export function SettingsDialog({ isOpen, onClose, settings: _initialSettings, on
                             {/* GENERAL TAB */}
                             {activeTab === 'general' && (
                                 <Section title="System Preferences" description="Global shortcuts & app behavior.">
-                                    <div className="p-6 rounded-2xl bg-white/[0.03] border border-white/5">
+                                    <div className="p-6 rounded-2xl bg-white/3 border border-white/5">
                                         <Label className="text-xs font-medium text-white/60 mb-3 block uppercase tracking-wider">Wake Word</Label>
                                         <div className="flex items-center gap-4">
                                             <div className="flex-1 h-12 flex items-center justify-center rounded-xl bg-black/40 border border-white/10 font-mono text-sm tracking-widest text-primary shadow-inner">
@@ -147,7 +147,7 @@ export function SettingsDialog({ isOpen, onClose, settings: _initialSettings, on
                                                 value={profileName}
                                                 onChange={(e) => setProfileName(e.target.value)}
                                                 onBlur={handleProfileUpdate}
-                                                className="bg-white/[0.03] border-white/5 focus:border-primary/50 text-white h-12 rounded-xl px-4 transition-all"
+                                                className="bg-white/3 border-white/5 focus:border-primary/50 text-white h-12 rounded-xl px-4 transition-all"
                                                 placeholder="Your Name"
                                             />
                                         </div>
@@ -157,7 +157,7 @@ export function SettingsDialog({ isOpen, onClose, settings: _initialSettings, on
                                                 value={profileBio}
                                                 onChange={(e) => setProfileBio(e.target.value)}
                                                 onBlur={handleProfileUpdate}
-                                                className="bg-white/[0.03] border-white/5 focus:border-primary/50 text-white min-h-[120px] rounded-xl p-4 transition-all resize-none"
+                                                className="bg-white/3 border-white/5 focus:border-primary/50 text-white min-h-30 rounded-xl p-4 transition-all resize-none"
                                                 placeholder="Share your context..."
                                             />
                                             <p className="text-[10px] text-white/20 mt-2 ml-1">Added to system prompt for personalization.</p>
@@ -188,7 +188,7 @@ export function SettingsDialog({ isOpen, onClose, settings: _initialSettings, on
                                                         n.splice(index, 0, m);
                                                         setAiPriority(n);
                                                     }}
-                                                    className="flex items-center gap-4 p-3 rounded-xl bg-white/[0.03] border border-white/5 hover:bg-white/[0.06] cursor-move transition-colors group"
+                                                    className="flex items-center gap-4 p-3 rounded-xl bg-white/3 border border-white/5 hover:bg-white/6 cursor-move transition-colors group"
                                                 >
                                                     <div className="size-6 rounded-lg bg-white/5 flex items-center justify-center text-[10px] font-bold text-white/50 group-hover:text-white">
                                                         {index + 1}
@@ -385,24 +385,24 @@ function Section({ title, description, children }: SectionProps) {
     )
 }
 
-interface ConfigGroupProps {
+interface ConfigGroupProps<T = Record<string, string | number>> {
     title: string;
     icon: React.ReactNode;
-    configs: any[];
-    setConfigs: (c: any[]) => void;
-    template: any;
+    configs: T[];
+    setConfigs: (c: T[]) => void;
+    template: T;
     fields: string[];
     onBlur: () => void;
     showPerformance?: boolean;
 }
 
-function ConfigGroup({ title, icon, configs, setConfigs, template, fields, onBlur, showPerformance }: ConfigGroupProps) {
+function ConfigGroup<T extends Record<string, string | number>>({ title, icon, configs, setConfigs, template, fields, onBlur, showPerformance }: ConfigGroupProps<T>) {
     return (
-        <div className="p-4 rounded-xl bg-white/[0.02] border border-white/5 space-y-4 hover:border-white/10 transition-colors">
+        <div className="p-4 rounded-xl bg-white/2 border border-white/5 space-y-4 hover:border-white/10 transition-colors">
             <div className="flex items-center gap-2 text-white/70">
                 {icon} <span className="text-sm font-medium">{title}</span>
             </div>
-            {configs.map((c: any, i: number) => (
+            {configs.map((c: T, i: number) => (
                 <div key={i} className="flex flex-col gap-2 p-3 rounded-xl bg-black/20 border border-white/5 animate-in fade-in slide-in-from-left-2">
                     <div className="flex gap-2 items-start">
                         <div className={cn("grid gap-2 flex-1", fields.length > 1 ? "grid-cols-2" : "grid-cols-1")}>
@@ -413,12 +413,13 @@ function ConfigGroup({ title, icon, configs, setConfigs, template, fields, onBlu
                                         const n = [...configs];
                                         let val = e.target.value;
                                         if (f !== 'baseUrl') val = val.replace(/["']/g, "");
-                                        n[i][f] = val;
+                                        (n[i] as Record<string, string | number>)[f] = val;
                                         setConfigs(n);
                                     }}
                                     onBlur={() => {
                                         const n = [...configs];
-                                        if (typeof n[i][f] === 'string') n[i][f] = n[i][f].trim();
+                                        const item = n[i] as Record<string, string | number>;
+                                        if (typeof item[f] === 'string') item[f] = (item[f] as string).trim();
                                         setConfigs(n);
                                         onBlur();
                                     }}
@@ -427,7 +428,7 @@ function ConfigGroup({ title, icon, configs, setConfigs, template, fields, onBlu
                             ))}
                         </div>
                         <Button variant="ghost" size="icon" className="size-9 text-white/20 hover:text-red-400 hover:bg-red-400/10"
-                            onClick={() => setConfigs(configs.filter((_: any, idx: number) => idx !== i))}
+                            onClick={() => setConfigs(configs.filter((_: T, idx: number) => idx !== i))}
                             disabled={configs.length <= 1 && i === 0}
                         >
                             <X className="size-4" />
@@ -442,10 +443,10 @@ function ConfigGroup({ title, icon, configs, setConfigs, template, fields, onBlu
                                     <span>{c.numCtx || 2048}</span>
                                 </div>
                                 <Slider
-                                    value={[c.numCtx || 2048]} min={512} max={8192} step={512}
+                                    value={[Number(c.numCtx) || 2048]} min={512} max={8192} step={512}
                                     onValueChange={([v]) => {
                                         const n = [...configs];
-                                        n[i].numCtx = v;
+                                        (n[i] as Record<string, string | number>).numCtx = v;
                                         setConfigs(n);
                                         onBlur();
                                     }}
@@ -454,13 +455,13 @@ function ConfigGroup({ title, icon, configs, setConfigs, template, fields, onBlu
                             <div className="space-y-2">
                                 <div className="flex justify-between text-[10px] text-white/40 uppercase tracking-tighter">
                                     <span>Threads</span>
-                                    <span>{c.numThread === 0 ? 'Auto' : c.numThread}</span>
+                                    <span>{Number(c.numThread) === 0 ? 'Auto' : c.numThread}</span>
                                 </div>
                                 <Slider
-                                    value={[c.numThread || 0]} min={0} max={32} step={1}
+                                    value={[Number(c.numThread) || 0]} min={0} max={32} step={1}
                                     onValueChange={([v]) => {
                                         const n = [...configs];
-                                        n[i].numThread = v;
+                                        (n[i] as Record<string, string | number>).numThread = v;
                                         setConfigs(n);
                                         onBlur();
                                     }}
@@ -470,13 +471,13 @@ function ConfigGroup({ title, icon, configs, setConfigs, template, fields, onBlu
                                 <div className="col-span-2 space-y-2 pt-1">
                                     <div className="flex justify-between text-[10px] text-white/40 uppercase tracking-tighter">
                                         <span>GPU Offload (Layers)</span>
-                                        <span>{c.numGpu === -1 ? 'Auto' : c.numGpu}</span>
+                                        <span>{Number(c.numGpu) === -1 ? 'Auto' : c.numGpu}</span>
                                     </div>
                                     <Slider
-                                        value={[c.numGpu === -1 ? 0 : (c.numGpu || 0)]} min={0} max={100} step={1}
+                                        value={[Number(c.numGpu) === -1 ? 0 : (Number(c.numGpu) || 0)]} min={0} max={100} step={1}
                                         onValueChange={([v]) => {
                                             const n = [...configs];
-                                            n[i].numGpu = v === 0 ? -1 : v;
+                                            (n[i] as Record<string, string | number>).numGpu = v === 0 ? -1 : v;
                                             setConfigs(n);
                                             onBlur();
                                         }}
@@ -526,7 +527,7 @@ interface PluginCardProps {
 
 function PluginCard({ icon, title, value, setValue, onBlur, placeholder }: PluginCardProps) {
     return (
-        <div className="flex items-center gap-4 p-4 rounded-xl bg-white/[0.03] border border-white/5">
+        <div className="flex items-center gap-4 p-4 rounded-xl bg-white/3 border border-white/5">
             <div className="p-2 bg-white/5 rounded-lg">{icon}</div>
             <div className="flex-1 space-y-1">
                 <div className="text-sm font-medium text-white/80">{title}</div>

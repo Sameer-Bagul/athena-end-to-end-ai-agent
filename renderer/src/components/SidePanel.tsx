@@ -22,27 +22,6 @@ interface SidePanelProps {
 export function SidePanel({ onToggleListening, onExpressionChange }: SidePanelProps) {
     const { state, actions } = useAppStore();
 
-    // --- Collapsed View (Floating Icon) ---
-    if (state.isLeftCollapsed) {
-        return (
-            <div className="fixed bottom-8 left-8 z-[100]">
-                <motion.div
-                    initial={{ scale: 0, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                >
-                    <Button
-                        onClick={actions.toggleLeftCollapse}
-                        className="size-14 rounded-full shadow-[0_0_30px_rgba(0,0,0,0.5)] border border-white/20 bg-black text-white hover:bg-white/10 transition-all duration-300"
-                    >
-                        <LayoutGrid className="size-6" />
-                    </Button>
-                </motion.div>
-            </div>
-        );
-    }
-
     const FACIAL_EXPRESSIONS = [
         { name: "Smile", label: "Smile" },
         { name: "Joy", label: "Joy" },
@@ -71,29 +50,50 @@ export function SidePanel({ onToggleListening, onExpressionChange }: SidePanelPr
         getCameras();
     }, []);
 
-    const handleExpressionChange = (name: string, value: number) => {
+    const handleExpressionChange = React.useCallback((name: string, value: number) => {
         setExpressionValues(v => ({ ...v, [name]: value }));
         if (onExpressionChange) {
             onExpressionChange(name, value);
         }
-    };
+    }, [onExpressionChange]);
 
-    const handleVrmUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleVrmUpload = React.useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
             actions.setVrmFile(e.target.files[0]);
         }
-    };
+    }, [actions]);
 
-    const handleAnimationUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleAnimationUpload = React.useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
             actions.setAnimationFile(e.target.files[0]);
         }
-    };
+    }, [actions]);
+
+    // --- Collapsed View (Floating Icon) ---
+    if (state.isLeftCollapsed) {
+        return (
+            <div className="fixed bottom-8 left-8 z-100">
+                <motion.div
+                    initial={{ scale: 0, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                >
+                    <Button
+                        onClick={actions.toggleLeftCollapse}
+                        className="size-14 rounded-full shadow-[0_0_30px_rgba(0,0,0,0.5)] border border-white/20 bg-black text-white hover:bg-white/10 transition-all duration-300"
+                    >
+                        <LayoutGrid className="size-6" />
+                    </Button>
+                </motion.div>
+            </div>
+        );
+    }
 
     return (
         <div className="h-full flex flex-col relative w-full font-sans bg-transparent selection:bg-white selection:text-black overflow-x-hidden border-r border-white/5">
             {/* Header */}
-            <div className="flex items-center justify-between px-6 h-16 shrink-0 border-b border-white/[0.03]">
+            <div className="flex items-center justify-between px-6 h-16 shrink-0 border-b border-white/3">
                 <div className="flex flex-col">
                     <span className="text-[11px] font-medium text-white/40 uppercase tracking-widest">{state.selectedCharacter.name}</span>
                     <h2 className="text-[13px] font-semibold text-white/90 leading-tight tracking-tight">Core Controller</h2>
@@ -110,7 +110,7 @@ export function SidePanel({ onToggleListening, onExpressionChange }: SidePanelPr
             </div>
 
             <div className="flex-1 overflow-y-auto overflow-x-hidden px-3 py-6 flex flex-col gap-4 custom-scrollbar relative">
-                <div className="absolute inset-0 pointer-events-none opacity-[0.02] bg-[linear-gradient(to_right,#808080_1px,transparent_1px),linear-gradient(to_bottom,#808080_1px,transparent_1px)] bg-[size:40px_40px]" />
+                <div className="absolute inset-0 pointer-events-none opacity-[0.02] bg-[linear-gradient(to_right,#808080_1px,transparent_1px),linear-gradient(to_bottom,#808080_1px,transparent_1px)] bg-size-[40px_40px]" />
 
                 <div className="flex flex-col relative z-10 gap-4">
                     {/* Module 01: Host Identity */}
@@ -147,11 +147,11 @@ export function SidePanel({ onToggleListening, onExpressionChange }: SidePanelPr
                     <ControlModule id="MOD_02" title="Neural Mood">
                         <Button
                             variant="ghost"
-                            className="w-full h-11 border border-white/10 bg-white/[0.02] text-[11px] font-medium transition-all flex items-center justify-between rounded-xl px-4 hover:bg-white/[0.05] hover:border-white/20"
+                            className="w-full h-11 border border-white/10 bg-white/2 text-[11px] font-medium transition-all flex items-center justify-between rounded-xl px-4 hover:bg-white/5 hover:border-white/20"
                             onClick={() => setOverlayType('expression')}
                         >
                             <span className="text-white/60">
-                                {Object.entries(expressionValues).find(([_, v]) => v > 0.1)?.[0] || 'Neutral // Idle'}
+                                {Object.entries(expressionValues).find(([name]) => expressionValues[name] > 0.1)?.[0] || 'Neutral // Idle'}
                             </span>
                             <ChevronLeft className="size-3.5 -rotate-90 opacity-30" />
                         </Button>
@@ -162,7 +162,7 @@ export function SidePanel({ onToggleListening, onExpressionChange }: SidePanelPr
                         <div className="space-y-3">
                             <Button
                                 variant="ghost"
-                                className="w-full h-11 border border-white/10 bg-white/[0.02] text-[11px] font-medium transition-all flex items-center justify-between rounded-xl px-4 hover:bg-white/[0.05] hover:border-white/20"
+                                className="w-full h-11 border border-white/10 bg-white/2 text-[11px] font-medium transition-all flex items-center justify-between rounded-xl px-4 hover:bg-white/5 hover:border-white/20"
                                 onClick={() => setOverlayType('animation')}
                             >
                                 <span className="text-white/60 truncate">
@@ -189,7 +189,7 @@ export function SidePanel({ onToggleListening, onExpressionChange }: SidePanelPr
                         <div className="space-y-3">
                             <Button
                                 variant="ghost"
-                                className="w-full h-11 border border-white/10 bg-white/[0.02] text-[11px] font-medium transition-all flex items-center justify-between rounded-xl px-4 hover:bg-white/[0.05] hover:border-white/20"
+                                className="w-full h-11 border border-white/10 bg-white/2 text-[11px] font-medium transition-all flex items-center justify-between rounded-xl px-4 hover:bg-white/5 hover:border-white/20"
                                 onClick={() => setOverlayType('camera')}
                             >
                                 <span className="text-white/60 truncate">
@@ -214,12 +214,12 @@ export function SidePanel({ onToggleListening, onExpressionChange }: SidePanelPr
                     <ControlModule id="MOD_05" title="Maintenance" defaultOpen={false}>
                         <div className="space-y-3">
                             <div className="grid grid-cols-2 gap-3">
-                                <label className="relative h-12 border border-white/10 bg-white/[0.02] hover:bg-white/[0.05] transition-all cursor-pointer flex items-center justify-center gap-2 rounded-xl">
+                                <label className="relative h-12 border border-white/10 bg-white/2 hover:bg-white/5 transition-all cursor-pointer flex items-center justify-center gap-2 rounded-xl">
                                     <Input type="file" accept=".vrm" onChange={handleVrmUpload} className="hidden" />
                                     <Upload className="size-3 text-white/30" />
                                     <span className="text-[9px] font-bold text-white/40 uppercase tracking-widest">VRM</span>
                                 </label>
-                                <label className="relative h-12 border border-white/10 bg-white/[0.02] hover:bg-white/[0.05] transition-all cursor-pointer flex items-center justify-center gap-2 rounded-xl">
+                                <label className="relative h-12 border border-white/10 bg-white/2 hover:bg-white/5 transition-all cursor-pointer flex items-center justify-center gap-2 rounded-xl">
                                     <Input type="file" accept=".vrma,.fbx" onChange={handleAnimationUpload} className="hidden" />
                                     <Upload className="size-3 text-white/30" />
                                     <span className="text-[9px] font-bold text-white/40 uppercase tracking-widest">ANIM</span>
@@ -243,7 +243,7 @@ export function SidePanel({ onToggleListening, onExpressionChange }: SidePanelPr
                 isOpen={overlayType === 'expression'}
                 onClose={() => setOverlayType(null)}
                 title="Neural Expressions"
-                value={Object.entries(expressionValues).find(([_, v]) => v > 0.1)?.[0] || 'Neutral'}
+                value={Object.entries(expressionValues).find(([name]) => expressionValues[name] > 0.1)?.[0] || 'Neutral'}
                 options={[
                     { label: "Neutral // Reset", value: "Neutral", description: "Default host state" },
                     { label: "Joy // High Valence", value: "Joy", description: "Positive neural patterns" },
@@ -252,7 +252,7 @@ export function SidePanel({ onToggleListening, onExpressionChange }: SidePanelPr
                     { label: "Surprised // Alert", value: "Surprised", description: "Analyzing anomaly" }
                 ]}
                 onChange={(val) => {
-                    const moods: any = { Neutral: {}, Joy: { Joy: 1 }, Sad: { Sad: 1 }, Angry: { Angry: 1 }, Surprised: { Surprised: 1 } };
+                    const moods: Record<string, Record<string, number>> = { Neutral: {}, Joy: { Joy: 1 }, Sad: { Sad: 1 }, Angry: { Angry: 1 }, Surprised: { Surprised: 1 } };
                     const preset = moods[val] || {};
                     FACIAL_EXPRESSIONS.forEach(e => handleExpressionChange(e.name, 0));
                     Object.entries(preset).forEach(([k, v]) => handleExpressionChange(k, v as number));

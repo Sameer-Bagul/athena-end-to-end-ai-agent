@@ -6,11 +6,11 @@ export function TitleBar() {
     const handleClose = () => window.athena.closeWindow();
 
     return (
-        <div className="h-10 w-full flex items-center justify-between bg-black/40 backdrop-blur-md border-b border-white/5 select-none z-[9999] relative">
+        <div className="h-10 w-full flex items-center justify-between bg-black/40 backdrop-blur-md border-b border-white/5 select-none z-9999 relative">
             {/* Drag Region */}
             <div
                 className="absolute inset-0 w-full h-full"
-                style={{ WebkitAppRegion: 'drag' } as any}
+                style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
             />
 
             {/* Title */}
@@ -20,7 +20,7 @@ export function TitleBar() {
             </div>
 
             {/* Window Controls (No Drag) */}
-            <div className="flex h-full relative z-20" style={{ WebkitAppRegion: 'no-drag' } as any}>
+            <div className="flex h-full relative z-20" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
                 <button
                     onClick={handleMinimize}
                     className="w-12 h-full flex items-center justify-center hover:bg-white/10 text-white/60 hover:text-white transition-colors"

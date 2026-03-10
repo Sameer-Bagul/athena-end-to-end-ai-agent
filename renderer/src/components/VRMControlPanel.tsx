@@ -29,7 +29,7 @@ export function VRMControlPanel({ onOpenWidget }: VRMControlPanelProps) {
         actions.addMessage({ role: 'user', content: text });
         await processInput(text, {
             source: 'voice',
-            onPlayAudio: async (blob: Blob | null, animation?: string, facialExpressions?: any[]) => {
+            onPlayAudio: async (blob: Blob | null, animation?: string, facialExpressions?: Array<{ name: string; value: number }>) => {
                 if (stageRef.current) await stageRef.current.playAudio(blob, animation, facialExpressions);
             }
         });
@@ -46,7 +46,7 @@ export function VRMControlPanel({ onOpenWidget }: VRMControlPanelProps) {
         actions.addMessage({ role: 'user', content: text });
         await processInput(text, {
             source: 'text',
-            onPlayAudio: async (blob: Blob | null, animation?: string, facialExpressions?: any[]) => {
+            onPlayAudio: async (blob: Blob | null, animation?: string, facialExpressions?: Array<{ name: string; value: number }>) => {
                 if (stageRef.current) await stageRef.current.playAudio(blob, animation, facialExpressions);
             }
         });
@@ -66,20 +66,6 @@ export function VRMControlPanel({ onOpenWidget }: VRMControlPanelProps) {
     const [chatWidth, setChatWidth] = React.useState(600);
     const isResizing = React.useRef(false);
 
-    const startResizing = React.useCallback(() => {
-        isResizing.current = true;
-        document.addEventListener('mousemove', handleMouseMove);
-        document.addEventListener('mouseup', stopResizing);
-        document.body.style.cursor = 'col-resize';
-    }, []);
-
-    const stopResizing = React.useCallback(() => {
-        isResizing.current = false;
-        document.removeEventListener('mousemove', handleMouseMove);
-        document.removeEventListener('mouseup', stopResizing);
-        document.body.style.cursor = 'default';
-    }, []);
-
     const handleMouseMove = React.useCallback((e: MouseEvent) => {
         if (!isResizing.current) return;
         const newWidth = window.innerWidth - e.clientX;
@@ -87,6 +73,26 @@ export function VRMControlPanel({ onOpenWidget }: VRMControlPanelProps) {
             setChatWidth(newWidth);
         }
     }, []);
+
+    const stopResizing = React.useCallback(() => {
+        isResizing.current = false;
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.body.style.cursor = 'default';
+    }, [handleMouseMove]);
+
+    React.useEffect(() => {
+        const handleMouseUp = () => stopResizing();
+        return () => {
+            document.removeEventListener('mouseup', handleMouseUp);
+        };
+    }, [stopResizing]);
+
+    const startResizing = React.useCallback(() => {
+        isResizing.current = true;
+        document.addEventListener('mousemove', handleMouseMove);
+        document.addEventListener('mouseup', stopResizing);
+        document.body.style.cursor = 'col-resize';
+    }, [handleMouseMove, stopResizing]);
 
 
     return (
@@ -97,7 +103,7 @@ export function VRMControlPanel({ onOpenWidget }: VRMControlPanelProps) {
             <aside
                 className={cn(
                     "h-full z-20 relative transition-all duration-700 ease-in-out flex flex-col overflow-hidden",
-                    state.isLeftCollapsed ? "w-0 border-none px-0" : "w-[360px] border-r border-white/[0.03]"
+                    state.isLeftCollapsed ? "w-0 border-none px-0" : "w-90 border-r border-white/3"
                 )}
             >
                 <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col">
@@ -133,7 +139,7 @@ export function VRMControlPanel({ onOpenWidget }: VRMControlPanelProps) {
                 <div className="absolute top-8 left-8 z-10">
                     <button
                         onClick={actions.toggleLeftCollapse}
-                        className="size-10 flex items-center justify-center rounded-full bg-white/[0.02] hover:bg-white/[0.05] border border-white/[0.05] text-white/20 hover:text-white transition-all backdrop-blur-md"
+                        className="size-10 flex items-center justify-center rounded-full bg-white/2 hover:bg-white/5 border border-white/5 text-white/20 hover:text-white transition-all backdrop-blur-md"
                     >
                         <ChevronLeft className={cn("size-5 transition-transform duration-700", state.isLeftCollapsed && "rotate-180")} />
                     </button>
@@ -141,7 +147,7 @@ export function VRMControlPanel({ onOpenWidget }: VRMControlPanelProps) {
 
                 {/* Floating Widget Toggle */}
                 <div className="absolute top-8 right-8 z-20 flex gap-3">
-                    <button onClick={onOpenWidget} className="px-4 py-2 rounded-full bg-white/[0.02] hover:bg-white/[0.05] border border-white/[0.05] text-[10px] font-medium text-white/30 hover:text-white transition-all backdrop-blur-md flex gap-2 items-center">
+                    <button onClick={onOpenWidget} className="px-4 py-2 rounded-full bg-white/2 hover:bg-white/5 border border-white/5 text-[10px] font-medium text-white/30 hover:text-white transition-all backdrop-blur-md flex gap-2 items-center">
                         <Box className="size-3.5" /> Widget
                     </button>
                 </div>
@@ -151,7 +157,7 @@ export function VRMControlPanel({ onOpenWidget }: VRMControlPanelProps) {
             {!state.isRightCollapsed && (
                 <div
                     onMouseDown={startResizing}
-                    className="w-[1px] bg-white/5 hover:bg-white/20 cursor-col-resize z-40 transition-colors"
+                    className="w-px bg-white/5 hover:bg-white/20 cursor-col-resize z-40 transition-colors"
                 />
             )}
 

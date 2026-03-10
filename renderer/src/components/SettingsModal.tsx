@@ -36,8 +36,8 @@ export function SettingsModal({ isOpen, onClose, config, onSave }: SettingsModal
     };
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="w-[800px] h-[600px] bg-[#09090b] border border-white/10 rounded-xl shadow-2xl flex overflow-hidden animate-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-100 flex items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="w-200 h-150 bg-[#09090b] border border-white/10 rounded-xl shadow-2xl flex overflow-hidden animate-in zoom-in-95 duration-200">
 
                 {/* Sidebar */}
                 <div className="w-64 bg-black/20 border-r border-white/5 p-4 flex flex-col gap-2">
@@ -55,7 +55,7 @@ export function SettingsModal({ isOpen, onClose, config, onSave }: SettingsModal
                     ].map((tab) => (
                         <button
                             key={tab.id}
-                            onClick={() => setActiveTab(tab.id as any)}
+                            onClick={() => setActiveTab(tab.id as 'intelligence' | 'audio' | 'general')}
                             className={cn(
                                 "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-all text-left",
                                 activeTab === tab.id
@@ -92,7 +92,7 @@ export function SettingsModal({ isOpen, onClose, config, onSave }: SettingsModal
                                         {['ollama', 'openai', 'grok', 'gemini'].map((p) => (
                                             <div
                                                 key={p}
-                                                onClick={() => setLocalConfig(prev => ({ ...prev, provider: p as any }))}
+                                                onClick={() => setLocalConfig(prev => ({ ...prev, provider: p as 'ollama' | 'openai' | 'grok' | 'gemini' }))}
                                                 className={cn(
                                                     "cursor-pointer rounded-lg border p-4 flex flex-col items-center justify-center gap-2 transition-all hover:bg-white/5",
                                                     localConfig.provider === p

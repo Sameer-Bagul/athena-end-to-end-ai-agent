@@ -54,10 +54,11 @@ export function WidgetLayout() {
         };
         window.addEventListener('keyup', handleKeyUp);
 
+        const currentSpeechManager = speechManager.current;
         return () => {
             unsubscribeShortcut?.();
             window.removeEventListener('keyup', handleKeyUp);
-            speechManager.current.stop(true);
+            currentSpeechManager.stop(true);
         };
     }, []);
 
@@ -84,15 +85,16 @@ export function WidgetLayout() {
     useEffect(() => {
         if (!window.athena?.onSyncReceive) return;
 
-        const unsubscribe = window.athena.onSyncReceive((data: any) => {
+        const unsubscribe = window.athena.onSyncReceive((data: Record<string, unknown>) => {
             // console.log("[Widget] Recieved Sync Data:", data.type);
 
             if (data.type === 'model') {
-                const profileId = data.payload.id;
+                const payload = data.payload as { id: string };
+                const profileId = payload.id;
                 const profile = AVAILABLE_MODELS.find(p => p.id === profileId);
                 if (profile) setVrmUrl(`models/${profile.file}`);
             } else if (data.type === 'audio') {
-                const buffer = data.payload;
+                const buffer = data.payload as ArrayBuffer;
                 const blob = new Blob([buffer], { type: 'audio/wav' });
                 if (stageRef.current) stageRef.current.playAudio(blob, undefined, undefined, true);
             } else if (data.type === 'settings') {
@@ -157,7 +159,7 @@ export function WidgetLayout() {
         >
             {/* Close Button (No Drag) */}
             {isHovered && (
-                <div className="absolute top-4 right-4 z-[60]" style={{ WebkitAppRegion: 'no-drag' } as any}>
+                <div className="absolute top-4 right-4 z-60" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
                     <button
                         onClick={handleClose}
                         className="p-1.5 rounded-full bg-black/60 text-white/70 hover:text-red-400 hover:bg-black/80 transition-all backdrop-blur-md"

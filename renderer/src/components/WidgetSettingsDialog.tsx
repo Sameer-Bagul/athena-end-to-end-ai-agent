@@ -20,8 +20,6 @@ interface WidgetSettingsDialogProps {
 }
 
 export function WidgetSettingsDialog({ isOpen, onClose, settings, onUpdate }: WidgetSettingsDialogProps) {
-    if (!isOpen) return null;
-
     const [localSettings, setLocalSettings] = useState(settings);
 
     // Sync local with parent when prop changes (or initial open)
@@ -34,6 +32,8 @@ export function WidgetSettingsDialog({ isOpen, onClose, settings, onUpdate }: Wi
         setLocalSettings(updated);
         onUpdate(updated); // Live update
     };
+
+    if (!isOpen) return null;
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
