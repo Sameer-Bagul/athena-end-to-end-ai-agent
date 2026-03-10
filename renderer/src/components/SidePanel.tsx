@@ -114,7 +114,7 @@ export function SidePanel({ onToggleListening, onExpressionChange }: SidePanelPr
 
                 <div className="flex flex-col relative z-10 gap-4">
                     {/* Module 01: Host Identity */}
-                    <ControlModule id="MOD_01" title="Host Identity">
+                    <ControlModule title="Choose Model">
                         <div className="space-y-4">
                             <div className="h-44 w-full">
                                 <Carousel3D
@@ -144,7 +144,7 @@ export function SidePanel({ onToggleListening, onExpressionChange }: SidePanelPr
                     </ControlModule>
 
                     {/* Module 02: Neural Mood */}
-                    <ControlModule id="MOD_02" title="Neural Mood">
+                    <ControlModule title="Expression">
                         <Button
                             variant="ghost"
                             className="w-full h-11 border border-white/10 bg-white/2 text-[11px] font-medium transition-all flex items-center justify-between rounded-xl px-4 hover:bg-white/5 hover:border-white/20"
@@ -158,7 +158,7 @@ export function SidePanel({ onToggleListening, onExpressionChange }: SidePanelPr
                     </ControlModule>
 
                     {/* Module 03: Kinetic Stream */}
-                    <ControlModule id="MOD_03" title="Kinetic Stream">
+                    <ControlModule title="Animation">
                         <div className="space-y-3">
                             <Button
                                 variant="ghost"
@@ -185,7 +185,7 @@ export function SidePanel({ onToggleListening, onExpressionChange }: SidePanelPr
                     </ControlModule>
 
                     {/* Module 04: Comms Link */}
-                    <ControlModule id="MOD_04" title="Comms Link">
+                    <ControlModule title="Camera and Microphone">
                         <div className="space-y-3">
                             <Button
                                 variant="ghost"
@@ -211,7 +211,7 @@ export function SidePanel({ onToggleListening, onExpressionChange }: SidePanelPr
                     </ControlModule>
 
                     {/* Module 05: Maintenance */}
-                    <ControlModule id="MOD_05" title="Maintenance" defaultOpen={false}>
+                    <ControlModule title="Resources" defaultOpen={false}>
                         <div className="space-y-3">
                             <div className="grid grid-cols-2 gap-3">
                                 <label className="relative h-12 border border-white/10 bg-white/2 hover:bg-white/5 transition-all cursor-pointer flex items-center justify-center gap-2 rounded-xl">
@@ -225,13 +225,19 @@ export function SidePanel({ onToggleListening, onExpressionChange }: SidePanelPr
                                     <span className="text-[9px] font-bold text-white/40 uppercase tracking-widest">ANIM</span>
                                 </label>
                             </div>
+                        </div>
+                    </ControlModule>
+
+                    {/* Module 06: Settings */}
+                    <ControlModule title="Settings" defaultOpen={false}>
+                        <div className="space-y-3">
                             <Button
                                 variant="ghost"
-                                className="w-full h-10 border border-white/10 text-white/40 hover:text-white flex justify-between px-4 text-[9px] uppercase tracking-widest rounded-xl"
+                                className="w-full h-11 border border-white/10 bg-white/2 hover:bg-white/5 text-[11px] font-medium transition-all flex items-center justify-between rounded-xl px-4 hover:border-white/20"
                                 onClick={() => actions.toggleSettings(true)}
                             >
-                                <span>Config</span>
-                                <Settings className="size-4" />
+                                <span className="text-white/60">Open Configuration</span>
+                                <Settings className="size-4 text-white/30" />
                             </Button>
                         </div>
                     </ControlModule>
