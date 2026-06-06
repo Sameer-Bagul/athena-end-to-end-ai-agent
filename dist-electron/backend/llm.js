@@ -1,20 +1,15 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.chatWithLLM = chatWithLLM;
-const node_fetch_1 = __importDefault(require("node-fetch"));
+import fetch from "node-fetch";
+import { config } from "./config.js";
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
-async function chatWithLLM(messages, retries = 3) {
+export async function chatWithLLM(messages, retries = 3) {
     for (let attempt = 0; attempt < retries; attempt++) {
         try {
             const controller = new AbortController();
             const timeout = setTimeout(() => controller.abort(), 30000); // 30s timeout
-            const res = await (0, node_fetch_1.default)("http://localhost:11434/api/chat", {
+            const res = await fetch(`${config.OLLAMA_URL}/api/chat`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ model: "dolphin-mistral", messages }),
+                body: JSON.stringify({ model: config.DEFAULT_MODEL, messages }),
                 signal: controller.signal
             });
             clearTimeout(timeout);

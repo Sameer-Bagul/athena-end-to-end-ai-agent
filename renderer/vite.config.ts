@@ -4,10 +4,14 @@ import tailwindcss from "@tailwindcss/vite";
 
 export default defineConfig({
   base: './',
-  plugins: [react(), tailwindcss()],
-  server: {
-    port: 5173,
-    strictPort: true
+  plugins: [
+    react(),
+    tailwindcss(),
+  ],
+  define: {
+    // Shims for LangChain/Node.js compatibility in browser
+    'process.env': {},
+    'global': 'globalThis',
   },
   build: {
     outDir: "dist",
@@ -52,10 +56,9 @@ export default defineConfig({
       }
     }
   },
-  // Optimize dependencies
   optimizeDeps: {
     include: ['three', '@pixiv/three-vrm', 'react', 'react-dom'],
-    exclude: ['@mediapipe/tasks-vision'] // Large WASM module - load on demand
+    exclude: ['@mediapipe/tasks-vision']
   },
   worker: {
     format: "es"

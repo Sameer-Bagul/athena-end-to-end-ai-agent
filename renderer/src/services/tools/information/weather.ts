@@ -6,8 +6,20 @@ import type { Tool } from "../core/types";
 export const WeatherTool: Tool = {
     name: "Weather",
     description: "Get current weather for a specific city.",
+    category: "information",
+    parameters: {
+        type: "object",
+        properties: {
+            city: {
+                type: "string",
+                description: "The name of the city to get weather for (e.g., 'London', 'Mumbai', 'New York')."
+            }
+        },
+        required: ["city"]
+    },
     keywords: ["weather", "temperature", "forecast", "hot", "cold", "rain", "sunny"],
-    execute: async (params: string) => {
+    execute: async (params: { city: string }) => {
+        const city = params.city || "London";
         // Prioritize Settings (localStorage) over Env
         let apiKey = "";
         try {
@@ -29,16 +41,6 @@ export const WeatherTool: Tool = {
             return "Weather tool is not configured. Please add an API Key in Settings > Plugins.";
         }
 
-        // Simple extraction of city name. 
-        // Improvement: Use LLM to extract city, but for now we'll try to find a city in the params or default to "London" if really unclear, 
-        // but actually the prompt usually contains the location.
-        // Let's assume the params *is* the user prompt and we try to extract common cities or just match everything after "in".
-
-        let city = "London"; // Default location
-        const match = params.match(/in\s+([a-zA-Z\s]+)/i);
-        if (match && match[1]) {
-            city = match[1].trim();
-        }
         // Removed strict check. If no city specified, we show London weather.
         // Future todo: Get default location from User Profile.
 

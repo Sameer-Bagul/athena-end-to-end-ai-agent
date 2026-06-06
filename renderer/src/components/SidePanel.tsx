@@ -91,26 +91,35 @@ export function SidePanel({ onToggleListening, onExpressionChange }: SidePanelPr
     }
 
     return (
-        <div className="h-full flex flex-col relative w-full font-sans bg-transparent selection:bg-white selection:text-black overflow-x-hidden border-r border-white/5">
+        <div className="h-full flex flex-col relative w-full font-sans bg-[#050505] selection:bg-white selection:text-black overflow-x-hidden border-r border-white/5">
+            {/* Full Panel Doodle Background */}
+            <div
+                className="absolute inset-0 pointer-events-none opacity-[0.3] mix-blend-screen z-0"
+                style={{
+                    backgroundImage: `url('doodle.jpg')`,
+                    backgroundSize: 'cover',
+                    backgroundPosition: 'center'
+                }}
+            />
+
             {/* Header */}
-            <div className="flex items-center justify-between px-6 h-16 shrink-0 border-b border-white/3">
+            <div className="flex items-center justify-between px-6 h-16 shrink-0 border-b border-white/5 relative z-10">
                 <div className="flex flex-col">
-                    <span className="text-[11px] font-medium text-white/40 uppercase tracking-widest">{state.selectedCharacter.name}</span>
-                    <h2 className="text-[13px] font-semibold text-white/90 leading-tight tracking-tight">Core Controller</h2>
+                    <span className="text-[11px] font-bold text-white/50 uppercase tracking-[0.2em]">{state.selectedCharacter.name}</span>
+                    <h2 className="text-[13px] font-black text-white leading-tight tracking-tight uppercase">Core Controller</h2>
                 </div>
 
                 <div className="flex items-center gap-3">
                     <button
                         onClick={actions.toggleLeftCollapse}
-                        className="text-white/20 hover:text-white transition-colors"
+                        className="text-white/40 hover:text-white transition-colors"
                     >
                         <X className="size-4" />
                     </button>
                 </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto overflow-x-hidden px-3 py-6 flex flex-col gap-4 custom-scrollbar relative">
-                <div className="absolute inset-0 pointer-events-none opacity-[0.02] bg-[linear-gradient(to_right,#808080_1px,transparent_1px),linear-gradient(to_bottom,#808080_1px,transparent_1px)] bg-size-[40px_40px]" />
+            <div className="flex-1 overflow-y-auto overflow-x-hidden px-3 py-6 flex flex-col gap-4 custom-scrollbar relative z-10">
 
                 <div className="flex flex-col relative z-10 gap-4">
                     {/* Module 01: Host Identity */}

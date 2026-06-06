@@ -13,65 +13,83 @@ export class OpenAICompatibleProvider implements AIProvider {
         this.model = model;
     }
 
+    getModelName(): string {
+        return this.model;
+    }
+
+    async getChatModel() {
+        const { ChatOpenAI } = await import("@langchain/openai");
+        return new ChatOpenAI({
+            openAIApiKey: this.apiKey,
+            modelName: this.model,
+            configuration: {
+                baseURL: this.baseUrl,
+            },
+            temperature: 0.7,
+        });
+    }
+
     async generateStream(
         prompt: string,
         systemPrompt: string,
         onChunk: (token: string) => void,
         signal?: AbortSignal
     ): Promise<string> {
-        const response = await fetch(`${this.baseUrl}/chat/completions`, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${this.apiKey}`
-            },
-            signal,
-            body: JSON.stringify({
-                model: this.model,
-                messages: [
-                    { role: "system", content: systemPrompt },
-                    { role: "user", content: prompt }
-                ],
-                stream: true
-            }),
-        });
+        try {
+            const response = await fetch(`${this.baseUrl}/chat/completions`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${this.apiKey}`
+                },
+                body: JSON.stringify({
+                    model: this.model,
+                    messages: [
+                        { role: "system", content: systemPrompt },
+                        { role: "user", content: prompt }
+                    ],
+                    stream: true,
+                    temperature: 0.7
+                }),
+                signal
+            });
 
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`${this.name} Error (${response.status}): ${errorText}`);
-        }
-        if (!response.body) throw new Error("No response body");
+            if (!response.ok) {
+                throw new Error(`OpenAI API error: ${response.statusText}`);
+            }
 
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        let fullResponse = "";
-        let buffer = "";
+            const reader = response.body?.getReader();
+            const decoder = new TextDecoder();
+            let fullText = "";
 
-        while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
+            if (reader) {
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
 
-            buffer += decoder.decode(value, { stream: true });
-            const lines = buffer.split("\n");
-            buffer = lines.pop() || "";
+                    const chunk = decoder.decode(value);
+                    const lines = chunk.split("\n");
 
-            for (const line of lines) {
-                const trimmed = line.trim();
-                if (!trimmed || trimmed === "data: [DONE]") continue;
-                if (!trimmed.startsWith("data: ")) continue;
-
-                try {
-                    const json = JSON.parse(trimmed.substring(6));
-                    const content = json.choices?.[0]?.delta?.content || "";
-                    if (content) {
-                        fullResponse += content;
-                        onChunk(content);
+                    for (const line of lines) {
+                        if (line.startsWith("data: ")) {
+                            const data = line.substring(6);
+                            if (data === "[DONE]") break;
+                            try {
+                                const json = JSON.parse(data);
+                                const text = json.choices?.[0]?.delta?.content;
+                                if (text) {
+                                    fullText += text;
+                                    onChunk(text);
+                                }
+                            } catch (e) { /* ignore */ }
+                        }
                     }
-                } catch (e) {
-                    console.warn(`${this.name} parse error`, e);
                 }
             }
+            return fullText;
+        } catch (error: any) {
+            console.error("OpenAI session error:", error);
+            throw error;
         }
-        return fullResponse;
     }
 }

@@ -44,61 +44,37 @@ export function selectAnimationAndExpression(text: string): AIAnimationSelection
   let bestMatch: AnimationMetadata | null = hintedMeta;
   let highestScore = hintedMeta ? 100 : 0;
 
+  const nsfwKeywords = ["fuck", "wet", "cock", "pussy", "hard", "dick", "moan", "pleasure", "slut", "horny", "intimate", "naked", "sex"];
+  const isNSFW = nsfwKeywords.some(kw => new RegExp(`\\b${kw}\\b`, 'g').test(t));
+
   if (!hintedMeta) {
-    for (const meta of ANIMATION_METADATA) {
-      let score = 0;
-      meta.keywords.forEach(kw => {
-        if (t.includes(kw.toLowerCase())) {
-          score += 2;
-          if (kw.length > 5) score += 1;
+    if (isNSFW) {
+      bestMatch = ANIMATION_METADATA.find(m => m.action === AnimationAction.IDLE) || null;
+    } else {
+      for (const meta of ANIMATION_METADATA) {
+        let score = 0;
+        meta.keywords.forEach(kw => {
+          if (new RegExp(`\\b${kw.toLowerCase()}\\b`, 'g').test(t)) {
+            score += 2;
+            if (kw.length > 5) score += 1;
+          }
+        });
+
+        if (new RegExp(`\\b${meta.category}\\b`, 'g').test(t)) score += 1;
+
+        if (score > highestScore && score >= 3) { // Require a higher confidence score
+          highestScore = score;
+          bestMatch = meta;
         }
-      });
-
-      if (t.includes(meta.category)) score += 1;
-
-      if (score > highestScore) {
-        highestScore = score;
-        bestMatch = meta;
       }
     }
   }
 
   // 2. Map Metadata File back to AnimationAction
   let selectedAction: AnimationAction = AnimationAction.TALK_NORMAL;
+  selectedAction = bestMatch ? bestMatch.action : AnimationAction.IDLE;
 
-  if (bestMatch) {
-    const file = bestMatch.file;
-    const fileToAction: Record<string, AnimationAction> = {
-      "angry.fbx": AnimationAction.ANGRY,
-      "armStretching.fbx": AnimationAction.ARMS_STRETCH,
-      "buttonPushing.fbx": AnimationAction.BUTTON_PUSH,
-      "danceBboyHipHop.fbx": AnimationAction.DANCE_BBOY,
-      "danceHipHop.fbx": AnimationAction.DANCE_HIPHOP,
-      "danceRumba.fbx": AnimationAction.DANCE_RUMBA,
-      "defeated.fbx": AnimationAction.DEFEATED,
-      "dismissingGesture.fbx": AnimationAction.DISMISS,
-      "excitedDance.fbx": AnimationAction.EXCITED_DANCE,
-      "greeting.fbx": AnimationAction.GREETING,
-      "Drunk.fbx": AnimationAction.DRUNK,
-      "idle1.fbx": AnimationAction.IDLE,
-      "SingleBigjump.fbx": AnimationAction.JUMP_SINGLE,
-      "bigJumps.fbx": AnimationAction.JUMP_BIG,
-      "layingFemalePose.fbx": AnimationAction.LAYING,
-      "nervousLookAround.fbx": AnimationAction.LOOK_AROUND,
-      "pointForward.fbx": AnimationAction.POINT,
-      "salute.fbx": AnimationAction.SALUTE,
-      "surprised.fbx": AnimationAction.SURPRISED,
-      "talkingArguing.fbx": AnimationAction.TALK_ARGUE,
-      "talkingBig.fbx": AnimationAction.TALK_BIG,
-      "talking1.fbx": AnimationAction.TALK_NORMAL,
-      "talkingOnPhone.fbx": AnimationAction.TALK_PHONE,
-      "Rapping.fbx": AnimationAction.RAP,
-      "Singing.fbx": AnimationAction.SING,
-      "Talking.fbx": AnimationAction.THINKING
-    };
-
-    selectedAction = fileToAction[file] || AnimationAction.TALK_NORMAL;
-  } else {
+  if (!bestMatch) {
     selectedAction = t.length > 80 ? AnimationAction.TALK_BIG : AnimationAction.TALK_NORMAL;
   }
 

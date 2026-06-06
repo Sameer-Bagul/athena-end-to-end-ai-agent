@@ -1,32 +1,31 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.ragService = exports.RagService = void 0;
-const ollama_1 = require("@langchain/ollama");
-const pdf_1 = require("@langchain/community/document_loaders/fs/pdf");
+import { Ollama, OllamaEmbeddings } from "@langchain/ollama";
+import { PDFLoader } from "@langchain/community/document_loaders/fs/pdf";
 // @ts-ignore
-const text_1 = require("@langchain/classic/document_loaders/fs/text");
-const textsplitters_1 = require("@langchain/textsplitters");
+import { TextLoader } from "@langchain/classic/document_loaders/fs/text";
+import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
 // @ts-ignore
-const memory_1 = require("@langchain/classic/vectorstores/memory");
-const prompts_1 = require("@langchain/core/prompts");
+import { MemoryVectorStore } from "@langchain/classic/vectorstores/memory";
+import { ChatPromptTemplate } from "@langchain/core/prompts";
 // @ts-ignore
-const combine_documents_1 = require("@langchain/classic/chains/combine_documents");
+import { createStuffDocumentsChain } from "@langchain/classic/chains/combine_documents";
 // @ts-ignore
-const retrieval_1 = require("@langchain/classic/chains/retrieval");
-const node_path_1 = __importDefault(require("node:path"));
-const node_fs_1 = __importDefault(require("node:fs"));
-const electron_1 = require("electron");
-class RagService {
-    constructor(modelName = "dolphin-mistral") {
-        this.vectorStore = null;
-        this.indexedFiles = [];
+import { createRetrievalChain } from "@langchain/classic/chains/retrieval";
+import path from "node:path";
+import fs from "node:fs";
+import { app } from "electron";
+import { config } from "./config.js";
+export class RagService {
+    llm;
+    embeddings;
+    vectorStore = null;
+    indexedFiles = [];
+    modelName;
+    persistencePath;
+    constructor(modelName = config.DEFAULT_MODEL) {
         this.modelName = modelName;
-        this.llm = new ollama_1.Ollama({ model: modelName });
-        this.embeddings = new ollama_1.OllamaEmbeddings({ model: "nomic-embed-text:latest" });
-        this.persistencePath = node_path_1.default.join(electron_1.app.getPath('userData'), 'rag-data.json');
+        this.llm = new Ollama({ model: modelName, baseUrl: config.OLLAMA_URL });
+        this.embeddings = new OllamaEmbeddings({ model: config.EMBEDDING_MODEL, baseUrl: config.OLLAMA_URL });
+        this.persistencePath = path.join(app.getPath('userData'), 'rag-data.json');
         // Load persisted data on initialization
         this.loadPersistedData();
     }
@@ -35,8 +34,8 @@ class RagService {
      */
     async loadPersistedData() {
         try {
-            if (node_fs_1.default.existsSync(this.persistencePath)) {
-                const data = JSON.parse(node_fs_1.default.readFileSync(this.persistencePath, 'utf-8'));
+            if (fs.existsSync(this.persistencePath)) {
+                const data = JSON.parse(fs.readFileSync(this.persistencePath, 'utf-8'));
                 this.indexedFiles = data.indexedFiles || [];
                 console.log(`[RAG] Loaded ${this.indexedFiles.length} indexed files from persistence`);
                 // Note: Full vector store serialization is complex
@@ -56,7 +55,7 @@ class RagService {
                 indexedFiles: this.indexedFiles,
                 timestamp: new Date().toISOString()
             };
-            node_fs_1.default.writeFileSync(this.persistencePath, JSON.stringify(data, null, 2));
+            fs.writeFileSync(this.persistencePath, JSON.stringify(data, null, 2));
             console.log('[RAG] Data persisted successfully');
         }
         catch (error) {
@@ -81,12 +80,12 @@ class RagService {
     async loadDocument(filePath) {
         console.log(`[RAG] 📄 Loading document: ${filePath}`);
         let loader;
-        const ext = node_path_1.default.extname(filePath).toLowerCase();
+        const ext = path.extname(filePath).toLowerCase();
         if (ext === ".pdf") {
-            loader = new pdf_1.PDFLoader(filePath);
+            loader = new PDFLoader(filePath);
         }
         else if (ext === ".txt" || ext === ".md") {
-            loader = new text_1.TextLoader(filePath);
+            loader = new TextLoader(filePath);
         }
         else {
             throw new Error(`Unsupported file type: ${ext}`);
@@ -105,7 +104,7 @@ class RagService {
         }
         // Use optimal chunk size based on file type
         const { size, overlap } = this.getOptimalChunkSize(ext);
-        const textSplitter = new textsplitters_1.RecursiveCharacterTextSplitter({
+        const textSplitter = new RecursiveCharacterTextSplitter({
             chunkSize: size,
             chunkOverlap: overlap,
         });
@@ -113,7 +112,7 @@ class RagService {
         console.log(`[RAG] ✂️ Split into ${splitDocs.length} chunks (size: ${size}, overlap: ${overlap}).`);
         try {
             if (!this.vectorStore) {
-                this.vectorStore = await memory_1.MemoryVectorStore.fromDocuments(splitDocs, this.embeddings);
+                this.vectorStore = await MemoryVectorStore.fromDocuments(splitDocs, this.embeddings);
             }
             else {
                 await this.vectorStore.addDocuments(splitDocs);
@@ -122,16 +121,16 @@ class RagService {
         catch (error) {
             console.error(`❌ [RAG] Vector store error: ${error.message}`);
             if (error.message.includes("fetch failed") || error.code === "ECONNREFUSED") {
-                throw new Error("Failed to connect to Ollama. Please ensure Ollama is running on http://localhost:11434");
+                throw new Error(`Failed to connect to Ollama. Please ensure Ollama is running on ${config.OLLAMA_URL}`);
             }
             if (error.message.includes("maximum context length")) {
                 throw new Error("Document chunk too large for the embedding model. Try smaller chunkSize.");
             }
             throw error;
         }
-        this.indexedFiles.push(node_path_1.default.basename(filePath));
+        this.indexedFiles.push(path.basename(filePath));
         await this.persistData(); // Persist after successful indexing
-        return { success: true, fileName: node_path_1.default.basename(filePath) };
+        return { success: true, fileName: path.basename(filePath) };
     }
     async getRelevantContext(input) {
         if (!this.vectorStore) {
@@ -155,15 +154,15 @@ class RagService {
     }
     async query(input) {
         const contexts = await this.getRelevantContext(input);
-        if (contexts.length === 0)
+        if (contexts.length === 0 || !this.vectorStore)
             return null;
         const retriever = this.vectorStore.asRetriever({ k: 5 });
-        const prompt = prompts_1.ChatPromptTemplate.fromTemplate(`You are Athena. Answer concisely based on context: {context}\nQuestion: {input}`);
-        const combineDocsChain = await (0, combine_documents_1.createStuffDocumentsChain)({
+        const prompt = ChatPromptTemplate.fromTemplate(`You are Athena. Answer concisely based on context: {context}\nQuestion: {input}`);
+        const combineDocsChain = await createStuffDocumentsChain({
             llm: this.llm,
             prompt,
         });
-        const chain = await (0, retrieval_1.createRetrievalChain)({
+        const chain = await createRetrievalChain({
             combineDocsChain,
             retriever,
         });
@@ -194,5 +193,4 @@ class RagService {
         this.persistData(); // Clear persisted data too
     }
 }
-exports.RagService = RagService;
-exports.ragService = new RagService();
+export const ragService = new RagService();

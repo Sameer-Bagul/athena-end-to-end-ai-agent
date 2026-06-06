@@ -1,16 +1,24 @@
 
 import { app, BrowserWindow, ipcMain, globalShortcut } from "electron";
 import path from "path";
+import { fileURLToPath } from "url";
 import fs from "fs";
 import { spawn } from "child_process";
 import "dotenv/config";
-import { chatWithLLM } from "../backend/llm";
-import { speak } from "../backend/tts";
-import { transcribe } from "../backend/stt";
-import { ragService } from "../backend/rag";
-import { downloadFile } from "../backend/downloader";
-import { NON_OLLAMA_MODELS, getLocalModelDir, isModelInstalled, deleteModel } from "../backend/modelRegistry";
+import { chatWithLLM } from "../backend/llm.js";
+import { speak } from "../backend/tts.js";
+import { transcribe } from "../backend/stt.js";
+import { ragService } from "../backend/rag.js";
+import { downloadFile } from "../backend/downloader.js";
+import { NON_OLLAMA_MODELS, getLocalModelDir, isModelInstalled, deleteModel } from "../backend/modelRegistry.js";
+import { systemService } from "../backend/system.js";
 import { dialog } from "electron";
+import { mcpManager } from "../backend/agent/mcpManager.js";
+
+
+// ES Module equivalent of __dirname
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const isDev = process.env.NODE_ENV === "development";
 
@@ -313,6 +321,41 @@ ipcMain.handle("rag:get-context", async (_, input) => {
   return await ragService.getRelevantContext(input);
 });
 
+// LangGraph Agent Handler
+ipcMain.handle("agent:query", async (_, { query, systemPrompt, modelName }) => {
+  console.log(`[IPC] 🤖 Request: agent:query`);
+  try {
+    const { runAgent } = await import("../backend/agent/graph.js");
+    const response = await runAgent(query, systemPrompt, modelName);
+    return { success: true, response };
+  } catch (error: any) {
+    console.error("❌ [Electron] Agent Error:", error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.on("agent:query-stream", async (event, { queryId, query, systemPrompt, modelName }) => {
+  console.log(`[IPC] 🤖 Request: agent:query-stream (${queryId})`);
+  try {
+    const { runAgent } = await import("../backend/agent/graph.js");
+    const response = await runAgent(
+      query,
+      systemPrompt,
+      modelName,
+      (msg) => {
+        event.sender.send(`agent:progress-${queryId}`, msg);
+      },
+      (token) => {
+        event.sender.send(`agent:token-${queryId}`, token);
+      }
+    );
+    event.sender.send(`agent:complete-${queryId}`, { success: true, response });
+  } catch (error: any) {
+    console.error("❌ [Electron] Agent Error:", error);
+    event.sender.send(`agent:complete-${queryId}`, { success: false, error: error.message });
+  }
+});
+
 ipcMain.handle("tts:generate", async (_, { text, voiceStyle }) => {
   console.log(`[IPC] 🗣️ Request: tts:generate (${text.substring(0, 30)}...)`);
   return await speak(text, voiceStyle);
@@ -370,7 +413,67 @@ ipcMain.handle("chat:load-history", async () => {
     return null;
   }
 });
-// --- Ollama Management Handlers ---
+
+// --- Agent Tool Bridging (Backend -> Renderer) ---
+ipcMain.on("agent:add-timer", (event, { duration, unit, label }) => {
+  console.log(`⏰ [Main] Bridging agent:add-timer: ${duration} ${unit} (${label || 'No label'})`);
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send("athena:add-timer-ipc", { duration, unit, label });
+  }
+  if (widgetWindow && !widgetWindow.isDestroyed()) {
+    widgetWindow.webContents.send("athena:add-timer-ipc", { duration, unit, label });
+  }
+});
+
+ipcMain.on("agent:remove-timer", (event, { id }) => {
+  console.log(`⏰ [Main] Bridging agent:remove-timer: ${id}`);
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send("athena:remove-timer-ipc", { id });
+  }
+  if (widgetWindow && !widgetWindow.isDestroyed()) {
+    widgetWindow.webContents.send("athena:remove-timer-ipc", { id });
+  }
+});
+
+// --- MCP Bridging ---
+ipcMain.handle("agent:call-mcp", async (_, { serverName, toolName, args }) => {
+  console.log(`🔌 [Main] Routing MCP call to ${serverName}.${toolName}`);
+  try {
+    return await mcpManager.callTool(serverName, toolName, args);
+  } catch (error: any) {
+    console.error(`❌ [Main] MCP call ${serverName}.${toolName} failed:`, error);
+    return { error: error.message };
+  }
+});
+
+// --- System Control Handlers ---
+ipcMain.handle("system:get-volume", async () => {
+  return await systemService.getVolume();
+});
+
+ipcMain.handle("system:set-volume", async (_, percent: number) => {
+  return await systemService.setVolume(percent);
+});
+
+ipcMain.handle("system:set-brightness", async (_, percent: number) => {
+  return await systemService.setBrightness(percent);
+});
+
+ipcMain.handle("system:get-battery", async () => {
+  return await systemService.getBatteryInfo();
+});
+
+ipcMain.handle("system:list-files", async (_, targetPath: string) => {
+  return await systemService.listFiles(targetPath);
+});
+
+ipcMain.handle("system:read-file", async (_, targetPath: string) => {
+  return await systemService.readFile(targetPath);
+});
+
+ipcMain.handle("system:file-stats", async (_, targetPath: string) => {
+  return await systemService.getFileStats(targetPath);
+});
 ipcMain.handle("ollama:check-status", async () => {
   try {
     const res = await fetch("http://localhost:11434/api/tags");
@@ -513,6 +616,21 @@ app.whenReady().then(() => {
     // But forcing focus might be annoying if user is typing elsewhere. 
     // For now, let's just send the event.
   });
+
+  // MCP Sidecar Status listener
+  mcpManager.onStatus = (name, status) => {
+    console.log(`🔌 [Main] Sidecar ${name} is ${status}`);
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send("agent:mcp-status", { name, status });
+    }
+    if (widgetWindow && !widgetWindow.isDestroyed()) {
+      widgetWindow.webContents.send("agent:mcp-status", { name, status });
+    }
+  };
+
+  // Spawn PoC sidecars
+  const sidecarPath = path.join(app.getAppPath(), "backend/agent/sidecars/time");
+  mcpManager.spawnServer("time", "node", [path.join(sidecarPath, "index.js")], sidecarPath);
 });
 
 app.on('will-quit', () => {
@@ -521,20 +639,20 @@ app.on('will-quit', () => {
 
 app.on("before-quit", async () => {
   console.log("🛑 [Electron] Initiating graceful shutdown...");
-  
+
   // Graceful shutdown helper
   const shutdownService = (proc: any, name: string): Promise<void> => {
     return new Promise((resolve) => {
       if (!proc) return resolve();
-      
+
       console.log(`[Electron] Shutting down ${name}...`);
       proc.on('exit', () => {
         console.log(`[Electron] ${name} exited`);
         resolve();
       });
-      
+
       proc.kill('SIGTERM'); // Graceful
-      
+
       setTimeout(() => {
         if (!proc.killed) {
           console.warn(`[Electron] Force killing ${name}`);
@@ -544,11 +662,13 @@ app.on("before-quit", async () => {
       }, 5000); // Force after 5s
     });
   };
-  
+
   await Promise.all([
     shutdownService(pythonServerProcess, 'Python STT'),
     shutdownService(ttsServerProcess, 'TTS')
   ]);
-  
+
+  mcpManager.shutdown();
+
   console.log("✅ [Electron] Graceful shutdown complete");
 });

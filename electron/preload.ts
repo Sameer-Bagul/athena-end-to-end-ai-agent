@@ -51,6 +51,43 @@ contextBridge.exposeInMainWorld("athena", {
     getContext: (input: string) => ipcRenderer.invoke("rag:get-context", input)
   },
 
+  // LangGraph Agent
+  agent: {
+    query: (query: string, systemPrompt: string, modelName?: string) =>
+      ipcRenderer.invoke("agent:query", { query, systemPrompt, modelName }),
+    queryStream: (queryId: string, query: string, systemPrompt: string, modelName?: string, onToken?: (token: string) => void, onProgress?: (msg: string) => void) => {
+      if (onToken) {
+        ipcRenderer.on(`agent:token-${queryId}`, (_: any, token: string) => onToken(token));
+      }
+      if (onProgress) {
+        ipcRenderer.on(`agent:progress-${queryId}`, (_: any, msg: string) => onProgress(msg));
+      }
+      return new Promise((resolve) => {
+        ipcRenderer.once(`agent:complete-${queryId}`, (_: any, result: any) => {
+          ipcRenderer.removeAllListeners(`agent:token-${queryId}`);
+          ipcRenderer.removeAllListeners(`agent:progress-${queryId}`);
+          resolve(result);
+        });
+        ipcRenderer.send("agent:query-stream", { queryId, query, systemPrompt, modelName });
+      });
+    },
+    onAddTimer: (callback: (data: any) => void) => {
+      const subscription = (_: any, data: any) => callback(data);
+      ipcRenderer.on("athena:add-timer-ipc", subscription);
+      return () => ipcRenderer.removeListener("athena:add-timer-ipc", subscription);
+    },
+    onRemoveTimer: (callback: (data: any) => void) => {
+      const subscription = (_: any, data: any) => callback(data);
+      ipcRenderer.on("athena:remove-timer-ipc", subscription);
+      return () => ipcRenderer.removeListener("athena:remove-timer-ipc", subscription);
+    },
+    onMcpStatus: (callback: (data: any) => void) => {
+      const subscription = (_: any, data: any) => callback(data);
+      ipcRenderer.on("agent:mcp-status", subscription);
+      return () => ipcRenderer.removeListener("agent:mcp-status", subscription);
+    }
+  },
+
   // Ollama Management
   ollama: {
     checkStatus: () => ipcRenderer.invoke("ollama:check-status"),
@@ -74,6 +111,17 @@ contextBridge.exposeInMainWorld("athena", {
       ipcRenderer.on("model:pull-progress", subscription);
       return () => ipcRenderer.removeListener("model:pull-progress", subscription);
     }
+  },
+
+  // Laptop / System Control
+  system: {
+    getVolume: () => ipcRenderer.invoke("system:get-volume"),
+    setVolume: (percent: number) => ipcRenderer.invoke("system:set-volume", percent),
+    setBrightness: (percent: number) => ipcRenderer.invoke("system:set-brightness", percent),
+    getBattery: () => ipcRenderer.invoke("system:get-battery"),
+    listFiles: (targetPath: string) => ipcRenderer.invoke("system:list-files", targetPath),
+    readFile: (targetPath: string) => ipcRenderer.invoke("system:read-file", targetPath),
+    fileStats: (targetPath: string) => ipcRenderer.invoke("system:file-stats", targetPath)
   },
 
   // Logging to Main Terminal

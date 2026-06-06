@@ -1,9 +1,11 @@
 import { useRef, useMemo } from "react";
 import { useAppStore } from "../context/AppContext";
 import { selectAnimationAndExpression } from "../lib/aiAnimationSelector";
-import { sendMessageToOllama, generateSpeech } from "../lib/api";
-import { ToolRegistry } from "../services/tools/core/registry";
+import { AgentManager } from "../services/ai/agent";
+import { getAIProvider } from "../services/ai/factory";
+import { generateSpeech } from "../lib/api";
 import { ANIMATION_METADATA } from "../lib/animationMetadata";
+import { logger } from "../lib/logger";
 
 export function useAssistant() {
     const { state, actions } = useAppStore();
@@ -38,6 +40,7 @@ export function useAssistant() {
 
     const processInput = async (
         text: string,
+        attachments: any[] = [],
         options: {
             source: 'voice' | 'text',
             onPlayAudio: (blob: Blob | null, animation?: any, facialExpressions?: any[]) => Promise<void>
@@ -47,17 +50,8 @@ export function useAssistant() {
         const shouldSpeak = true;
 
         try {
-            // --- Tool Check ---
+            // --- Context Check (RAG) ---
             let context = "";
-            const tool = ToolRegistry.findTool(text);
-            if (tool) {
-                actions.setTranscript(`Using tool: ${tool.name}...`);
-                const toolResult = await ToolRegistry.executeTool(tool, text);
-                context = `\n[SYSTEM CONTEXT]\nTool '${tool.name}' result: ${toolResult}\n[END CONTEXT]\n`;
-                console.log("[useAssistant] Tool Context:", context);
-            }
-
-            // --- RAG Check ---
             // @ts-ignore
             if (window.athena?.rag?.getContext) {
                 // @ts-ignore
@@ -69,7 +63,13 @@ export function useAssistant() {
                 }
             }
 
-            // 1. Setup Prompt
+            // Add attachment context if any
+            if (attachments && attachments.length > 0) {
+                const attachmentInfo = attachments.map(a => `- ${a.name} (${a.type})`).join('\n');
+                context += `\n[ATTACHED FILES]\n${attachmentInfo}\n[END ATTACHMENTS]\n`;
+            }
+
+            // 1. Setup Identity Prompts
             const userName = state.userProfile.name || "User";
             const char = state.selectedCharacter;
 
@@ -101,13 +101,6 @@ ${char.systemPrompt || "I speak with kindness, empathy, and a bit of a friendly 
 AVAILABLE ANIMATIONS (Use these in brackets):
 ${animContext}`;
 
-            let fullPrompt = systemPrompt;
-            if (context) {
-                fullPrompt = `${systemPrompt}\n\n[CONTEXT INFO]\n${context}\n[END CONTEXT]\n\nUser: ${text}`;
-            } else {
-                fullPrompt = `${systemPrompt}\n\nUser: ${text}`;
-            }
-
             // 2. Prepare Streaming State
             actions.addMessage({ role: 'assistant', content: '...' });
 
@@ -121,40 +114,30 @@ ${animContext}`;
             const queueSentence = (sentence: string) => {
                 console.log(`🎤 [Stream] Queuing segment: "${sentence}"`);
 
-                // 1. Extract and Clean Animations Hints
                 const selection = selectAnimationAndExpression(sentence);
 
-                // Determine what to play NOW and what to REMEMBER
                 let finalAnimation = currentAnimation || selection.animation;
                 let finalFacial = currentFacial.length > 0 ? currentFacial : selection.facialExpressions;
 
                 if (selection.hasHint) {
                     if (selection.behavior === 'mood') {
-                        // "Sticky" modes (Rapping, Singing, Dancing, Idle, Talking)
                         currentAnimation = selection.animation;
                         currentFacial = selection.facialExpressions;
                         finalAnimation = selection.animation;
                         finalFacial = selection.facialExpressions;
-                        console.log(`🎭 [Animation] Persistent MOOD updated to: ${currentAnimation}`);
                     } else {
-                        // "One-shot" gestures (Greeting, Salute, Jump, Point)
-                        // Play it for THIS sentence, but don't change the persistent 'currentAnimation'
                         finalAnimation = selection.animation;
                         finalFacial = selection.facialExpressions;
-                        console.log(`🎭 [Animation] Playing one-shot GESTURE: ${finalAnimation}`);
                     }
                 }
 
-                // 2. Clean text for TTS
                 const cleanSentence = sentence.replace(/\(([^)]+)\)/g, '').trim();
                 if (cleanSentence.length === 0 && !selection.hasHint) return;
 
-                // Start generation immediately
                 const audioPromise = cleanSentence.length > 0
                     ? generateSpeech(cleanSentence, state.selectedCharacter.voiceStyle).catch(() => null)
                     : Promise.resolve(null);
 
-                // Add playback task
                 audioQueueRef.current.push(async () => {
                     const blob = await audioPromise;
                     await options.onPlayAudio(blob, finalAnimation, finalFacial);
@@ -163,33 +146,52 @@ ${animContext}`;
                 processAudioQueue();
             };
 
-            // 3. Call LLM with Streaming
-            await sendMessageToOllama(fullPrompt, undefined, (token) => {
-                fullResponse += token;
-                pendingSpeechText += token;
+            // 3. Call Agentic Reasoning Loop
+            const activeType = state.aiConfig.priority[0] || 'ollama';
+            const activeConfig = state.aiConfig[activeType]?.[0];
+            const provider = getAIProvider(activeType, activeConfig);
 
-                actions.updateLastMessage(fullResponse);
+            const result = await AgentManager.process(
+                text,
+                systemPrompt + (context ? `\n\n[CONTEXT INFO]\n${context}\n[END CONTEXT]` : ""),
+                provider,
+                (token) => {
+                    fullResponse += token;
+                    pendingSpeechText += token;
 
-                if (shouldSpeak) {
-                    const match = pendingSpeechText.match(/[.!?]+[\s\n]+|[\n]+/);
-                    if (match && match.index !== undefined) {
-                        const endIdx = match.index + match[0].length;
-                        const sentence = pendingSpeechText.substring(0, endIdx).trim();
+                    actions.updateLastMessage({ content: fullResponse });
 
-                        if (sentence.length > 0) {
-                            queueSentence(sentence);
-                            pendingSpeechText = pendingSpeechText.substring(endIdx);
+                    if (shouldSpeak) {
+                        const match = pendingSpeechText.match(/[.!?]+[\s\n]+|[\n]+/);
+                        if (match && match.index !== undefined) {
+                            const endIdx = match.index + match[0].length;
+                            const sentence = pendingSpeechText.substring(0, endIdx).trim();
+
+                            if (sentence.length > 0) {
+                                // SKIP JSON: If the sentence starts with '{' or looks like a tool call, don't speak it
+                                const looksLikeJson = sentence.startsWith('{') || (sentence.includes('"tool":') && sentence.includes('"arguments":'));
+
+                                if (!looksLikeJson) {
+                                    queueSentence(sentence);
+                                } else {
+                                    logger.info('[useAssistant] Skipping TTS for JSON tool call block');
+                                }
+                                pendingSpeechText = pendingSpeechText.substring(endIdx);
+                            }
                         }
                     }
-                }
-            });
+                },
+                (status) => actions.setTranscript(status)
+            );
+
+            fullResponse = result.content;
 
             // 4. Handle Remainder
             if (shouldSpeak && pendingSpeechText.trim().length > 0) {
                 queueSentence(pendingSpeechText.trim());
             }
 
-            actions.updateLastMessage(fullResponse);
+            actions.updateLastMessage({ content: fullResponse, usedTools: result.usedTools });
 
         } catch (e) {
             console.error("[useAssistant] Chat error", e);

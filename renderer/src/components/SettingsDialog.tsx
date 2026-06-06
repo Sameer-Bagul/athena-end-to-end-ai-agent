@@ -44,6 +44,38 @@ export function SettingsDialog({ isOpen, onClose, onUpdate }: SettingsDialogProp
     const [lmStudioConfig, setLmStudioConfig] = React.useState(Array.isArray(state.aiConfig.lmstudio) ? state.aiConfig.lmstudio : [state.aiConfig.lmstudio]);
     const [grokConfig, setGrokConfig] = React.useState(Array.isArray(state.aiConfig.grok) ? state.aiConfig.grok : [state.aiConfig.grok]);
     const [geminiConfig, setGeminiConfig] = React.useState(Array.isArray(state.aiConfig.gemini) ? state.aiConfig.gemini : [state.aiConfig.gemini]);
+    const [ollamaModels, setOllamaModels] = React.useState<string[]>([]);
+
+    // Fetch Ollama models
+    React.useEffect(() => {
+        if (!isOpen) return;
+        let isMounted = true;
+        if ((window as any).athena?.ollama?.listModels) {
+            (window as any).athena.ollama.listModels()
+                .then((modelsOrError: any) => {
+                    if (isMounted) {
+                        if (Array.isArray(modelsOrError)) {
+                            const parsed = modelsOrError.map((m: any) => m.name.split(':')[0] + (m.name.includes(':') ? `:${m.name.split(':')[1]}` : ''));
+                            setOllamaModels(parsed);
+                        } else {
+                            setOllamaModels([]);
+                        }
+                    }
+                })
+                .catch(() => { if (isMounted) setOllamaModels([]); });
+        } else {
+            fetch(`http://localhost:11434/api/tags`)
+                .then(res => res.json())
+                .then(data => {
+                    if (isMounted && data.models) {
+                        const parsed = data.models.map((m: any) => m.name.split(':')[0] + (m.name.includes(':') ? `:${m.name.split(':')[1]}` : ''));
+                        setOllamaModels(parsed);
+                    }
+                })
+                .catch(() => { if (isMounted) setOllamaModels([]); });
+        }
+        return () => { isMounted = false; };
+    }, [isOpen]);
 
     // Sync from state when opened
     React.useEffect(() => {
@@ -87,7 +119,7 @@ export function SettingsDialog({ isOpen, onClose, onUpdate }: SettingsDialogProp
             <div className="absolute inset-0 bg-black/10 backdrop-blur-sm" onClick={onClose} />
 
             {/* Main Diamond/Glass Container */}
-            <div className="relative w-225 h-150 bg-black/80 backdrop-blur-2xl border border-white/5 rounded-3xl shadow-2xl flex overflow-hidden ring-1 ring-white/10">
+            <div className="relative w-[95vw] max-w-5xl h-[85vh] max-h-[800px] bg-black/80 backdrop-blur-2xl border border-white/5 rounded-3xl shadow-2xl flex overflow-hidden ring-1 ring-white/10">
 
                 {/* Minimal Sidebar */}
                 <div className="w-16 md:w-64 flex flex-col border-r border-white/5 pt-6 pb-4 bg-white/2">
@@ -216,6 +248,7 @@ export function SettingsDialog({ isOpen, onClose, onUpdate }: SettingsDialogProp
                                             template={{ baseUrl: "http://localhost:11434", model: "dolphin-mistral", numCtx: 2048, numThread: 0, numGpu: -1 }}
                                             fields={['baseUrl', 'model']} onBlur={handleAiUpdate}
                                             showPerformance
+                                            modelOptions={ollamaModels}
                                         />
 
                                         <ConfigGroup title="Gemini" icon={<BrainCircuit className="size-4" />} configs={geminiConfig} setConfigs={setGeminiConfig}
@@ -394,9 +427,10 @@ interface ConfigGroupProps<T = Record<string, string | number>> {
     fields: string[];
     onBlur: () => void;
     showPerformance?: boolean;
+    modelOptions?: string[];
 }
 
-function ConfigGroup<T extends Record<string, string | number>>({ title, icon, configs, setConfigs, template, fields, onBlur, showPerformance }: ConfigGroupProps<T>) {
+function ConfigGroup<T extends Record<string, string | number>>({ title, icon, configs, setConfigs, template, fields, onBlur, showPerformance, modelOptions }: ConfigGroupProps<T>) {
     return (
         <div className="p-4 rounded-xl bg-white/2 border border-white/5 space-y-4 hover:border-white/10 transition-colors">
             <div className="flex items-center gap-2 text-white/70">
@@ -407,24 +441,49 @@ function ConfigGroup<T extends Record<string, string | number>>({ title, icon, c
                     <div className="flex gap-2 items-start">
                         <div className={cn("grid gap-2 flex-1", fields.length > 1 ? "grid-cols-2" : "grid-cols-1")}>
                             {fields.map((f: string) => (
-                                <Input key={f}
-                                    value={c[f]} placeholder={f === 'baseUrl' ? 'Base URL' : f === 'apiKey' ? 'API Key' : 'Model'}
-                                    onChange={e => {
-                                        const n = [...configs];
-                                        let val = e.target.value;
-                                        if (f !== 'baseUrl') val = val.replace(/["']/g, "");
-                                        (n[i] as Record<string, string | number>)[f] = val;
-                                        setConfigs(n);
-                                    }}
-                                    onBlur={() => {
-                                        const n = [...configs];
-                                        const item = n[i] as Record<string, string | number>;
-                                        if (typeof item[f] === 'string') item[f] = (item[f] as string).trim();
-                                        setConfigs(n);
-                                        onBlur();
-                                    }}
-                                    className="bg-black/10 border-white/5 focus:border-white/20 text-xs font-mono text-white/80 h-9"
-                                />
+                                f === 'model' && modelOptions && modelOptions.length > 0 ? (
+                                    <select
+                                        key={f}
+                                        value={c[f]}
+                                        onChange={e => {
+                                            const n = [...configs];
+                                            (n[i] as Record<string, string | number>)[f] = e.target.value;
+                                            setConfigs(n);
+                                        }}
+                                        onBlur={() => {
+                                            const n = [...configs];
+                                            setConfigs(n);
+                                            onBlur();
+                                        }}
+                                        className="flex h-9 w-full rounded-md bg-black/10 border border-white/5 focus:border-white/20 px-3 py-1.5 text-xs font-mono text-white/80 ring-offset-background disabled:cursor-not-allowed disabled:opacity-50 appearance-none focus:outline-none"
+                                    >
+                                        {!modelOptions.includes(String(c[f])) && (
+                                            <option value={c[f]} className="bg-[#09090b] text-white/80">{c[f]} (Custom/Missing)</option>
+                                        )}
+                                        {modelOptions.map(name => (
+                                            <option key={name} value={name} className="bg-[#09090b] text-white/80">{name}</option>
+                                        ))}
+                                    </select>
+                                ) : (
+                                    <Input key={f}
+                                        value={c[f]} placeholder={f === 'baseUrl' ? 'Base URL' : f === 'apiKey' ? 'API Key' : 'Model'}
+                                        onChange={e => {
+                                            const n = [...configs];
+                                            let val = e.target.value;
+                                            if (f !== 'baseUrl') val = val.replace(/["']/g, "");
+                                            (n[i] as Record<string, string | number>)[f] = val;
+                                            setConfigs(n);
+                                        }}
+                                        onBlur={() => {
+                                            const n = [...configs];
+                                            const item = n[i] as Record<string, string | number>;
+                                            if (typeof item[f] === 'string') item[f] = (item[f] as string).trim();
+                                            setConfigs(n);
+                                            onBlur();
+                                        }}
+                                        className="bg-black/10 border-white/5 focus:border-white/20 text-xs font-mono text-white/80 h-9"
+                                    />
+                                )
                             ))}
                         </div>
                         <Button variant="ghost" size="icon" className="size-9 text-white/20 hover:text-red-400 hover:bg-red-400/10"

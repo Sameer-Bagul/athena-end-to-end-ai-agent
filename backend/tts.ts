@@ -2,6 +2,7 @@ import fetch from "node-fetch";
 import fs from "fs";
 import path from "path";
 import { app } from "electron";
+import { config } from "./config.js";
 
 class TTSFileManager {
   private tempFiles: Set<string> = new Set();
@@ -31,7 +32,7 @@ class TTSFileManager {
   async cleanup() {
     console.log(`[TTS] Cleaning up ${this.tempFiles.size} temp files...`);
     const promises = Array.from(this.tempFiles).map(file =>
-      fs.promises.unlink(file).catch(() => {})
+      fs.promises.unlink(file).catch(() => { })
     );
     await Promise.all(promises);
     this.tempFiles.clear();
@@ -48,7 +49,7 @@ app.on('before-quit', async () => {
 export async function speak(text: string, voiceStyle = "M1") {
   console.log(`[BACKEND TTS] Request received. Text: "${text.substring(0, 20)}...", Voice: ${voiceStyle}`);
   try {
-    const res = await fetch("http://localhost:3000/tts", {
+    const res = await fetch(`${config.TTS_URL}/tts`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ text, voiceStyle }),
@@ -61,7 +62,7 @@ export async function speak(text: string, voiceStyle = "M1") {
 
     const arrayBuffer = await res.arrayBuffer();
     const wavBuffer = Buffer.from(arrayBuffer);
-    
+
     const filePath = await ttsFileManager.saveTTS(wavBuffer);
     console.log(`[BACKEND TTS] Success. Saved to: ${filePath} (${wavBuffer.length} bytes)`);
     return filePath;

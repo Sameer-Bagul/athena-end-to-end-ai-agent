@@ -13,6 +13,7 @@ import { createRetrievalChain } from "@langchain/classic/chains/retrieval";
 import path from "node:path";
 import fs from "node:fs";
 import { app } from "electron";
+import { config } from "./config.js";
 
 export class RagService {
     private llm: Ollama;
@@ -22,12 +23,12 @@ export class RagService {
     private modelName: string;
     private persistencePath: string;
 
-    constructor(modelName: string = "dolphin-mistral") {
+    constructor(modelName: string = config.DEFAULT_MODEL) {
         this.modelName = modelName;
-        this.llm = new Ollama({ model: modelName });
-        this.embeddings = new OllamaEmbeddings({ model: "nomic-embed-text:latest" });
+        this.llm = new Ollama({ model: modelName, baseUrl: config.OLLAMA_URL });
+        this.embeddings = new OllamaEmbeddings({ model: config.EMBEDDING_MODEL, baseUrl: config.OLLAMA_URL });
         this.persistencePath = path.join(app.getPath('userData'), 'rag-data.json');
-        
+
         // Load persisted data on initialization
         this.loadPersistedData();
     }
@@ -41,7 +42,7 @@ export class RagService {
                 const data = JSON.parse(fs.readFileSync(this.persistencePath, 'utf-8'));
                 this.indexedFiles = data.indexedFiles || [];
                 console.log(`[RAG] Loaded ${this.indexedFiles.length} indexed files from persistence`);
-                
+
                 // Note: Full vector store serialization is complex
                 // For production, consider using a proper vector DB like Chroma or FAISS
             }
@@ -70,7 +71,7 @@ export class RagService {
      * Get optimal chunk size based on file extension
      */
     private getOptimalChunkSize(ext: string): { size: number, overlap: number } {
-        switch(ext) {
+        switch (ext) {
             case '.pdf':
                 return { size: 1000, overlap: 200 }; // PDFs have structured content
             case '.md':
@@ -128,7 +129,7 @@ export class RagService {
         } catch (error: any) {
             console.error(`❌ [RAG] Vector store error: ${error.message}`);
             if (error.message.includes("fetch failed") || error.code === "ECONNREFUSED") {
-                throw new Error("Failed to connect to Ollama. Please ensure Ollama is running on http://localhost:11434");
+                throw new Error(`Failed to connect to Ollama. Please ensure Ollama is running on ${config.OLLAMA_URL}`);
             }
             if (error.message.includes("maximum context length")) {
                 throw new Error("Document chunk too large for the embedding model. Try smaller chunkSize.");
@@ -165,9 +166,9 @@ export class RagService {
 
     async query(input: string) {
         const contexts = await this.getRelevantContext(input);
-        if (contexts.length === 0) return null;
+        if (contexts.length === 0 || !this.vectorStore) return null;
 
-        const retriever = this.vectorStore!.asRetriever({ k: 5 });
+        const retriever = this.vectorStore.asRetriever({ k: 5 });
         const prompt = ChatPromptTemplate.fromTemplate(
             `You are Athena. Answer concisely based on context: {context}\nQuestion: {input}`
         );

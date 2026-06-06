@@ -6,4 +6,6 @@ export interface AIProvider {
         onChunk: (token: string) => void,
         signal?: AbortSignal
     ): Promise<string>;
+    getChatModel(): Promise<any>;
+    getModelName(): string;
 }

@@ -1,34 +1,29 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.transcribe = transcribe;
-const axios_1 = __importDefault(require("axios"));
-const form_data_1 = __importDefault(require("form-data"));
-const http_1 = require("http");
+import axios from 'axios';
+import FormData from 'form-data';
+import { Agent } from 'http';
+import { config } from './config.js';
 // Connection pooling for better performance
-const httpAgent = new http_1.Agent({
+const httpAgent = new Agent({
     keepAlive: true,
     maxSockets: 5,
     maxFreeSockets: 2,
     timeout: 30000
 });
-async function transcribe(input) {
-    const MAX_RETRIES = 5;
+export async function transcribe(input) {
+    const MAX_RETRIES = config.MAX_RETRIES;
     let attempt = 0;
     while (attempt < MAX_RETRIES) {
         try {
             const buffer = Buffer.isBuffer(input) ? input : Buffer.from(input);
             if (attempt === 0)
                 console.log(`[BACKEND STT] Sending ${buffer.length} bytes to Python Service...`);
-            const form = new form_data_1.default();
+            const form = new FormData();
             form.append('file', buffer, {
                 filename: 'audio.webm',
                 contentType: 'audio/webm',
                 knownLength: buffer.length
             });
-            const response = await axios_1.default.post('http://127.0.0.1:9001/stt', form, {
+            const response = await axios.post(`${config.STT_URL}/stt`, form, {
                 headers: {
                     ...form.getHeaders(),
                     'Content-Length': form.getLengthSync()
@@ -36,7 +31,7 @@ async function transcribe(input) {
                 httpAgent,
                 maxBodyLength: Infinity,
                 maxContentLength: Infinity,
-                timeout: 30000 // 30s timeout for processing
+                timeout: config.STT_TIMEOUT // timeout for processing
             });
             const json = response.data;
             if (json.error) {

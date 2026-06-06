@@ -6,8 +6,21 @@ export class GeminiProvider implements AIProvider {
     private model: string;
 
     constructor(config: { apiKey: string; model: string }) {
-        this.apiKey = config.apiKey.trim();
-        this.model = config.model.trim().replace(/["']/g, ""); // Remove accidental quotes
+        this.apiKey = config.apiKey;
+        this.model = config.model;
+    }
+
+    getModelName(): string {
+        return this.model;
+    }
+
+    async getChatModel() {
+        const { ChatGoogleGenerativeAI } = await import("@langchain/google-genai");
+        return new ChatGoogleGenerativeAI({
+            apiKey: this.apiKey,
+            model: this.model,
+            temperature: 0.7,
+        });
     }
 
     async generateStream(
@@ -16,85 +29,65 @@ export class GeminiProvider implements AIProvider {
         onChunk: (token: string) => void,
         signal?: AbortSignal
     ): Promise<string> {
-        console.log(`✨ [Gemini] Sending prompt to ${this.model}: "${prompt.substring(0, 100)}${prompt.length > 100 ? '...' : ''}"`);
-        // Using REST API for simplicity without adding dependency
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${this.model}:streamGenerateContent?key=${this.apiKey}`;
+        try {
+            const response = await fetch(
+                `https://generativelanguage.googleapis.com/v1beta/models/${this.model}:streamGenerateContent?key=${this.apiKey}`,
+                {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        contents: [
+                            { role: "user", parts: [{ text: systemPrompt + "\n\n" + prompt }] }
+                        ],
+                        generationConfig: { temperature: 0.7 }
+                    }),
+                    signal
+                }
+            );
 
-        const response = await fetch(url, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            signal,
-            body: JSON.stringify({
-                contents: [{
-                    role: "user",
-                    parts: [{ text: `${systemPrompt}\n\n${prompt}` }] // System prompt as preamble for now as Gemini API structure varies
-                }]
-            }),
-        });
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error?.message || "Gemini API error");
+            }
 
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`Gemini Error: ${errorText}`);
-        }
-        if (!response.body) throw new Error("No response body");
+            const reader = response.body?.getReader();
+            const decoder = new TextDecoder();
+            let fullText = "";
 
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        let fullResponse = "";
-        // buffer removed as we stream char by char
-
-        // Actually Gemini REST 'streamGenerateContent' returns a JSON array stream but not SSE format with 'data:'.
-        // It returns consecutive JSON objects.
-
-        // Simpler approach: Accumulate buffer, try to parse JSON objects.
-        // Google sends: [{ "candidates": [...] }, { "candidates": [...] }]
-        // Valid JSON array syntax around it? No, usually line delimited plain JSON or [ ... , ... ]
-        // Let's assume standard handling.
-
-        // CORRECT PATTERN for Gemini Stream REST:
-        // It returns a list of objects in a JSON array format like `[{...},\n{...}]`.
-        // We will do a robust manual parsing or cleaner buffer method.
-
-        let braceCount = 0;
-        let jsonBuffer = "";
-
-        while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-
-            const chunk = decoder.decode(value, { stream: true });
-            for (const char of chunk) {
-                if (char === '{') braceCount++;
-                if (braceCount > 0) jsonBuffer += char;
-                if (char === '}') braceCount--;
-
-                if (braceCount === 0 && jsonBuffer.length > 0) {
-                    // Potential complete JSON object (ignoring recursive braces for now, assuming top level)
-                    // Actually brace counting is risky if inside strings.
-                    // Let's try to parse if it looks complete
-                    try {
-                        // Clean up leading/trailing comma or brackets
-                        let clean = jsonBuffer.trim();
-                        if (clean.startsWith(',')) clean = clean.substring(1);
-                        if (clean.startsWith('[')) clean = clean.substring(1);
-                        if (clean.endsWith(']')) clean = clean.substring(0, clean.length - 1);
-
-                        if (clean.length > 2) {
-                            const json = JSON.parse(clean);
-                            const text = json.candidates?.[0]?.content?.parts?.[0]?.text;
-                            if (text) {
-                                fullResponse += text;
-                                onChunk(text);
-                            }
+            if (reader) {
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    const chunk = decoder.decode(value);
+                    const lines = chunk.split("\n");
+                    for (const line of lines) {
+                        if (line.startsWith("data: ")) {
+                            try {
+                                const json = JSON.parse(line.substring(6));
+                                const text = json.candidates?.[0]?.content?.parts?.[0]?.text;
+                                if (text) {
+                                    fullText += text;
+                                    onChunk(text);
+                                }
+                            } catch (e) { /* partially received json */ }
+                        } else if (line.trim().startsWith("{")) {
+                            // Sometimes it's direct JSON in the stream if not properly formatted as SSE
+                            try {
+                                const json = JSON.parse(line);
+                                const text = json.candidates?.[0]?.content?.parts?.[0]?.text;
+                                if (text) {
+                                    fullText += text;
+                                    onChunk(text);
+                                }
+                            } catch (e) { /* ignore */ }
                         }
-                        jsonBuffer = "";
-                    } catch {
-                        // Not complete yet, continue
                     }
                 }
             }
+            return fullText;
+        } catch (error: any) {
+            console.error("Gemini stream error:", error);
+            throw error;
         }
-        console.log(`✨ [Gemini] Response complete. Length: ${fullResponse.length} chars`);
-        return fullResponse;
     }
 }

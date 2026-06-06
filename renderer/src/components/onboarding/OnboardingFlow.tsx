@@ -26,7 +26,10 @@ interface OnboardingFlowProps {
 }
 
 export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
+    console.log('[OnboardingFlow] Component rendering...');
     const [step, setStep] = useState<OnboardingStep>("splash");
+    
+    console.log('[OnboardingFlow] Current step:', step);
 
     // Auto-advance Splash
     useEffect(() => {
@@ -90,7 +93,7 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="fixed bottom-12 left-1/2 -translate-x-1/2 z-[100]"
+                        className="fixed bottom-12 left-1/2 -translate-x-1/2 z-100"
                     >
                         <Button
                             variant="ghost"

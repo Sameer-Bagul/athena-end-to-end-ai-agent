@@ -11,15 +11,24 @@ import { useAppStore } from "../context/AppContext";
 import { useSpeechManager } from "../hooks/useSpeechManager";
 import { useAssistant } from "../hooks/useAssistant";
 import { useGlobalShortcuts } from "../hooks/useGlobalShortcuts";
+import { ActiveTimerUI } from "./ActiveTimerUI";
+import { McpStatusUI } from "./McpStatusUI";
 
 interface VRMControlPanelProps {
     onOpenWidget?: () => void;
 }
 
 export function VRMControlPanel({ onOpenWidget }: VRMControlPanelProps) {
+    console.log('[VRMControlPanel] Component rendering...');
 
     const { state, actions } = useAppStore();
     const stageRef = React.useRef<ThreeStageHandle>(null);
+
+    console.log('[VRMControlPanel] State loaded:', {
+        viewMode: state.viewMode,
+        isLeftCollapsed: state.isLeftCollapsed,
+        isRightCollapsed: state.isRightCollapsed
+    });
 
     // 1. Assistant Logic (LLM + TTS)
     const { processInput } = useAssistant();
@@ -27,7 +36,7 @@ export function VRMControlPanel({ onOpenWidget }: VRMControlPanelProps) {
     // 2. Speech Result Handler (Bridge between Speech and Assistant)
     const handleSpeechResult = React.useCallback(async (text: string) => {
         actions.addMessage({ role: 'user', content: text });
-        await processInput(text, {
+        await processInput(text, [], {
             source: 'voice',
             onPlayAudio: async (blob: Blob | null, animation?: string, facialExpressions?: Array<{ name: string; value: number }>) => {
                 if (stageRef.current) await stageRef.current.playAudio(blob, animation, facialExpressions);
@@ -42,9 +51,9 @@ export function VRMControlPanel({ onOpenWidget }: VRMControlPanelProps) {
     useGlobalShortcuts(toggleListening);
 
     // 5. Chat Panel Handler
-    const handleTextSubmit = React.useCallback(async (text: string) => {
-        actions.addMessage({ role: 'user', content: text });
-        await processInput(text, {
+    const handleTextSubmit = React.useCallback(async (text: string, attachments: any[] = []) => {
+        actions.addMessage({ role: 'user', content: text, attachments });
+        await processInput(text, attachments, {
             source: 'text',
             onPlayAudio: async (blob: Blob | null, animation?: string, facialExpressions?: Array<{ name: string; value: number }>) => {
                 if (stageRef.current) await stageRef.current.playAudio(blob, animation, facialExpressions);
@@ -134,6 +143,9 @@ export function VRMControlPanel({ onOpenWidget }: VRMControlPanelProps) {
                     backgroundColor="#020205"
                     onDrop={handleVrmDrop}
                 />
+
+                <ActiveTimerUI />
+                <McpStatusUI />
 
                 {/* Overlays / UI Buttons */}
                 <div className="absolute top-8 left-8 z-10">

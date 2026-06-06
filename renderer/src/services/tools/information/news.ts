@@ -5,9 +5,24 @@ import type { Tool } from "../core/types";
 
 export const NewsTool: Tool = {
     name: "News",
-    description: "Get top news headlines.",
+    description: "Get top news headlines or search for news about a specific topic.",
+    category: "information",
+    parameters: {
+        type: "object",
+        properties: {
+            category: {
+                type: "string",
+                description: "News category",
+                enum: ['business', 'entertainment', 'general', 'health', 'science', 'sports', 'technology']
+            },
+            query: {
+                type: "string",
+                description: "Specific topic or search query to find news about."
+            }
+        }
+    },
     keywords: ["news", "headline", "headlines", "world updates"],
-    execute: async (params: string) => {
+    execute: async (params: { category?: string, query?: string }) => {
         // Prioritize Settings (localStorage) over Env
         let apiKey = "";
         try {
@@ -29,24 +44,12 @@ export const NewsTool: Tool = {
             return "News tool is not configured. Please add an API Key in Settings > Plugins.";
         }
 
-        // Determine category or query?
-        // For MVP, just get top headlines.
-        // If user says "Tech news", we could try to filter.
-
         let url = `https://newsapi.org/v2/top-headlines?country=us&apiKey=${apiKey}`;
 
-        // Simple keyword check for categories
-        const categories = ['business', 'entertainment', 'general', 'health', 'science', 'sports', 'technology'];
-        const foundCategory = categories.find(c => params.toLowerCase().includes(c));
-
-        if (foundCategory) {
-            url = `https://newsapi.org/v2/top-headlines?category=${foundCategory}&language=en&apiKey=${apiKey}`;
-        } else if (params.toLowerCase().includes("about")) {
-            // Search query
-            const query = params.split("about")[1].trim();
-            if (query) {
-                url = `https://newsapi.org/v2/everything?q=${encodeURIComponent(query)}&apiKey=${apiKey}`;
-            }
+        if (params.category) {
+            url = `https://newsapi.org/v2/top-headlines?category=${params.category}&language=en&apiKey=${apiKey}`;
+        } else if (params.query) {
+            url = `https://newsapi.org/v2/everything?q=${encodeURIComponent(params.query)}&apiKey=${apiKey}`;
         }
 
         try {

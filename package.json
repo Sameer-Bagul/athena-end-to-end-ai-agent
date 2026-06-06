@@ -2,6 +2,7 @@
   "name": "athena",
   "private": true,
   "version": "1.0.0",
+  "type": "module",
   "main": "dist-electron/electron/main.js",
   "scripts": {
     "dev": "NODE_ENV=development cd renderer && npm run dev & ELECTRON_DISABLE_SANDBOX=1 npx electron .",
@@ -15,7 +16,10 @@
     "@langchain/classic": "^1.0.21",
     "@langchain/community": "^1.1.20",
     "@langchain/core": "^1.1.29",
+    "@langchain/google-genai": "^2.1.24",
+    "@langchain/langgraph": "^1.2.1",
     "@langchain/ollama": "^1.2.5",
+    "@langchain/openai": "^1.2.12",
     "@langchain/textsplitters": "^1.0.1",
     "axios": "^1.13.2",
     "dotenv": "^16.4.5",

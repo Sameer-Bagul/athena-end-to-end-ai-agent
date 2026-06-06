@@ -1,6 +1,7 @@
 import axios from 'axios';
 import FormData from 'form-data';
 import { Agent } from 'http';
+import { config } from './config.js';
 
 // Connection pooling for better performance
 const httpAgent = new Agent({
@@ -11,7 +12,7 @@ const httpAgent = new Agent({
 });
 
 export async function transcribe(input: any): Promise<string> {
-    const MAX_RETRIES = 5;
+    const MAX_RETRIES = config.MAX_RETRIES;
     let attempt = 0;
 
     while (attempt < MAX_RETRIES) {
@@ -26,7 +27,7 @@ export async function transcribe(input: any): Promise<string> {
                 knownLength: buffer.length
             });
 
-            const response = await axios.post('http://127.0.0.1:9001/stt', form, {
+            const response = await axios.post(`${config.STT_URL}/stt`, form, {
                 headers: {
                     ...form.getHeaders(),
                     'Content-Length': form.getLengthSync()
@@ -34,7 +35,7 @@ export async function transcribe(input: any): Promise<string> {
                 httpAgent,
                 maxBodyLength: Infinity,
                 maxContentLength: Infinity,
-                timeout: 30000 // 30s timeout for processing
+                timeout: config.STT_TIMEOUT // timeout for processing
             });
 
             const json = response.data;

@@ -1,49 +1,50 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-const electron_1 = require("electron");
-const path_1 = __importDefault(require("path"));
-const fs_1 = __importDefault(require("fs"));
-const child_process_1 = require("child_process");
-require("dotenv/config");
-const llm_1 = require("../backend/llm");
-const tts_1 = require("../backend/tts");
-const stt_1 = require("../backend/stt");
-const rag_1 = require("../backend/rag");
-const downloader_1 = require("../backend/downloader");
-const modelRegistry_1 = require("../backend/modelRegistry");
-const electron_2 = require("electron");
+import { app, BrowserWindow, ipcMain, globalShortcut } from "electron";
+import path from "path";
+import { fileURLToPath } from "url";
+import fs from "fs";
+import { spawn } from "child_process";
+import "dotenv/config";
+import { chatWithLLM } from "../backend/llm.js";
+import { speak } from "../backend/tts.js";
+import { transcribe } from "../backend/stt.js";
+import { ragService } from "../backend/rag.js";
+import { downloadFile } from "../backend/downloader.js";
+import { NON_OLLAMA_MODELS, getLocalModelDir, isModelInstalled, deleteModel } from "../backend/modelRegistry.js";
+import { systemService } from "../backend/system.js";
+import { dialog } from "electron";
+import { mcpManager } from "../backend/agent/mcpManager.js";
+// ES Module equivalent of __dirname
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 const isDev = process.env.NODE_ENV === "development";
 // Hack to try and unblock Google Speech API in Electron
 process.env.GOOGLE_API_KEY = "ignore";
 // Disable sandbox on Linux
 if (process.platform === "linux") {
-    electron_1.app.commandLine.appendSwitch("no-sandbox");
+    app.commandLine.appendSwitch("no-sandbox");
 }
 let pythonServerProcess = null;
 function startPythonServer() {
-    const projectRoot = electron_1.app.getAppPath();
-    const pythonBin = path_1.default.join(projectRoot, "services", "stt-env", "bin", "python");
-    const scriptPath = path_1.default.join(projectRoot, "services", "whisper-fast", "server.py");
+    const projectRoot = app.getAppPath();
+    const pythonBin = path.join(projectRoot, "services", "stt-env", "bin", "python");
+    const scriptPath = path.join(projectRoot, "services", "whisper-fast", "server.py");
     console.log("🚀 [Electron] Starting Python Server...");
     console.log("   Bin:", pythonBin);
     console.log("   Script:", scriptPath);
-    if (!fs_1.default.existsSync(pythonBin)) {
+    if (!fs.existsSync(pythonBin)) {
         console.error("❌ [Electron] Python executable not found at:", pythonBin);
         return;
     }
-    if (!fs_1.default.existsSync(scriptPath)) {
+    if (!fs.existsSync(scriptPath)) {
         console.error("❌ [Electron] Python script not found at:", scriptPath);
         return;
     }
-    pythonServerProcess = (0, child_process_1.spawn)(pythonBin, [scriptPath], {
+    pythonServerProcess = spawn(pythonBin, [scriptPath], {
         stdio: "pipe",
-        cwd: path_1.default.join(projectRoot, "services"),
+        cwd: path.join(projectRoot, "services"),
         env: {
             ...process.env,
-            ATHENA_USER_DATA: electron_1.app.getPath('userData')
+            ATHENA_USER_DATA: app.getPath('userData')
         }
     });
     pythonServerProcess.stdout.on("data", (data) => {
@@ -61,13 +62,13 @@ function startPythonServer() {
 }
 let ttsServerProcess = null;
 function startTTSServer() {
-    const projectRoot = electron_1.app.getAppPath();
+    const projectRoot = app.getAppPath();
     // TTS Service Path
-    const ttsServicePath = path_1.default.join(projectRoot, "services", "TTS-supertonic");
-    const ttsScript = path_1.default.join(ttsServicePath, "src", "server.js");
+    const ttsServicePath = path.join(projectRoot, "services", "TTS-supertonic");
+    const ttsScript = path.join(ttsServicePath, "src", "server.js");
     console.log("🚀 [Electron] Starting TTS Server...");
     console.log("   Script:", ttsScript);
-    if (!fs_1.default.existsSync(ttsScript)) {
+    if (!fs.existsSync(ttsScript)) {
         console.error("❌ [Electron] TTS script not found at:", ttsScript);
         return;
     }
@@ -76,12 +77,12 @@ function startTTSServer() {
     // For standard user install, 'node' in path is best bet.
     // OR we can rely on `process.execPath` if it wasn't packaged? 
     // Let's use simple 'node' for now, assuming dev env. 
-    ttsServerProcess = (0, child_process_1.spawn)("node", [ttsScript], {
+    ttsServerProcess = spawn("node", [ttsScript], {
         stdio: "pipe",
         cwd: ttsServicePath, // Critical for relative imports/models in TTS
         env: {
             ...process.env,
-            ATHENA_USER_DATA: electron_1.app.getPath('userData')
+            ATHENA_USER_DATA: app.getPath('userData')
         }
     });
     ttsServerProcess.stdout.on("data", (data) => {
@@ -101,13 +102,13 @@ function startTTSServer() {
 let mainWindow = null;
 let widgetWindow = null;
 function createWindow() {
-    mainWindow = new electron_1.BrowserWindow({
+    mainWindow = new BrowserWindow({
         width: 1920,
         height: 1080,
         backgroundColor: "#0b0b0b",
-        icon: path_1.default.join(__dirname, isDev ? "../../renderer/public/icon.png" : "../../renderer/dist/icon.png"),
+        icon: path.join(__dirname, isDev ? "../../renderer/public/icon.png" : "../../renderer/dist/icon.png"),
         webPreferences: {
-            preload: path_1.default.join(__dirname, "preload.js"),
+            preload: path.join(__dirname, "preload.js"),
             sandbox: false
         }
     });
@@ -116,7 +117,7 @@ function createWindow() {
         mainWindow.webContents.openDevTools();
     }
     else {
-        mainWindow.loadFile(path_1.default.join(__dirname, "../../renderer/dist/index.html"));
+        mainWindow.loadFile(path.join(__dirname, "../../renderer/dist/index.html"));
     }
     // Broaden permission handler
     mainWindow.webContents.session.setPermissionRequestHandler((webContents, permission, callback) => {
@@ -129,7 +130,7 @@ function createWindow() {
         }
     });
     // Logging IPC for debugging renderer in terminal
-    electron_1.ipcMain.on("logger:log", (event, ...args) => {
+    ipcMain.on("logger:log", (event, ...args) => {
         console.log("🖥️ [Renderer]", ...args);
     });
     mainWindow.on('closed', () => {
@@ -155,7 +156,7 @@ function createWidgetWindow() {
         widgetWindow.focus();
         return;
     }
-    widgetWindow = new electron_1.BrowserWindow({
+    widgetWindow = new BrowserWindow({
         width: 300,
         height: 300,
         minWidth: 200,
@@ -166,9 +167,9 @@ function createWidgetWindow() {
         alwaysOnTop: true,
         skipTaskbar: false,
         resizable: true,
-        icon: path_1.default.join(__dirname, isDev ? "../../renderer/public/icon.png" : "../../renderer/dist/icon.png"),
+        icon: path.join(__dirname, isDev ? "../../renderer/public/icon.png" : "../../renderer/dist/icon.png"),
         webPreferences: {
-            preload: path_1.default.join(__dirname, "preload.js"),
+            preload: path.join(__dirname, "preload.js"),
             sandbox: false
         }
     });
@@ -177,7 +178,7 @@ function createWidgetWindow() {
         widgetWindow.loadURL("http://localhost:5173/#widget");
     }
     else {
-        widgetWindow.loadFile(path_1.default.join(__dirname, "../../renderer/dist/index.html"), { hash: 'widget' });
+        widgetWindow.loadFile(path.join(__dirname, "../../renderer/dist/index.html"), { hash: 'widget' });
     }
     widgetWindow.on('closed', () => {
         widgetWindow = null;
@@ -191,60 +192,60 @@ function createWidgetWindow() {
             callback(false);
     });
 }
-electron_1.ipcMain.handle("widget:open", () => {
+ipcMain.handle("widget:open", () => {
     createWidgetWindow();
 });
 // Receiver (Widget) -> forwards to Main
-electron_1.ipcMain.handle("widget:resize", (event, { width, height }) => {
+ipcMain.handle("widget:resize", (event, { width, height }) => {
     if (widgetWindow && !widgetWindow.isDestroyed()) {
         widgetWindow.setSize(width, height);
     }
 });
-electron_1.ipcMain.handle("widget:close", () => {
+ipcMain.handle("widget:close", () => {
     if (widgetWindow) {
         widgetWindow.close();
     }
 });
 // IPC Handler for Sync Broadcasting
 // Receiver (Main) -> forwards to Widget
-electron_1.ipcMain.on("sync:broadcast", (event, data) => {
+ipcMain.on("sync:broadcast", (event, data) => {
     if (widgetWindow && !widgetWindow.isDestroyed()) {
         widgetWindow.webContents.send("sync:receive", data);
     }
 });
 // Receiver (Widget) -> forwards to Main
-electron_1.ipcMain.on("widget:input", (event, data) => {
+ipcMain.on("widget:input", (event, data) => {
     if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send("widget:receive-input", data);
     }
 });
 // Window Controls (Legacy/Shared)
-electron_1.ipcMain.handle("window:minimize", (event) => {
-    const win = electron_1.BrowserWindow.fromWebContents(event.sender);
+ipcMain.handle("window:minimize", (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
     win?.minimize();
 });
-electron_1.ipcMain.handle("window:maximize", (event) => {
-    const win = electron_1.BrowserWindow.fromWebContents(event.sender);
+ipcMain.handle("window:maximize", (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
     if (win?.isMaximized())
         win.unmaximize();
     else
         win?.maximize();
 });
-electron_1.ipcMain.handle("window:close", (event) => {
-    const win = electron_1.BrowserWindow.fromWebContents(event.sender);
+ipcMain.handle("window:close", (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
     win?.close();
 });
 // IPC handlers for LLM and TTS
-electron_1.ipcMain.handle("llm:chat", async (_, messages) => {
+ipcMain.handle("llm:chat", async (_, messages) => {
     console.log(`[IPC] 💬 Request: llm:chat (${messages.length} messages)`);
-    return await (0, llm_1.chatWithLLM)(messages);
+    return await chatWithLLM(messages);
 });
 // RAG Handlers
-electron_1.ipcMain.handle("rag:upload-document", async (event) => {
-    const win = electron_1.BrowserWindow.fromWebContents(event.sender);
+ipcMain.handle("rag:upload-document", async (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
     if (!win)
         return { error: "No window found" };
-    const result = await electron_2.dialog.showOpenDialog(win, {
+    const result = await dialog.showOpenDialog(win, {
         properties: ['openFile'],
         filters: [
             { name: 'Documents', extensions: ['pdf', 'txt', 'md'] }
@@ -253,7 +254,7 @@ electron_1.ipcMain.handle("rag:upload-document", async (event) => {
     if (result.canceled || result.filePaths.length === 0)
         return { canceled: true };
     try {
-        const uploadResult = await rag_1.ragService.loadDocument(result.filePaths[0]);
+        const uploadResult = await ragService.loadDocument(result.filePaths[0]);
         return uploadResult;
     }
     catch (error) {
@@ -261,26 +262,55 @@ electron_1.ipcMain.handle("rag:upload-document", async (event) => {
         return { error: error.message };
     }
 });
-electron_1.ipcMain.handle("rag:status", async () => {
-    return rag_1.ragService.getStatus();
+ipcMain.handle("rag:status", async () => {
+    return ragService.getStatus();
 });
-electron_1.ipcMain.handle("rag:clear", async () => {
-    rag_1.ragService.clearContext();
+ipcMain.handle("rag:clear", async () => {
+    ragService.clearContext();
     return { success: true };
 });
-electron_1.ipcMain.handle("rag:get-context", async (_, input) => {
-    return await rag_1.ragService.getRelevantContext(input);
+ipcMain.handle("rag:get-context", async (_, input) => {
+    return await ragService.getRelevantContext(input);
 });
-electron_1.ipcMain.handle("tts:generate", async (_, { text, voiceStyle }) => {
+// LangGraph Agent Handler
+ipcMain.handle("agent:query", async (_, { query, systemPrompt, modelName }) => {
+    console.log(`[IPC] 🤖 Request: agent:query`);
+    try {
+        const { runAgent } = await import("../backend/agent/graph.js");
+        const response = await runAgent(query, systemPrompt, modelName);
+        return { success: true, response };
+    }
+    catch (error) {
+        console.error("❌ [Electron] Agent Error:", error);
+        return { success: false, error: error.message };
+    }
+});
+ipcMain.on("agent:query-stream", async (event, { queryId, query, systemPrompt, modelName }) => {
+    console.log(`[IPC] 🤖 Request: agent:query-stream (${queryId})`);
+    try {
+        const { runAgent } = await import("../backend/agent/graph.js");
+        const response = await runAgent(query, systemPrompt, modelName, (msg) => {
+            event.sender.send(`agent:progress-${queryId}`, msg);
+        }, (token) => {
+            event.sender.send(`agent:token-${queryId}`, token);
+        });
+        event.sender.send(`agent:complete-${queryId}`, { success: true, response });
+    }
+    catch (error) {
+        console.error("❌ [Electron] Agent Error:", error);
+        event.sender.send(`agent:complete-${queryId}`, { success: false, error: error.message });
+    }
+});
+ipcMain.handle("tts:generate", async (_, { text, voiceStyle }) => {
     console.log(`[IPC] 🗣️ Request: tts:generate (${text.substring(0, 30)}...)`);
-    return await (0, tts_1.speak)(text, voiceStyle);
+    return await speak(text, voiceStyle);
 });
-electron_1.ipcMain.handle("stt:transcribe", async (_, buffer) => {
+ipcMain.handle("stt:transcribe", async (_, buffer) => {
     console.log(`[IPC] 👂 Request: stt:transcribe (${buffer.byteLength} bytes)`);
-    return await (0, stt_1.transcribe)(buffer);
+    return await transcribe(buffer);
 });
 // Tool Proxy Handlers
-electron_1.ipcMain.handle("tool:news", async (_, url) => {
+ipcMain.handle("tool:news", async (_, url) => {
     try {
         console.log(`📰 [Electron] Proxying News Request: ${url}`);
         // Check if URL is valid newsapi.org URL to allow-list (security)
@@ -299,11 +329,11 @@ electron_1.ipcMain.handle("tool:news", async (_, url) => {
     }
 });
 // Chat History Persistence
-const CHAT_FILE = path_1.default.join(electron_1.app.getPath("userData"), "chat-history.json");
+const CHAT_FILE = path.join(app.getPath("userData"), "chat-history.json");
 console.log("Chat History Path:", CHAT_FILE);
-electron_1.ipcMain.handle("chat:save-history", async (_, history) => {
+ipcMain.handle("chat:save-history", async (_, history) => {
     try {
-        fs_1.default.writeFileSync(CHAT_FILE, JSON.stringify(history, null, 2));
+        fs.writeFileSync(CHAT_FILE, JSON.stringify(history, null, 2));
         return true;
     }
     catch (error) {
@@ -311,10 +341,10 @@ electron_1.ipcMain.handle("chat:save-history", async (_, history) => {
         return false;
     }
 });
-electron_1.ipcMain.handle("chat:load-history", async () => {
+ipcMain.handle("chat:load-history", async () => {
     try {
-        if (fs_1.default.existsSync(CHAT_FILE)) {
-            const data = fs_1.default.readFileSync(CHAT_FILE, "utf-8");
+        if (fs.existsSync(CHAT_FILE)) {
+            const data = fs.readFileSync(CHAT_FILE, "utf-8");
             return JSON.parse(data);
         }
         return null;
@@ -324,8 +354,59 @@ electron_1.ipcMain.handle("chat:load-history", async () => {
         return null;
     }
 });
-// --- Ollama Management Handlers ---
-electron_1.ipcMain.handle("ollama:check-status", async () => {
+// --- Agent Tool Bridging (Backend -> Renderer) ---
+ipcMain.on("agent:add-timer", (event, { duration, unit, label }) => {
+    console.log(`⏰ [Main] Bridging agent:add-timer: ${duration} ${unit} (${label || 'No label'})`);
+    if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send("athena:add-timer-ipc", { duration, unit, label });
+    }
+    if (widgetWindow && !widgetWindow.isDestroyed()) {
+        widgetWindow.webContents.send("athena:add-timer-ipc", { duration, unit, label });
+    }
+});
+ipcMain.on("agent:remove-timer", (event, { id }) => {
+    console.log(`⏰ [Main] Bridging agent:remove-timer: ${id}`);
+    if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send("athena:remove-timer-ipc", { id });
+    }
+    if (widgetWindow && !widgetWindow.isDestroyed()) {
+        widgetWindow.webContents.send("athena:remove-timer-ipc", { id });
+    }
+});
+// --- MCP Bridging ---
+ipcMain.handle("agent:call-mcp", async (_, { serverName, toolName, args }) => {
+    console.log(`🔌 [Main] Routing MCP call to ${serverName}.${toolName}`);
+    try {
+        return await mcpManager.callTool(serverName, toolName, args);
+    }
+    catch (error) {
+        console.error(`❌ [Main] MCP call ${serverName}.${toolName} failed:`, error);
+        return { error: error.message };
+    }
+});
+// --- System Control Handlers ---
+ipcMain.handle("system:get-volume", async () => {
+    return await systemService.getVolume();
+});
+ipcMain.handle("system:set-volume", async (_, percent) => {
+    return await systemService.setVolume(percent);
+});
+ipcMain.handle("system:set-brightness", async (_, percent) => {
+    return await systemService.setBrightness(percent);
+});
+ipcMain.handle("system:get-battery", async () => {
+    return await systemService.getBatteryInfo();
+});
+ipcMain.handle("system:list-files", async (_, targetPath) => {
+    return await systemService.listFiles(targetPath);
+});
+ipcMain.handle("system:read-file", async (_, targetPath) => {
+    return await systemService.readFile(targetPath);
+});
+ipcMain.handle("system:file-stats", async (_, targetPath) => {
+    return await systemService.getFileStats(targetPath);
+});
+ipcMain.handle("ollama:check-status", async () => {
     try {
         const res = await fetch("http://localhost:11434/api/tags");
         return { ok: res.ok };
@@ -334,7 +415,7 @@ electron_1.ipcMain.handle("ollama:check-status", async () => {
         return { ok: false };
     }
 });
-electron_1.ipcMain.handle("ollama:list-models", async () => {
+ipcMain.handle("ollama:list-models", async () => {
     try {
         const res = await fetch("http://localhost:11434/api/tags");
         if (!res.ok)
@@ -346,7 +427,7 @@ electron_1.ipcMain.handle("ollama:list-models", async () => {
         return { error: e.message };
     }
 });
-electron_1.ipcMain.handle("ollama:delete-model", async (_, modelName) => {
+ipcMain.handle("ollama:delete-model", async (_, modelName) => {
     try {
         const res = await fetch("http://localhost:11434/api/delete", {
             method: "DELETE",
@@ -359,7 +440,7 @@ electron_1.ipcMain.handle("ollama:delete-model", async (_, modelName) => {
     }
 });
 // We handle pull as an event-based stream since it takes time
-electron_1.ipcMain.on("ollama:pull-model", async (event, modelName) => {
+ipcMain.on("ollama:pull-model", async (event, modelName) => {
     try {
         const response = await fetch("http://localhost:11434/api/pull", {
             method: "POST",
@@ -393,28 +474,28 @@ electron_1.ipcMain.on("ollama:pull-model", async (event, modelName) => {
     }
 });
 // --- General Model Management (Whisper/TTS) ---
-electron_1.ipcMain.handle("model:check-status", async (_, modelId) => {
-    return { isInstalled: (0, modelRegistry_1.isModelInstalled)(modelId) };
+ipcMain.handle("model:check-status", async (_, modelId) => {
+    return { isInstalled: isModelInstalled(modelId) };
 });
-electron_1.ipcMain.on("model:pull", async (event, modelId) => {
-    const modelDef = modelRegistry_1.NON_OLLAMA_MODELS[modelId];
+ipcMain.on("model:pull", async (event, modelId) => {
+    const modelDef = NON_OLLAMA_MODELS[modelId];
     if (!modelDef) {
         event.sender.send("model:pull-progress", { model: modelId, status: "error", error: "Model not found in registry" });
         return;
     }
-    const modelDir = (0, modelRegistry_1.getLocalModelDir)(modelDef.category, modelId);
+    const modelDir = getLocalModelDir(modelDef.category, modelId);
     try {
         for (const file of modelDef.files) {
-            const destPath = path_1.default.join(modelDir, file.name);
+            const destPath = path.join(modelDir, file.name);
             // Skip if already exists (basic check)
-            if (fs_1.default.existsSync(destPath))
+            if (fs.existsSync(destPath))
                 continue;
             event.sender.send("model:pull-progress", {
                 model: modelId,
                 status: "downloading",
                 detail: `Downloading ${file.name}...`
             });
-            await (0, downloader_1.downloadFile)(file.url, destPath, (progress) => {
+            await downloadFile(file.url, destPath, (progress) => {
                 // We could send per-file progress, but let's keep it simple for now or aggregate
                 event.sender.send("model:pull-progress", {
                     model: modelId,
@@ -431,23 +512,23 @@ electron_1.ipcMain.on("model:pull", async (event, modelId) => {
         event.sender.send("model:pull-progress", { model: modelId, status: "error", error: err.message });
     }
 });
-electron_1.ipcMain.handle("model:delete", async (_, modelId) => {
+ipcMain.handle("model:delete", async (_, modelId) => {
     try {
-        return { success: (0, modelRegistry_1.deleteModel)(modelId) };
+        return { success: deleteModel(modelId) };
     }
     catch (err) {
         return { error: err.message };
     }
 });
 // Bypass microphone permission prompts and enable speech API
-electron_1.app.commandLine.appendSwitch("use-fake-ui-for-media-stream");
-electron_1.app.commandLine.appendSwitch("enable-speech-dispatcher");
-electron_1.app.whenReady().then(() => {
+app.commandLine.appendSwitch("use-fake-ui-for-media-stream");
+app.commandLine.appendSwitch("enable-speech-dispatcher");
+app.whenReady().then(() => {
     startPythonServer();
     startTTSServer();
     createWindow();
     // Global Shortcut for Wake / PTT
-    electron_1.globalShortcut.register('Alt+Space', () => {
+    globalShortcut.register('Alt+Space', () => {
         console.log("⚡ [Electron] Alt+Space pressed");
         // Broadcast to all windows
         if (mainWindow && !mainWindow.isDestroyed())
@@ -458,11 +539,24 @@ electron_1.app.whenReady().then(() => {
         // But forcing focus might be annoying if user is typing elsewhere. 
         // For now, let's just send the event.
     });
+    // MCP Sidecar Status listener
+    mcpManager.onStatus = (name, status) => {
+        console.log(`🔌 [Main] Sidecar ${name} is ${status}`);
+        if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send("agent:mcp-status", { name, status });
+        }
+        if (widgetWindow && !widgetWindow.isDestroyed()) {
+            widgetWindow.webContents.send("agent:mcp-status", { name, status });
+        }
+    };
+    // Spawn PoC sidecars
+    const sidecarPath = path.join(app.getAppPath(), "backend/agent/sidecars/time");
+    mcpManager.spawnServer("time", "node", [path.join(sidecarPath, "index.js")], sidecarPath);
 });
-electron_1.app.on('will-quit', () => {
-    electron_1.globalShortcut.unregisterAll();
+app.on('will-quit', () => {
+    globalShortcut.unregisterAll();
 });
-electron_1.app.on("before-quit", async () => {
+app.on("before-quit", async () => {
     console.log("🛑 [Electron] Initiating graceful shutdown...");
     // Graceful shutdown helper
     const shutdownService = (proc, name) => {
@@ -488,5 +582,6 @@ electron_1.app.on("before-quit", async () => {
         shutdownService(pythonServerProcess, 'Python STT'),
         shutdownService(ttsServerProcess, 'TTS')
     ]);
+    mcpManager.shutdown();
     console.log("✅ [Electron] Graceful shutdown complete");
 });

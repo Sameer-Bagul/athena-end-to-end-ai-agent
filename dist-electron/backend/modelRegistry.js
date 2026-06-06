@@ -1,16 +1,7 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.NON_OLLAMA_MODELS = void 0;
-exports.getLocalModelDir = getLocalModelDir;
-exports.isModelInstalled = isModelInstalled;
-exports.deleteModel = deleteModel;
-const path_1 = __importDefault(require("path"));
-const fs_1 = __importDefault(require("fs"));
-const electron_1 = require("electron");
-exports.NON_OLLAMA_MODELS = {
+import path from 'path';
+import fs from 'fs';
+import { app } from 'electron';
+export const NON_OLLAMA_MODELS = {
     "tiny.en": {
         id: "tiny.en",
         category: "intelligence",
@@ -44,25 +35,25 @@ exports.NON_OLLAMA_MODELS = {
         ]
     }
 };
-function getLocalModelDir(category, modelId) {
-    return path_1.default.join(electron_1.app.getPath('userData'), 'models', category, modelId);
+export function getLocalModelDir(category, modelId) {
+    return path.join(app.getPath('userData'), 'models', category, modelId);
 }
-function isModelInstalled(modelId) {
-    const def = exports.NON_OLLAMA_MODELS[modelId];
+export function isModelInstalled(modelId) {
+    const def = NON_OLLAMA_MODELS[modelId];
     if (!def)
         return false;
     const dir = getLocalModelDir(def.category, modelId);
-    if (!fs_1.default.existsSync(dir))
+    if (!fs.existsSync(dir))
         return false;
-    return def.files.every(f => fs_1.default.existsSync(path_1.default.join(dir, f.name)));
+    return def.files.every(f => fs.existsSync(path.join(dir, f.name)));
 }
-function deleteModel(modelId) {
-    const def = exports.NON_OLLAMA_MODELS[modelId];
+export function deleteModel(modelId) {
+    const def = NON_OLLAMA_MODELS[modelId];
     if (!def)
         return false;
     const dir = getLocalModelDir(def.category, modelId);
-    if (fs_1.default.existsSync(dir)) {
-        fs_1.default.rmSync(dir, { recursive: true, force: true });
+    if (fs.existsSync(dir)) {
+        fs.rmSync(dir, { recursive: true, force: true });
         return true;
     }
     return false;
