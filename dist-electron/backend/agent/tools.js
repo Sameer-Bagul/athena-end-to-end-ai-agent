@@ -110,28 +110,24 @@ export const timerTool = tool(async ({ seconds, label }) => {
 export const webSearchTool = tool(async ({ query }) => {
     console.log(`[WebSearchTool] Searching for: ${query}`);
     try {
-        // DuckDuckGo Instant Answer API
-        const url = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1`;
-        const response = await fetch(url);
-        if (!response.ok) {
-            throw new Error(`Search API error: ${response.statusText}`);
-        }
-        const data = await response.json();
-        console.log(`[WebSearchTool] Got response from DuckDuckGo`);
-        if (data.AbstractText) {
-            return `Best result for "${query}": ${data.AbstractText}\nSource: ${data.AbstractSource || 'DuckDuckGo'}`;
-        }
-        if (data.RelatedTopics && data.RelatedTopics.length > 0) {
-            // Filter out topics that don't have text
-            const topics = data.RelatedTopics
-                .filter((t) => t.Text)
-                .slice(0, 3)
-                .map((t) => `- ${t.Text}`)
-                .join('\n');
-            if (topics) {
-                return `I found some related information for "${query}":\n${topics}\n(Source: DuckDuckGo Related Topics)`;
+        const url = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`;
+        const response = await fetch(url, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
             }
+        });
+        if (!response.ok) {
+            throw new Error(`Search API error: ${response.status}`);
         }
+        const html = await response.text();
+        // Extract snippets using regex to avoid heavy HTML parsers
+        const snippets = [...html.matchAll(/<a class="result__snippet[^>]*>([\s\S]*?)<\/a>/g)]
+            .map(m => m[1].replace(/<\/?[^>]+(>|$)/g, "").trim())
+            .slice(0, 3);
+        if (snippets.length > 0) {
+            return `I found the following web results for "${query}":\n\n` + snippets.map(s => `- ${s}`).join('\n\n') + '\n\n(Source: DuckDuckGo)';
+        }
+        // Fallback if no snippets found
         return `I searched for "${query}" but couldn't find a definitive answer. Try rephrasing or being more specific.`;
     }
     catch (error) {

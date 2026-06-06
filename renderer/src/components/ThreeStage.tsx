@@ -53,7 +53,8 @@ const ThreeStageComponent = forwardRef<ThreeStageHandle, ThreeStageProps>(({
   onError,
   onThumbnailGenerated
 }, ref) => {
-  const { state, actions } = useAppStore();
+  const state = useAppStore(s => s.state);
+    const actions = useAppStore(s => s.actions);
   const containerRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<AthenaScene | null>(null);
   const animationManagerRef = useRef<AnimationManager | null>(null);

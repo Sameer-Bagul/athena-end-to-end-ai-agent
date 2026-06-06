@@ -1,14 +1,9 @@
-import { Annotation } from "@langchain/langgraph";
-import { BaseMessage } from "@langchain/core/messages";
+import { MessagesAnnotation } from "@langchain/langgraph";
 
 /**
  * Agent State Definition
- * This stores the conversation history and context
+ * Uses standard MessagesAnnotation for robust message merging and ID deduping
  */
-export const AgentState = Annotation.Root({
-  messages: Annotation<BaseMessage[]>({
-    reducer: (x, y) => x.concat(y),
-  }),
-});
+export const AgentState = MessagesAnnotation;
 
 export type AgentStateType = typeof AgentState.State;

@@ -1,8 +1,11 @@
 import { StateGraph, START, END } from "@langchain/langgraph";
 import { ChatOllama } from "@langchain/ollama";
+import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
 import { AIMessage, BaseMessage, HumanMessage, SystemMessage, ToolMessage } from "@langchain/core/messages";
 import { AgentState } from "./state.js";
 import { tools } from "./tools.js";
+
+const c = { agent: "\x1b[35m[Agent]\x1b[0m", graph: "\x1b[35m[AgentGraph]\x1b[0m" };
 
 /**
  * System prompt that instructs the model how to use tools
@@ -25,7 +28,15 @@ JSON FORMAT:
 /**
  * Initialize the LLM - Optimized for speed
  */
-function createLLM(modelName: string = "dolphin-mistral:latest") {
+function createLLM(modelName: string = "dolphin-mistral:latest", apiKey?: string) {
+  if (modelName.toLowerCase().includes("gemini")) {
+    return new ChatGoogleGenerativeAI({
+      model: modelName,
+      temperature: 0,
+      apiKey: apiKey || process.env.GOOGLE_API_KEY,
+    });
+  }
+
   return new ChatOllama({
     model: modelName,
     temperature: 0, // Forced deterministic for tool JSON
@@ -40,10 +51,11 @@ function createLLM(modelName: string = "dolphin-mistral:latest") {
  */
 async function callAgent(state: typeof AgentState.State, config?: any) {
   console.log('[Agent] Processing messages...');
+  const modelName = config?.configurable?.model || "dolphin-mistral:latest";
 
   try {
-    const modelName = config?.configurable?.model || "dolphin-mistral:latest";
-    const llm = createLLM(modelName);
+    const apiKey = config?.configurable?.apiKey;
+    const llm = createLLM(modelName, apiKey);
 
     console.log(`[Agent] Using model: ${modelName}`);
     console.log(`[Agent] Message count: ${state.messages.length}`);
@@ -64,10 +76,11 @@ async function callAgent(state: typeof AgentState.State, config?: any) {
     console.error('[Agent] Full error:', error);
 
     // Return error as AI message so execution doesn't hang
+    const hint = modelName.toLowerCase().includes('gemini') ? 'Gemini API Key' : "if Ollama is running with 'ollama list'";
     return {
       messages: [
         new AIMessage({
-          content: `I encountered an error: ${error.message}. Please check if Ollama is running with 'ollama list'.`
+          content: `I encountered an error: ${error.message}. Please check ${hint}.`
         })
       ]
     };
@@ -126,6 +139,7 @@ async function executeTools(state: typeof AgentState.State) {
         messages: [
           new ToolMessage({
             content: errorMsg,
+            name: toolCall.tool,
             tool_call_id: 'manual',
           })
         ]
@@ -142,6 +156,7 @@ async function executeTools(state: typeof AgentState.State) {
       messages: [
         new ToolMessage({
           content: String(result),
+          name: toolCall.tool,
           tool_call_id: 'manual',
         })
       ]
@@ -153,6 +168,7 @@ async function executeTools(state: typeof AgentState.State) {
       messages: [
         new ToolMessage({
           content: `Tool execution failed: ${error.message}`,
+          name: 'manual_tool_execution',
           tool_call_id: 'manual',
         })
       ]
@@ -225,10 +241,11 @@ export async function runAgent(
   query: string,
   systemPrompt: string,
   modelName?: string,
+  apiKey?: string,
   onProgress?: (message: string) => void,
   onToken?: (token: string) => void
 ): Promise<string> {
-  console.log('[AgentGraph] Starting agent execution...');
+  console.log('\n\x1b[32m[AgentGraph]\x1b[0m Starting agent execution...');
 
   try {
     const graph = getOrCreateGraph();
@@ -269,12 +286,13 @@ ${systemPrompt || "I am Athena, a loyal and analytical assistant."}
       new HumanMessage(query),
     ];
 
-    console.log('[AgentGraph] Full System Prompt:', fullSystemPrompt);
-    console.log('[AgentGraph] User Query:', query);
+    console.log('\n\x1b[32m[AgentGraph]\x1b[0m Full System Prompt:', fullSystemPrompt);
+    console.log('\n\x1b[32m[AgentGraph]\x1b[0m User Query:', query);
 
     const config = {
       configurable: {
         model: modelName || "dolphin-mistral:latest",
+        apiKey: apiKey,
       },
       callbacks: [
         {

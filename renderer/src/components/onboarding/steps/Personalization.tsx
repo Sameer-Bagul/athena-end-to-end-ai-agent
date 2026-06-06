@@ -7,7 +7,8 @@ interface PersonalizationProps {
 }
 
 export function Personalization({ onNext }: PersonalizationProps) {
-    const { state, actions } = useAppStore();
+    const state = useAppStore(s => s.state);
+    const actions = useAppStore(s => s.actions);
     const [name, setName] = useState(state.userProfile.name || "");
     const [bio, setBio] = useState(state.userProfile.bio || "");
 

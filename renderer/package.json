@@ -24,6 +24,7 @@
     "@react-three/drei": "9.122.0",
     "@react-three/fiber": "8.18.0",
     "@tailwindcss/vite": "^4.1.18",
+    "@tanstack/react-virtual": "^3.14.2",
     "@types/three": "^0.182.0",
     "axios": "^1.13.2",
     "class-variance-authority": "^0.7.1",
@@ -39,7 +40,8 @@
     "tailwindcss": "^4.1.18",
     "three": "^0.182.0",
     "vaul": "^1.1.2",
-    "vrm-mixamo-retarget": "^1.0.3"
+    "vrm-mixamo-retarget": "^1.0.3",
+    "zustand": "^5.0.14"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",

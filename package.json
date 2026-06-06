@@ -5,7 +5,7 @@
   "type": "module",
   "main": "dist-electron/electron/main.js",
   "scripts": {
-    "dev": "NODE_ENV=development cd renderer && npm run dev & ELECTRON_DISABLE_SANDBOX=1 npx electron .",
+    "dev": "NODE_ENV=development cd renderer && npm run dev -- --strictPort & ELECTRON_DISABLE_SANDBOX=1 npx electron .",
     "build": "npm run build:ui && npm run build:electron",
     "build:ui": "cd renderer && npm run build",
     "build:electron": "npx tsc -p tsconfig.node.json",
@@ -27,7 +27,7 @@
     "form-data": "^4.0.5",
     "langchain": "^1.2.28",
     "node-fetch": "^3.3.2",
-    "pdf-parse": "^2.4.5",
+    "pdf-parse": "^1.1.4",
     "vaul": "^1.1.2"
   },
   "devDependencies": {

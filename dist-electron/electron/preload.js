@@ -15,9 +15,20 @@ contextBridge.exposeInMainWorld("athena", {
     // State Sync
     broadcastState: (data) => ipcRenderer.send("sync:broadcast", data),
     onSyncReceive: (callback) => {
-        const subscription = (_, data) => callback(data);
+        const subscription = (_, data) => {
+            if (Array.isArray(data)) {
+                data.forEach(callback);
+            }
+            else {
+                callback(data);
+            }
+        };
         ipcRenderer.on("sync:receive", subscription);
-        return () => ipcRenderer.removeListener("sync:receive", subscription);
+        ipcRenderer.on("sync:receive-batch", subscription);
+        return () => {
+            ipcRenderer.removeListener("sync:receive", subscription);
+            ipcRenderer.removeListener("sync:receive-batch", subscription);
+        };
     },
     // Widget Input Forwarding
     sendWidgetInput: (text) => ipcRenderer.send("widget:input", text),
@@ -46,7 +57,7 @@ contextBridge.exposeInMainWorld("athena", {
     // LangGraph Agent
     agent: {
         query: (query, systemPrompt, modelName) => ipcRenderer.invoke("agent:query", { query, systemPrompt, modelName }),
-        queryStream: (queryId, query, systemPrompt, modelName, onToken, onProgress) => {
+        queryStream: (queryId, query, systemPrompt, modelName, apiKey, onToken, onProgress) => {
             if (onToken) {
                 ipcRenderer.on(`agent:token-${queryId}`, (_, token) => onToken(token));
             }
@@ -59,7 +70,7 @@ contextBridge.exposeInMainWorld("athena", {
                     ipcRenderer.removeAllListeners(`agent:progress-${queryId}`);
                     resolve(result);
                 });
-                ipcRenderer.send("agent:query-stream", { queryId, query, systemPrompt, modelName });
+                ipcRenderer.send("agent:query-stream", { queryId, query, systemPrompt, modelName, apiKey });
             });
         },
         onAddTimer: (callback) => {

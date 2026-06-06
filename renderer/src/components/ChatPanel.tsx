@@ -7,6 +7,7 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { cn } from "../lib/utils";
 import { useAppStore } from "../context/AppContext";
+import { useVirtualizer } from '@tanstack/react-virtual';
 
 export interface Attachment {
     name: string;
@@ -27,12 +28,28 @@ interface ChatPanelProps {
 }
 
 export const ChatPanel = React.memo(function ChatPanel({ onSendMessage, onClearHistory }: ChatPanelProps) {
-    const { state, actions } = useAppStore();
+    const actions = useAppStore(s => s.actions);
+    const chatMessages = useAppStore(s => s.state.chatMessages);
+    const isChatProcessing = useAppStore(s => s.state.isChatProcessing);
+    const isRightCollapsed = useAppStore(s => s.state.isRightCollapsed);
+    const selectedCharacterName = useAppStore(s => s.state.selectedCharacter.name);
+    const currentAnimation = useAppStore(s => s.state.currentAnimation);
+    const ragStatus = useAppStore(s => s.state.ragStatus);
+    const currentTranscript = useAppStore(s => s.state.currentTranscript);
+
     const [input, setInput] = React.useState("");
     const [localAttachments, setLocalAttachments] = React.useState<Attachment[]>([]);
     const scrollRef = React.useRef<HTMLDivElement>(null);
     const messagesEndRef = React.useRef<HTMLDivElement>(null);
     const [showScrollButton, setShowScrollButton] = React.useState(false);
+
+    // Virtualization
+    const rowVirtualizer = useVirtualizer({
+        count: chatMessages.length,
+        getScrollElement: () => scrollRef.current,
+        estimateSize: () => 100, // Estimated pixel height per message
+        overscan: 5,
+    });
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -41,7 +58,7 @@ export const ChatPanel = React.memo(function ChatPanel({ onSendMessage, onClearH
     // Auto-scroll
     React.useEffect(() => {
         scrollToBottom();
-    }, [state.chatMessages, state.isChatProcessing]);
+    }, [chatMessages.length, isChatProcessing]);
 
     const handleScroll = () => {
         if (scrollRef.current) {
@@ -53,7 +70,7 @@ export const ChatPanel = React.memo(function ChatPanel({ onSendMessage, onClearH
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        if ((!input.trim() && localAttachments.length === 0) || state.isChatProcessing) return;
+        if ((!input.trim() && localAttachments.length === 0) || isChatProcessing) return;
 
         // Match expected signature in App.tsx/useAssistant
         // @ts-ignore
@@ -97,7 +114,7 @@ export const ChatPanel = React.memo(function ChatPanel({ onSendMessage, onClearH
     };
 
     // --- Collapsed View (Floating Icon) ---
-    if (state.isRightCollapsed) {
+    if (isRightCollapsed) {
         return (
             <div className="fixed bottom-8 right-8 z-100">
                 <motion.div
@@ -110,13 +127,13 @@ export const ChatPanel = React.memo(function ChatPanel({ onSendMessage, onClearH
                         onClick={actions.toggleRightCollapse}
                         className={cn(
                             "size-14 rounded-full shadow-[0_0_30px_rgba(0,0,0,0.5)] border border-white/20 transition-all duration-300",
-                            state.isChatProcessing
+                            isChatProcessing
                                 ? "bg-white text-black"
                                 : "bg-black text-white hover:bg-white/10"
                         )}
                     >
                         <AnimatePresence mode="wait">
-                            {state.isChatProcessing ? (
+                            {isChatProcessing ? (
                                 <motion.div
                                     key="processing"
                                     initial={{ opacity: 0 }}
@@ -166,25 +183,25 @@ export const ChatPanel = React.memo(function ChatPanel({ onSendMessage, onClearH
                         <Bot className="size-3 text-white/40" />
                     </div>
                     <div className="flex flex-col">
-                        <h3 className="text-[13px] font-semibold text-white/90">{state.selectedCharacter.name}</h3>
+                        <h3 className="text-[13px] font-semibold text-white/90">{selectedCharacterName}</h3>
                         <div className="flex items-center gap-1.5 mt-0.5">
                             <motion.div
-                                animate={state.isChatProcessing ? { opacity: [1, 0, 1] } : {}}
+                                animate={isChatProcessing ? { opacity: [1, 0, 1] } : {}}
                                 transition={{ repeat: Infinity, duration: 1 }}
-                                className={cn("size-1 rounded-full", state.isChatProcessing ? "bg-primary" : "bg-white/20")}
+                                className={cn("size-1 rounded-full", isChatProcessing ? "bg-primary" : "bg-white/20")}
                             />
                             <span className="text-[10px] text-white/40 font-medium tracking-tight">
-                                {state.isChatProcessing ? "Processing" : state.currentAnimation}
+                                {isChatProcessing ? "Processing" : currentAnimation}
                             </span>
                         </div>
                     </div>
                 </div>
 
                 <div className="flex items-center gap-3">
-                    {state.ragStatus.isReady && (
+                    {ragStatus.isReady && (
                         <div className="flex items-center gap-2 px-2 py-1 bg-white/2 border border-white/5 rounded-md">
                             <FileText className="size-2.5 text-white/20" />
-                            <span className="text-[8px] font-mono text-white/40">{state.ragStatus.indexedFiles.length}</span>
+                            <span className="text-[8px] font-mono text-white/40">{ragStatus.indexedFiles.length}</span>
                             <button onClick={handleClearRag} className="hover:text-white text-white/10 transition-colors">
                                 <X className="size-2.5" />
                             </button>
@@ -206,30 +223,50 @@ export const ChatPanel = React.memo(function ChatPanel({ onSendMessage, onClearH
                 onScroll={handleScroll}
                 className="flex-1 overflow-y-auto min-h-0 p-8 space-y-12 scroll-smooth custom-scrollbar relative z-10"
             >
-                {state.chatMessages.length === 0 && (
+                {chatMessages.length === 0 && (
                     <div className="flex flex-col items-center justify-center text-center h-full opacity-10">
                         <MessageSquare className="size-6 text-white mb-4" />
                         <span className="text-[8px] font-mono tracking-[0.5em] uppercase text-white">Ready for transmission</span>
                     </div>
                 )}
 
-                <AnimatePresence initial={false}>
-                    {state.chatMessages.map((msg, idx) => (
-                        <motion.div
-                            key={idx}
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className={cn(
-                                "flex flex-col gap-1.5 group",
-                                msg.role === "user" ? "items-end" : "items-start"
-                            )}
-                        >
-                            <div className={cn(
-                                "text-[8px] font-medium text-white transition-opacity",
-                                msg.role === "user" ? "text-right opacity-60" : "text-left opacity-60 group-hover:opacity-100"
-                            )}>
-                                {msg.role === "user" ? "You" : state.selectedCharacter.name}
-                            </div>
+                <div
+                    style={{
+                        height: `${rowVirtualizer.getTotalSize()}px`,
+                        width: '100%',
+                        position: 'relative',
+                    }}
+                >
+                    {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+                        const msg = chatMessages[virtualRow.index];
+                        return (
+                            <div
+                                key={virtualRow.index}
+                                data-index={virtualRow.index}
+                                ref={rowVirtualizer.measureElement}
+                                style={{
+                                    position: 'absolute',
+                                    top: 0,
+                                    left: 0,
+                                    width: '100%',
+                                    transform: `translateY(${virtualRow.start}px)`,
+                                    paddingBottom: '48px', // Space between messages
+                                }}
+                            >
+                                <motion.div
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    className={cn(
+                                        "flex flex-col gap-1.5 group",
+                                        msg.role === "user" ? "items-end" : "items-start"
+                                    )}
+                                >
+                                    <div className={cn(
+                                        "text-[8px] font-medium text-white transition-opacity",
+                                        msg.role === "user" ? "text-right opacity-60" : "text-left opacity-60 group-hover:opacity-100"
+                                    )}>
+                                        {msg.role === "user" ? "You" : selectedCharacterName}
+                                    </div>
 
                             <div className={cn(
                                 "px-5 py-3.5 text-[13px] leading-relaxed max-w-[92%] transition-all duration-300 relative z-10",
@@ -301,12 +338,14 @@ export const ChatPanel = React.memo(function ChatPanel({ onSendMessage, onClearH
                                 )}
                             </div>
                         </motion.div>
-                    ))}
-                </AnimatePresence>
+                    </div>
+                    );
+                })}
+                </div>
 
                 {/* Live Transcript */}
                 <AnimatePresence>
-                    {state.currentTranscript && (
+                    {currentTranscript && (
                         <motion.div
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
@@ -314,7 +353,7 @@ export const ChatPanel = React.memo(function ChatPanel({ onSendMessage, onClearH
                             className="flex justify-end pb-2"
                         >
                             <div className="border border-white/10 bg-white/5 px-4 py-3 max-w-[90%] text-[12px] font-mono text-white/40 rounded-xl backdrop-blur-sm">
-                                <span className="animate-pulse">_</span> {state.currentTranscript}
+                                <span className="animate-pulse">_</span> {currentTranscript}
                             </div>
                         </motion.div>
                     )}
@@ -375,12 +414,12 @@ export const ChatPanel = React.memo(function ChatPanel({ onSendMessage, onClearH
 
                     <div className={cn(
                         "relative flex items-center bg-white/10 border backdrop-blur-xl transition-all duration-500 rounded-3xl overflow-hidden px-2 py-1",
-                        state.isChatProcessing ? "border-white/5 opacity-50" : "border-white/20 hover:border-white/40 focus-within:border-white/50 focus-within:bg-white/15 shadow-[0_0_30px_rgba(255,255,255,0.05)]"
+                        isChatProcessing ? "border-white/5 opacity-50" : "border-white/20 hover:border-white/40 focus-within:border-white/50 focus-within:bg-white/15 shadow-[0_0_30px_rgba(255,255,255,0.05)]"
                     )}>
                         <button
                             type="button"
                             onClick={handleAttachDocument}
-                            disabled={state.isChatProcessing}
+                            disabled={isChatProcessing}
                             className="h-10 w-10 shrink-0 flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 rounded-2xl transition-all"
                         >
                             <Paperclip className="size-4" />
@@ -389,13 +428,13 @@ export const ChatPanel = React.memo(function ChatPanel({ onSendMessage, onClearH
                         <Input
                             value={input}
                             onChange={(e) => setInput(e.target.value)}
-                            placeholder={state.isChatProcessing ? "Athena is typing..." : "Talk to me..."}
-                            disabled={state.isChatProcessing}
+                            placeholder={isChatProcessing ? "Athena is typing..." : "Talk to me..."}
+                            disabled={isChatProcessing}
                             className="flex-1 h-12 bg-transparent border-none focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-white/20 text-[14px] text-white font-medium px-3 selection:bg-white/20"
                         />
 
                         <div className="flex items-center gap-1 pr-1">
-                            {onClearHistory && state.chatMessages.length > 0 && !input.trim() && localAttachments.length === 0 && (
+                            {onClearHistory && chatMessages.length > 0 && !input.trim() && localAttachments.length === 0 && (
                                 <button
                                     type="button"
                                     onClick={() => onClearHistory()}
@@ -407,10 +446,10 @@ export const ChatPanel = React.memo(function ChatPanel({ onSendMessage, onClearH
 
                             <button
                                 type="submit"
-                                disabled={(!input.trim() && localAttachments.length === 0) || state.isChatProcessing}
+                                disabled={(!input.trim() && localAttachments.length === 0) || isChatProcessing}
                                 className={cn(
                                     "h-10 px-4 rounded-2xl flex items-center justify-center gap-2 transition-all font-bold text-[13px] tracking-tight",
-                                    (!input.trim() && localAttachments.length === 0) || state.isChatProcessing
+                                    (!input.trim() && localAttachments.length === 0) || isChatProcessing
                                         ? "bg-white/5 text-white/10"
                                         : "bg-white text-black hover:bg-white/90 active:scale-95 shadow-[0_0_25px_rgba(255,255,255,0.15)]"
                                 )}

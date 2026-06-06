@@ -6,7 +6,8 @@ import { useAppStore } from "../context/AppContext";
 import { aiModuleManager, type AIModelInfo } from "../services/ai/aiModuleManager";
 
 export function ModelHub() {
-    const { state, actions } = useAppStore();
+    const state = useAppStore(s => s.state);
+    const actions = useAppStore(s => s.actions);
     const [availableModels, setAvailableModels] = React.useState<(AIModelInfo & { isInstalled: boolean })[]>([]);
     const [isLoading, setIsLoading] = React.useState(true);
     const [ollamaRunning, setOllamaRunning] = React.useState(false);

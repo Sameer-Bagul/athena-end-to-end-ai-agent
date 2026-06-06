@@ -12,7 +12,7 @@ export class McpServerManager {
     async spawnServer(name, command, args, cwd) {
         if (this.servers.has(name))
             return;
-        console.log(`🚀 [McpServerManager] Spawning sidecar: ${name}`);
+        console.log(`\n\x1b[36m[MCP]\x1b[0m Spawning sidecar: \x1b[33m${name}\x1b[0m`);
         const proc = spawn(command, args, {
             stdio: ["pipe", "pipe", "pipe"],
             cwd,
@@ -22,7 +22,7 @@ export class McpServerManager {
             console.error(`[MCP:${name}] ${data.toString().trim()}`);
         });
         proc.on("close", (code) => {
-            console.log(`🛑 [MCP:${name}] exited with code ${code}`);
+            console.log(`\n\x1b[31m[MCP]\x1b[0m Sidecar \x1b[33m${name}\x1b[0m exited with code ${code}`);
             this.servers.delete(name);
             this.onStatus?.(name, 'stopped');
         });

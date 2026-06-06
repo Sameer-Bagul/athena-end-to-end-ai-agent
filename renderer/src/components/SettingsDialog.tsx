@@ -28,7 +28,8 @@ interface SettingsDialogProps {
 }
 
 export function SettingsDialog({ isOpen, onClose, onUpdate }: SettingsDialogProps) {
-    const { state, actions } = useAppStore();
+    const state = useAppStore(s => s.state);
+    const actions = useAppStore(s => s.actions);
     const [activeTab, setActiveTab] = React.useState<'general' | 'profile' | 'ai' | 'cognition' | 'widget' | 'plugins' | 'env'>('general');
     const [wakeWord] = React.useState("Alt + Space");
 
@@ -200,72 +201,86 @@ export function SettingsDialog({ isOpen, onClose, onUpdate }: SettingsDialogProp
 
                             {/* AI TAB */}
                             {activeTab === 'ai' && (
-                                <Section title="Intelligence Core" description="Provider priority & Multi-key redundancy.">
+                                <Section title="Intelligence Core" description="Select your primary AI Provider and configure it.">
 
-                                    {/* Priority List */}
+                                    {/* Provider Selection */}
                                     <div className="mb-8">
-                                        <Label className="text-[10px] font-bold text-white/40 uppercase tracking-widest mb-3 block">Processing Order</Label>
-                                        <div className="space-y-2">
-                                            {aiPriority.map((provider, index) => (
-                                                <div
-                                                    key={provider}
-                                                    draggable
-                                                    onDragStart={(e) => { e.dataTransfer.setData('idx', index.toString()); }}
-                                                    onDragOver={(e) => e.preventDefault()}
-                                                    onDrop={(e) => {
-                                                        const f = parseInt(e.dataTransfer.getData('idx'));
-                                                        if (f === index) return;
-                                                        const n = [...aiPriority];
-                                                        const [m] = n.splice(f, 1);
-                                                        n.splice(index, 0, m);
-                                                        setAiPriority(n);
-                                                    }}
-                                                    className="flex items-center gap-4 p-3 rounded-xl bg-white/3 border border-white/5 hover:bg-white/6 cursor-move transition-colors group"
-                                                >
-                                                    <div className="size-6 rounded-lg bg-white/5 flex items-center justify-center text-[10px] font-bold text-white/50 group-hover:text-white">
-                                                        {index + 1}
-                                                    </div>
+                                        <Label className="text-[10px] font-bold text-white/40 uppercase tracking-widest mb-3 block">Primary AI Provider</Label>
+                                        <div className="flex flex-col gap-3">
+                                            {(['ollama', 'gemini', 'lmstudio', 'grok'] as const).map((provider) => (
+                                                <label key={provider} className="flex items-center gap-4 p-3 rounded-xl bg-white/3 border border-white/5 hover:bg-white/6 cursor-pointer transition-colors group">
+                                                    <input 
+                                                        type="radio" 
+                                                        name="ai_provider"
+                                                        value={provider}
+                                                        checked={aiPriority[0] === provider}
+                                                        onChange={() => {
+                                                            const newPriority = [provider, ...aiPriority.filter(p => p !== provider)];
+                                                            setAiPriority(newPriority);
+                                                        }}
+                                                        className="size-4 accent-primary"
+                                                    />
                                                     <div className="flex-1">
                                                         <div className="text-sm font-medium text-white capitalize">{provider === 'lmstudio' ? 'LM Studio' : provider}</div>
                                                     </div>
-                                                    <div className="px-3 py-1 rounded-full bg-white/5 text-[10px] text-white/40">
-                                                        {provider === 'ollama' ? ollamaConfig.length :
-                                                            provider === 'lmstudio' ? lmStudioConfig.length :
-                                                                provider === 'grok' ? grokConfig.length : geminiConfig.length} Nodes
+                                                    <div className="p-2 rounded-lg bg-white/5 text-white/50 group-hover:text-white transition-colors">
+                                                        {provider === 'ollama' ? <Server className="size-4" /> :
+                                                         provider === 'gemini' ? <BrainCircuit className="size-4" /> :
+                                                         provider === 'grok' ? <Zap className="size-4" /> : <Cpu className="size-4" />}
                                                     </div>
-                                                </div>
+                                                </label>
                                             ))}
                                         </div>
                                     </div>
 
                                     <Separator className="bg-white/5 mb-8" />
 
-                                    {/* Config Cards */}
-                                    <div className="space-y-4">
+                                    {/* Active Provider Config */}
+                                    <div className="space-y-4 mb-8">
                                         <Label className="text-[10px] font-bold text-white/40 uppercase tracking-widest mb-3 block">Node Configuration</Label>
 
-                                        <ConfigGroup title="Ollama" icon={<Server className="size-4" />} configs={ollamaConfig} setConfigs={setOllamaConfig}
-                                            template={{ baseUrl: "http://localhost:11434", model: "dolphin-mistral", numCtx: 2048, numThread: 0, numGpu: -1 }}
-                                            fields={['baseUrl', 'model']} onBlur={handleAiUpdate}
-                                            showPerformance
-                                            modelOptions={ollamaModels}
-                                        />
+                                        {aiPriority[0] === 'ollama' && (
+                                            <ConfigGroup title="Ollama Configuration" icon={<Server className="size-4" />} configs={ollamaConfig} setConfigs={setOllamaConfig}
+                                                template={{ baseUrl: "http://localhost:11434", model: "dolphin-mistral", numCtx: 2048, numThread: 0, numGpu: -1 }}
+                                                fields={['baseUrl', 'model']} onBlur={() => {}}
+                                                showPerformance
+                                                modelOptions={ollamaModels}
+                                            />
+                                        )}
 
-                                        <ConfigGroup title="Gemini" icon={<BrainCircuit className="size-4" />} configs={geminiConfig} setConfigs={setGeminiConfig}
-                                            template={{ apiKey: "", model: "gemini-pro" }}
-                                            fields={['apiKey', 'model']} onBlur={handleAiUpdate}
-                                        />
+                                        {aiPriority[0] === 'gemini' && (
+                                            <ConfigGroup title="Gemini Configuration" icon={<BrainCircuit className="size-4" />} configs={geminiConfig} setConfigs={setGeminiConfig}
+                                                template={{ apiKey: "", model: "gemini-1.5-flash" }}
+                                                fields={['apiKey', 'model']} onBlur={() => {}}
+                                            />
+                                        )}
 
-                                        <ConfigGroup title="Grok" icon={<Zap className="size-4" />} configs={grokConfig} setConfigs={setGrokConfig}
-                                            template={{ apiKey: "", model: "grok-beta" }}
-                                            fields={['apiKey', 'model']} onBlur={handleAiUpdate}
-                                        />
+                                        {aiPriority[0] === 'grok' && (
+                                            <ConfigGroup title="Grok Configuration" icon={<Zap className="size-4" />} configs={grokConfig} setConfigs={setGrokConfig}
+                                                template={{ apiKey: "", model: "grok-beta" }}
+                                                fields={['apiKey', 'model']} onBlur={() => {}}
+                                            />
+                                        )}
 
-                                        <ConfigGroup title="LM Studio" icon={<Cpu className="size-4" />} configs={lmStudioConfig} setConfigs={setLmStudioConfig}
-                                            template={{ baseUrl: "http://localhost:1234/v1", model: "local-model", numCtx: 2048, numThread: 0 }}
-                                            fields={['baseUrl', 'model']} onBlur={handleAiUpdate}
-                                            showPerformance
-                                        />
+                                        {aiPriority[0] === 'lmstudio' && (
+                                            <ConfigGroup title="LM Studio Configuration" icon={<Cpu className="size-4" />} configs={lmStudioConfig} setConfigs={setLmStudioConfig}
+                                                template={{ baseUrl: "http://localhost:1234/v1", model: "local-model", numCtx: 2048, numThread: 0 }}
+                                                fields={['baseUrl', 'model']} onBlur={() => {}}
+                                                showPerformance
+                                            />
+                                        )}
+                                    </div>
+
+                                    {/* Save Button */}
+                                    <div className="flex justify-end pt-4 border-t border-white/5">
+                                        <Button 
+                                            onClick={() => {
+                                                handleAiUpdate();
+                                            }}
+                                            className="bg-primary hover:bg-primary/80 text-black px-8 py-2 rounded-xl transition-all"
+                                        >
+                                            Save Configuration
+                                        </Button>
                                     </div>
                                 </Section>
                             )}

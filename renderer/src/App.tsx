@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react";
-import { VRMControlPanel } from "./components/VRMControlPanel";
-import { OnboardingFlow } from "./components/onboarding/OnboardingFlow";
-import { WidgetLayout } from "./components/WidgetLayout";
+import React, { useState, useEffect } from "react";
+const VRMControlPanel = React.lazy(() => import('./components/VRMControlPanel').then(m => ({ default: m.VRMControlPanel })));
+const OnboardingFlow = React.lazy(() => import('./components/onboarding/OnboardingFlow').then(m => ({ default: m.OnboardingFlow })));
+const WidgetLayout = React.lazy(() => import('./components/WidgetLayout').then(m => ({ default: m.WidgetLayout })));
 import { ErrorBoundary } from "./components/ErrorBoundary";
 
 function App() {
@@ -87,7 +87,9 @@ function App() {
   if (isWidgetWindow) {
     return (
       <ErrorBoundary>
-        <WidgetLayout />
+        <React.Suspense fallback={<div className="h-screen w-screen flex items-center justify-center text-white">Loading Widget...</div>}>
+          <WidgetLayout />
+        </React.Suspense>
       </ErrorBoundary>
     );
   }
@@ -99,15 +101,17 @@ function App() {
         {/* No TitleBar (Using Native Frame) */}
 
         <div className="flex-1 relative overflow-hidden">
-          {showOnboarding ? (
-            <div className="h-full w-full bg-black">
-              <OnboardingFlow onComplete={handleOnboardingComplete} />
-            </div>
-          ) : (
-            <VRMControlPanel
-              onOpenWidget={handleOpenWidget}
-            />
-          )}
+          <React.Suspense fallback={<div className="h-full w-full flex items-center justify-center text-white">Loading UI...</div>}>
+            {showOnboarding ? (
+              <div className="h-full w-full bg-black">
+                <OnboardingFlow onComplete={handleOnboardingComplete} />
+              </div>
+            ) : (
+              <VRMControlPanel
+                onOpenWidget={handleOpenWidget}
+              />
+            )}
+          </React.Suspense>
         </div>
       </div>
     </ErrorBoundary>

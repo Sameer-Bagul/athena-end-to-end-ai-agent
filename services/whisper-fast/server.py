@@ -67,5 +67,6 @@ async def stt(file: UploadFile = File(...), model_name: str = "tiny.en"):
             os.remove(tmp_path)
 
 if __name__ == "__main__":
-    print("Starting Uvicorn Server on port 9001...", flush=True)
-    uvicorn.run(app, host="127.0.0.1", port=9001)
+    port = int(os.environ.get("PORT", 9001))
+    print(f"Starting Uvicorn Server on port {port}...", flush=True)
+    uvicorn.run(app, host="127.0.0.1", port=port)

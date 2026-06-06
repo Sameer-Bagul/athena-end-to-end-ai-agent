@@ -2,6 +2,7 @@ import { app, BrowserWindow, ipcMain, globalShortcut } from "electron";
 import path from "path";
 import { fileURLToPath } from "url";
 import fs from "fs";
+import net from "net";
 import { spawn } from "child_process";
 import "dotenv/config";
 import { chatWithLLM } from "../backend/llm.js";
@@ -17,26 +18,44 @@ import { mcpManager } from "../backend/agent/mcpManager.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const isDev = process.env.NODE_ENV === "development";
-// Hack to try and unblock Google Speech API in Electron
-process.env.GOOGLE_API_KEY = "ignore";
 // Disable sandbox on Linux
 if (process.platform === "linux") {
     app.commandLine.appendSwitch("no-sandbox");
 }
+async function getAvailablePort(startPort) {
+    return new Promise((resolve, reject) => {
+        const server = net.createServer();
+        server.unref();
+        server.on('error', (e) => {
+            if (e.code === 'EADDRINUSE') {
+                resolve(getAvailablePort(startPort + 1));
+            }
+            else {
+                reject(e);
+            }
+        });
+        server.listen(startPort, () => {
+            const port = server.address().port;
+            server.close(() => {
+                resolve(port);
+            });
+        });
+    });
+}
 let pythonServerProcess = null;
-function startPythonServer() {
+function startPythonServer(port) {
     const projectRoot = app.getAppPath();
     const pythonBin = path.join(projectRoot, "services", "stt-env", "bin", "python");
     const scriptPath = path.join(projectRoot, "services", "whisper-fast", "server.py");
-    console.log("🚀 [Electron] Starting Python Server...");
+    console.log(`\n\x1b[36m[Main]\x1b[0m Starting Python Server on port ${port}...`);
     console.log("   Bin:", pythonBin);
     console.log("   Script:", scriptPath);
     if (!fs.existsSync(pythonBin)) {
-        console.error("❌ [Electron] Python executable not found at:", pythonBin);
+        console.error("\n\x1b[31m[ERROR]\x1b[0m Python executable not found at:", pythonBin);
         return;
     }
     if (!fs.existsSync(scriptPath)) {
-        console.error("❌ [Electron] Python script not found at:", scriptPath);
+        console.error("\n\x1b[31m[ERROR]\x1b[0m Python script not found at:", scriptPath);
         return;
     }
     pythonServerProcess = spawn(pythonBin, [scriptPath], {
@@ -44,32 +63,39 @@ function startPythonServer() {
         cwd: path.join(projectRoot, "services"),
         env: {
             ...process.env,
+            PORT: port.toString(),
             ATHENA_USER_DATA: app.getPath('userData')
         }
     });
     pythonServerProcess.stdout.on("data", (data) => {
-        console.log(`🐍 [Python] ${data.toString().trim()}`);
+        console.log(`\x1b[32m[PythonSTT]\x1b[0m ${data.toString().trim()}`);
     });
     pythonServerProcess.stderr.on("data", (data) => {
-        console.error(`🐍 [Python ERROR] ${data.toString().trim()}`);
+        const text = data.toString().trim();
+        if (text.includes("INFO:")) {
+            console.log(`\x1b[32m[PythonSTT]\x1b[0m ${text}`);
+        }
+        else {
+            console.error(`\x1b[31m[ERROR]\x1b[0m \x1b[32m[PythonSTT]\x1b[0m ${text}`);
+        }
     });
     pythonServerProcess.on("close", (code) => {
-        console.log(`🛑 [Electron] Python server exited with code ${code}`);
+        console.log(`\n\x1b[36m[Main]\x1b[0m Python server exited with code ${code}`);
     });
     pythonServerProcess.on("error", (err) => {
-        console.error("❌ [Electron] Failed to start Python server:", err);
+        console.error("\n\x1b[31m[ERROR]\x1b[0m Failed to start Python server:", err);
     });
 }
 let ttsServerProcess = null;
-function startTTSServer() {
+function startTTSServer(port) {
     const projectRoot = app.getAppPath();
     // TTS Service Path
     const ttsServicePath = path.join(projectRoot, "services", "TTS-supertonic");
     const ttsScript = path.join(ttsServicePath, "src", "server.js");
-    console.log("🚀 [Electron] Starting TTS Server...");
+    console.log(`\n\x1b[36m[Main]\x1b[0m Starting TTS Server on port ${port}...`);
     console.log("   Script:", ttsScript);
     if (!fs.existsSync(ttsScript)) {
-        console.error("❌ [Electron] TTS script not found at:", ttsScript);
+        console.error("\n\x1b[31m[ERROR]\x1b[0m TTS script not found at:", ttsScript);
         return;
     }
     // We use the same 'node' binary that runs Electron? 
@@ -82,20 +108,21 @@ function startTTSServer() {
         cwd: ttsServicePath, // Critical for relative imports/models in TTS
         env: {
             ...process.env,
+            PORT: port.toString(),
             ATHENA_USER_DATA: app.getPath('userData')
         }
     });
     ttsServerProcess.stdout.on("data", (data) => {
-        console.log(`🗣️ [TTS] ${data.toString().trim()}`);
+        console.log(`\x1b[34m[NodeTTS]\x1b[0m ${data.toString().trim()}`);
     });
     ttsServerProcess.stderr.on("data", (data) => {
-        console.error(`🗣️ [TTS ERROR] ${data.toString().trim()}`);
+        console.error(`\x1b[31m[ERROR]\x1b[0m \x1b[34m[NodeTTS]\x1b[0m ${data.toString().trim()}`);
     });
     ttsServerProcess.on("close", (code) => {
-        console.log(`🛑 [Electron] TTS server exited with code ${code}`);
+        console.log(`\n\x1b[36m[Main]\x1b[0m TTS server exited with code ${code}`);
     });
     ttsServerProcess.on("error", (err) => {
-        console.error("❌ [Electron] Failed to start TTS server:", err);
+        console.error("\n\x1b[31m[ERROR]\x1b[0m Failed to start TTS server:", err);
     });
 }
 // Main Window Reference
@@ -131,7 +158,7 @@ function createWindow() {
     });
     // Logging IPC for debugging renderer in terminal
     ipcMain.on("logger:log", (event, ...args) => {
-        console.log("🖥️ [Renderer]", ...args);
+        console.log("\x1b[35m[Renderer]\x1b[0m", ...args);
     });
     mainWindow.on('closed', () => {
         mainWindow = null;
@@ -237,7 +264,7 @@ ipcMain.handle("window:close", (event) => {
 });
 // IPC handlers for LLM and TTS
 ipcMain.handle("llm:chat", async (_, messages) => {
-    console.log(`[IPC] 💬 Request: llm:chat (${messages.length} messages)`);
+    console.log(`\x1b[33m[IPC]\x1b[0m Chat Request: llm:chat (${messages.length} messages)`);
     return await chatWithLLM(messages);
 });
 // RAG Handlers
@@ -258,7 +285,7 @@ ipcMain.handle("rag:upload-document", async (event) => {
         return uploadResult;
     }
     catch (error) {
-        console.error("❌ [Electron] RAG Upload Error:", error);
+        console.error("\n\x1b[31m[ERROR]\x1b[0m RAG Upload Error:", error);
         return { error: error.message };
     }
 });
@@ -274,22 +301,22 @@ ipcMain.handle("rag:get-context", async (_, input) => {
 });
 // LangGraph Agent Handler
 ipcMain.handle("agent:query", async (_, { query, systemPrompt, modelName }) => {
-    console.log(`[IPC] 🤖 Request: agent:query`);
+    console.log(`\x1b[33m[IPC]\x1b[0m Agent Request: agent:query`);
     try {
         const { runAgent } = await import("../backend/agent/graph.js");
         const response = await runAgent(query, systemPrompt, modelName);
         return { success: true, response };
     }
     catch (error) {
-        console.error("❌ [Electron] Agent Error:", error);
+        console.error("\n\x1b[31m[ERROR]\x1b[0m Agent Error:", error);
         return { success: false, error: error.message };
     }
 });
-ipcMain.on("agent:query-stream", async (event, { queryId, query, systemPrompt, modelName }) => {
-    console.log(`[IPC] 🤖 Request: agent:query-stream (${queryId})`);
+ipcMain.on("agent:query-stream", async (event, { queryId, query, systemPrompt, modelName, apiKey }) => {
+    console.log(`\x1b[33m[IPC]\x1b[0m Agent Request: agent:query-stream (${queryId})`);
     try {
         const { runAgent } = await import("../backend/agent/graph.js");
-        const response = await runAgent(query, systemPrompt, modelName, (msg) => {
+        const response = await runAgent(query, systemPrompt, modelName, apiKey, (msg) => {
             event.sender.send(`agent:progress-${queryId}`, msg);
         }, (token) => {
             event.sender.send(`agent:token-${queryId}`, token);
@@ -297,22 +324,22 @@ ipcMain.on("agent:query-stream", async (event, { queryId, query, systemPrompt, m
         event.sender.send(`agent:complete-${queryId}`, { success: true, response });
     }
     catch (error) {
-        console.error("❌ [Electron] Agent Error:", error);
+        console.error("\n\x1b[31m[ERROR]\x1b[0m Agent Error:", error);
         event.sender.send(`agent:complete-${queryId}`, { success: false, error: error.message });
     }
 });
 ipcMain.handle("tts:generate", async (_, { text, voiceStyle }) => {
-    console.log(`[IPC] 🗣️ Request: tts:generate (${text.substring(0, 30)}...)`);
+    console.log(`\x1b[33m[IPC]\x1b[0m Speech Request: tts:generate (${text.substring(0, 30)}...)`);
     return await speak(text, voiceStyle);
 });
 ipcMain.handle("stt:transcribe", async (_, buffer) => {
-    console.log(`[IPC] 👂 Request: stt:transcribe (${buffer.byteLength} bytes)`);
+    console.log(`\x1b[33m[IPC]\x1b[0m Transcription Request: stt:transcribe (${buffer.byteLength} bytes)`);
     return await transcribe(buffer);
 });
 // Tool Proxy Handlers
 ipcMain.handle("tool:news", async (_, url) => {
     try {
-        console.log(`📰 [Electron] Proxying News Request: ${url}`);
+        console.log(`\n\x1b[36m[Main]\x1b[0m Proxying News Request: ${url}`);
         // Check if URL is valid newsapi.org URL to allow-list (security)
         if (!url.startsWith("https://newsapi.org/")) {
             throw new Error("Unauthorized URL");
@@ -324,7 +351,7 @@ ipcMain.handle("tool:news", async (_, url) => {
         return await response.json();
     }
     catch (error) {
-        console.error("❌ [Electron] News request failed:", error);
+        console.error("\n\x1b[31m[ERROR]\x1b[0m News request failed:", error);
         return { error: error.message };
     }
 });
@@ -356,7 +383,7 @@ ipcMain.handle("chat:load-history", async () => {
 });
 // --- Agent Tool Bridging (Backend -> Renderer) ---
 ipcMain.on("agent:add-timer", (event, { duration, unit, label }) => {
-    console.log(`⏰ [Main] Bridging agent:add-timer: ${duration} ${unit} (${label || 'No label'})`);
+    console.log(`\n\x1b[36m[Main]\x1b[0m Bridging agent:add-timer: ${duration} ${unit} (${label || 'No label'})`);
     if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send("athena:add-timer-ipc", { duration, unit, label });
     }
@@ -365,7 +392,7 @@ ipcMain.on("agent:add-timer", (event, { duration, unit, label }) => {
     }
 });
 ipcMain.on("agent:remove-timer", (event, { id }) => {
-    console.log(`⏰ [Main] Bridging agent:remove-timer: ${id}`);
+    console.log(`\n\x1b[36m[Main]\x1b[0m Bridging agent:remove-timer: ${id}`);
     if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send("athena:remove-timer-ipc", { id });
     }
@@ -375,12 +402,12 @@ ipcMain.on("agent:remove-timer", (event, { id }) => {
 });
 // --- MCP Bridging ---
 ipcMain.handle("agent:call-mcp", async (_, { serverName, toolName, args }) => {
-    console.log(`🔌 [Main] Routing MCP call to ${serverName}.${toolName}`);
+    console.log(`\n\x1b[36m[Main]\x1b[0m Routing MCP call to ${serverName}.${toolName}`);
     try {
         return await mcpManager.callTool(serverName, toolName, args);
     }
     catch (error) {
-        console.error(`❌ [Main] MCP call ${serverName}.${toolName} failed:`, error);
+        console.error(`\n\x1b[31m[ERROR]\x1b[0m MCP call ${serverName}.${toolName} failed:`, error);
         return { error: error.message };
     }
 });
@@ -508,7 +535,7 @@ ipcMain.on("model:pull", async (event, modelId) => {
         event.sender.send("model:pull-progress", { model: modelId, status: "success" });
     }
     catch (err) {
-        console.error(`❌ [Electron] Failed to download model ${modelId}:`, err);
+        console.error(`\n\x1b[31m[ERROR]\x1b[0m Failed to download model ${modelId}:`, err);
         event.sender.send("model:pull-progress", { model: modelId, status: "error", error: err.message });
     }
 });
@@ -523,13 +550,17 @@ ipcMain.handle("model:delete", async (_, modelId) => {
 // Bypass microphone permission prompts and enable speech API
 app.commandLine.appendSwitch("use-fake-ui-for-media-stream");
 app.commandLine.appendSwitch("enable-speech-dispatcher");
-app.whenReady().then(() => {
-    startPythonServer();
-    startTTSServer();
+app.whenReady().then(async () => {
+    const sttPort = await getAvailablePort(9001);
+    const ttsPort = await getAvailablePort(3000);
+    process.env.STT_URL = `http://127.0.0.1:${sttPort}`;
+    process.env.TTS_URL = `http://localhost:${ttsPort}`;
+    startPythonServer(sttPort);
+    startTTSServer(ttsPort);
     createWindow();
     // Global Shortcut for Wake / PTT
     globalShortcut.register('Alt+Space', () => {
-        console.log("⚡ [Electron] Alt+Space pressed");
+        console.log("\n\x1b[36m[Main]\x1b[0m Alt+Space pressed");
         // Broadcast to all windows
         if (mainWindow && !mainWindow.isDestroyed())
             mainWindow.webContents.send('shortcut:pressed');
@@ -541,7 +572,7 @@ app.whenReady().then(() => {
     });
     // MCP Sidecar Status listener
     mcpManager.onStatus = (name, status) => {
-        console.log(`🔌 [Main] Sidecar ${name} is ${status}`);
+        console.log(`\n\x1b[36m[Main]\x1b[0m Sidecar ${name} is ${status}`);
         if (mainWindow && !mainWindow.isDestroyed()) {
             mainWindow.webContents.send("agent:mcp-status", { name, status });
         }
@@ -557,7 +588,7 @@ app.on('will-quit', () => {
     globalShortcut.unregisterAll();
 });
 app.on("before-quit", async () => {
-    console.log("🛑 [Electron] Initiating graceful shutdown...");
+    console.log("\n\x1b[36m[Main]\x1b[0m Initiating graceful shutdown...");
     // Graceful shutdown helper
     const shutdownService = (proc, name) => {
         return new Promise((resolve) => {
@@ -583,5 +614,5 @@ app.on("before-quit", async () => {
         shutdownService(ttsServerProcess, 'TTS')
     ]);
     mcpManager.shutdown();
-    console.log("✅ [Electron] Graceful shutdown complete");
+    console.log("\n\x1b[36m[Main]\x1b[0m Graceful shutdown complete");
 });

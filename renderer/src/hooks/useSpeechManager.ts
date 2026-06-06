@@ -3,7 +3,8 @@ import { SpeechRecognitionManager } from "../lib/SpeechRecognition";
 import { useAppStore } from "../context/AppContext";
 
 export function useSpeechManager(onSpeechResult: (text: string) => void) {
-    const { state, actions } = useAppStore();
+    const state = useAppStore(s => s.state);
+    const actions = useAppStore(s => s.actions);
     const speechManagerRef = useRef<SpeechRecognitionManager | null>(null);
 
     // Initialize Manager

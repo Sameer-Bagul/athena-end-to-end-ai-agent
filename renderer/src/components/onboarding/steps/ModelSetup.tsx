@@ -11,7 +11,8 @@ interface ModelSetupProps {
 }
 
 export function ModelSetup({ onNext, onBack }: ModelSetupProps) {
-    const { state, actions } = useAppStore();
+    const state = useAppStore(s => s.state);
+    const actions = useAppStore(s => s.actions);
     const [status, setStatus] = useState<'checking' | 'ollama_missing' | 'model_selection'>('checking');
     const [availableAI, setAvailableAI] = useState<(AIModelInfo & { isInstalled: boolean })[]>([]);
 

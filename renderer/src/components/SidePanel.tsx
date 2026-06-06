@@ -20,7 +20,8 @@ interface SidePanelProps {
 }
 
 export function SidePanel({ onToggleListening, onExpressionChange }: SidePanelProps) {
-    const { state, actions } = useAppStore();
+    const state = useAppStore(s => s.state);
+    const actions = useAppStore(s => s.actions);
 
     const FACIAL_EXPRESSIONS = [
         { name: "Smile", label: "Smile" },

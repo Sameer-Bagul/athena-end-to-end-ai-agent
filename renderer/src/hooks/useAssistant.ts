@@ -8,7 +8,8 @@ import { ANIMATION_METADATA } from "../lib/animationMetadata";
 import { logger } from "../lib/logger";
 
 export function useAssistant() {
-    const { state, actions } = useAppStore();
+    const state = useAppStore(s => s.state);
+    const actions = useAppStore(s => s.actions);
 
     // Memoize animation context (only compute once)
     const animContext = useMemo(
@@ -52,16 +53,10 @@ export function useAssistant() {
         try {
             // --- Context Check (RAG) ---
             let context = "";
-            // @ts-ignore
-            if (window.athena?.rag?.getContext) {
-                // @ts-ignore
-                const ragContexts = await window.athena.rag.getContext(text);
-                if (ragContexts && ragContexts.length > 0) {
-                    const ragText = ragContexts.join("\n---\n");
-                    context += `\n[DOCUMENT CONTEXT]\n${ragText}\n[END DOCUMENT CONTEXT]\n`;
-                    console.log("[useAssistant] RAG Context added.");
-                }
-            }
+            
+            // Note: We no longer do Naive RAG here!
+            // The LangGraph Agent in the backend will automatically call the 
+            // `knowledge_search` tool ONLY when it detects the user is asking about documents.
 
             // Add attachment context if any
             if (attachments && attachments.length > 0) {

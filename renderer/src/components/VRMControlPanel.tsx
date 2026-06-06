@@ -21,7 +21,8 @@ interface VRMControlPanelProps {
 export function VRMControlPanel({ onOpenWidget }: VRMControlPanelProps) {
     console.log('[VRMControlPanel] Component rendering...');
 
-    const { state, actions } = useAppStore();
+    const state = useAppStore(s => s.state);
+    const actions = useAppStore(s => s.actions);
     const stageRef = React.useRef<ThreeStageHandle>(null);
 
     console.log('[VRMControlPanel] State loaded:', {

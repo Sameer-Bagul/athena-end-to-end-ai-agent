@@ -9,7 +9,8 @@ interface CloudRegistryProps {
 }
 
 export function CloudRegistry({ onNext, onBack }: CloudRegistryProps) {
-    const { state, actions } = useAppStore();
+    const state = useAppStore(s => s.state);
+    const actions = useAppStore(s => s.actions);
     const [geminiKey, setGeminiKey] = React.useState(state.aiConfig.gemini[0]?.apiKey || "");
     const [isSaved, setIsSaved] = React.useState(false);
 

@@ -4,7 +4,8 @@ import { useAppStore } from '../context/AppContext';
 import { Timer, X } from 'lucide-react';
 
 export const ActiveTimerUI: React.FC = () => {
-    const { state, actions } = useAppStore();
+    const state = useAppStore(s => s.state);
+    const actions = useAppStore(s => s.actions);
     const { activeTimers } = state;
 
     console.log('[ActiveTimerUI] Rendering, activeTimers count:', activeTimers.length);

@@ -24,14 +24,13 @@ class AgentManagerService {
         logger.info('[AgentManager] Processing query via backend agent...');
 
         try {
-            // Get the model name dynamically from the provider
             const modelName = provider.getModelName();
-
+            const apiKey = provider.getApiKey ? provider.getApiKey() : undefined;
             const queryId = Math.random().toString(36).substring(7);
 
             // Call the backend agent via IPC
             // @ts-ignore
-            const result = await window.athena.agent.queryStream(queryId, text, systemPrompt, modelName, onChunk, _onStatusUpdate);
+            const result = await window.athena.agent.queryStream(queryId, text, systemPrompt, modelName, apiKey, onChunk, _onStatusUpdate);
 
             if (!result.success) {
                 logger.warn('[AgentManager] Backend agent failed, forwarding error:', result.error);

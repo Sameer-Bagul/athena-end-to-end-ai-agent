@@ -8,4 +8,5 @@ export interface AIProvider {
     ): Promise<string>;
     getChatModel(): Promise<any>;
     getModelName(): string;
+    getApiKey?(): string;
 }

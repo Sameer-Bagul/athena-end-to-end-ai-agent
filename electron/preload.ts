@@ -18,9 +18,19 @@ contextBridge.exposeInMainWorld("athena", {
   // State Sync
   broadcastState: (data: any) => ipcRenderer.send("sync:broadcast", data),
   onSyncReceive: (callback: (data: any) => void) => {
-    const subscription = (_: any, data: any) => callback(data);
+    const subscription = (_: any, data: any) => {
+      if (Array.isArray(data)) {
+        data.forEach(callback);
+      } else {
+        callback(data);
+      }
+    };
     ipcRenderer.on("sync:receive", subscription);
-    return () => ipcRenderer.removeListener("sync:receive", subscription);
+    ipcRenderer.on("sync:receive-batch", subscription);
+    return () => {
+      ipcRenderer.removeListener("sync:receive", subscription);
+      ipcRenderer.removeListener("sync:receive-batch", subscription);
+    };
   },
 
   // Widget Input Forwarding
@@ -55,7 +65,7 @@ contextBridge.exposeInMainWorld("athena", {
   agent: {
     query: (query: string, systemPrompt: string, modelName?: string) =>
       ipcRenderer.invoke("agent:query", { query, systemPrompt, modelName }),
-    queryStream: (queryId: string, query: string, systemPrompt: string, modelName?: string, onToken?: (token: string) => void, onProgress?: (msg: string) => void) => {
+    queryStream: (queryId: string, query: string, systemPrompt: string, modelName?: string, apiKey?: string, onToken?: (token: string) => void, onProgress?: (msg: string) => void) => {
       if (onToken) {
         ipcRenderer.on(`agent:token-${queryId}`, (_: any, token: string) => onToken(token));
       }
@@ -68,7 +78,7 @@ contextBridge.exposeInMainWorld("athena", {
           ipcRenderer.removeAllListeners(`agent:progress-${queryId}`);
           resolve(result);
         });
-        ipcRenderer.send("agent:query-stream", { queryId, query, systemPrompt, modelName });
+        ipcRenderer.send("agent:query-stream", { queryId, query, systemPrompt, modelName, apiKey });
       });
     },
     onAddTimer: (callback: (data: any) => void) => {

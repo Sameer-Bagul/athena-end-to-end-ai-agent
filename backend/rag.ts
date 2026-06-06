@@ -41,10 +41,13 @@ export class RagService {
             if (fs.existsSync(this.persistencePath)) {
                 const data = JSON.parse(fs.readFileSync(this.persistencePath, 'utf-8'));
                 this.indexedFiles = data.indexedFiles || [];
-                console.log(`[RAG] Loaded ${this.indexedFiles.length} indexed files from persistence`);
+                console.log(`\n\x1b[35m[RAG]\x1b[0m Loaded \x1b[32m${this.indexedFiles.length}\x1b[0m indexed files from persistence`);
 
-                // Note: Full vector store serialization is complex
-                // For production, consider using a proper vector DB like Chroma or FAISS
+                if (data.vectors && data.vectors.length > 0) {
+                    this.vectorStore = new MemoryVectorStore(this.embeddings);
+                    this.vectorStore.memoryVectors = data.vectors;
+                    console.log(`\n\x1b[35m[RAG]\x1b[0m Successfully restored \x1b[32m${data.vectors.length}\x1b[0m vector embeddings from disk.`);
+                }
             }
         } catch (error: any) {
             console.error('[RAG] Failed to load persisted data:', error.message);
@@ -58,10 +61,11 @@ export class RagService {
         try {
             const data = {
                 indexedFiles: this.indexedFiles,
+                vectors: this.vectorStore ? this.vectorStore.memoryVectors : [],
                 timestamp: new Date().toISOString()
             };
-            fs.writeFileSync(this.persistencePath, JSON.stringify(data, null, 2));
-            console.log('[RAG] Data persisted successfully');
+            fs.writeFileSync(this.persistencePath, JSON.stringify(data));
+            console.log(`\n\x1b[35m[RAG]\x1b[0m Data persisted successfully (\x1b[32m${data.vectors.length}\x1b[0m vectors)`);
         } catch (error: any) {
             console.error('[RAG] Failed to persist data:', error.message);
         }
@@ -84,7 +88,7 @@ export class RagService {
     }
 
     async loadDocument(filePath: string) {
-        console.log(`[RAG] 📄 Loading document: ${filePath}`);
+        console.log(`\n\x1b[35m[RAG]\x1b[0m Loading document: \x1b[36m${filePath}\x1b[0m`);
         let loader;
         const ext = path.extname(filePath).toLowerCase();
 
@@ -99,9 +103,9 @@ export class RagService {
         let docs;
         try {
             docs = await loader.load();
-            console.log(`[RAG] Loaded ${docs.length} document objects.`);
+            console.log(`\n\x1b[35m[RAG]\x1b[0m Loaded \x1b[32m${docs.length}\x1b[0m document objects.`);
         } catch (error: any) {
-            console.error(`❌ [RAG] Failed to load document: ${error.message}`);
+            console.error(`\n\x1b[31m[RAG]\x1b[0m Failed to load document: ${error.message}`);
             if (error.message.includes("pdf-parse")) {
                 throw new Error("PDF parsing failed. This usually means a dependency issue with pdf-parse.");
             }
@@ -115,7 +119,7 @@ export class RagService {
             chunkOverlap: overlap,
         });
         const splitDocs = await textSplitter.splitDocuments(docs);
-        console.log(`[RAG] ✂️ Split into ${splitDocs.length} chunks (size: ${size}, overlap: ${overlap}).`);
+        console.log(`\n\x1b[35m[RAG]\x1b[0m Split into \x1b[32m${splitDocs.length}\x1b[0m chunks (size: ${size}, overlap: ${overlap}).`);
 
         try {
             if (!this.vectorStore) {
@@ -147,7 +151,7 @@ export class RagService {
             return [];
         }
 
-        console.log(`[RAG] 🔍 Retrieving context for: "${input}"`);
+        console.log(`\n\x1b[35m[RAG]\x1b[0m Retrieving context for: \x1b[33m"${input}"\x1b[0m`);
         const retriever = this.vectorStore.asRetriever({
             k: 5, // Reduced k slightly for speed
             searchType: "similarity",
@@ -156,10 +160,10 @@ export class RagService {
         try {
             const docs = await retriever.invoke(input);
             const contexts = docs.map((doc: any) => doc.pageContent);
-            console.log(`[RAG] ✅ Found ${contexts.length} relevant chunks for context.`);
+            console.log(`\n\x1b[35m[RAG]\x1b[0m Found \x1b[32m${contexts.length}\x1b[0m relevant chunks for context.`);
             return contexts;
         } catch (error: any) {
-            console.error(`❌ [RAG] Retrieval error: ${error.message}`);
+            console.error(`\n\x1b[31m[RAG]\x1b[0m Retrieval error: ${error.message}`);
             return [];
         }
     }
