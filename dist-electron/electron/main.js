@@ -435,7 +435,7 @@ ipcMain.handle("system:file-stats", async (_, targetPath) => {
 });
 ipcMain.handle("ollama:check-status", async () => {
     try {
-        const res = await fetch("http://localhost:11434/api/tags");
+        const res = await fetch("http://127.0.0.1:11434/api/tags");
         return { ok: res.ok };
     }
     catch (e) {
@@ -444,19 +444,20 @@ ipcMain.handle("ollama:check-status", async () => {
 });
 ipcMain.handle("ollama:list-models", async () => {
     try {
-        const res = await fetch("http://localhost:11434/api/tags");
+        const res = await fetch("http://127.0.0.1:11434/api/tags");
         if (!res.ok)
             throw new Error("Failed to fetch models");
         const data = await res.json();
         return data.models || [];
     }
     catch (e) {
+        console.error('[Ollama] Failed to list models:', e.message);
         return { error: e.message };
     }
 });
 ipcMain.handle("ollama:delete-model", async (_, modelName) => {
     try {
-        const res = await fetch("http://localhost:11434/api/delete", {
+        const res = await fetch("http://127.0.0.1:11434/api/delete", {
             method: "DELETE",
             body: JSON.stringify({ name: modelName })
         });

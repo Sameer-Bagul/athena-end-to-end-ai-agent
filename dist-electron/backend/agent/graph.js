@@ -6,47 +6,37 @@ import { AgentState } from "./state.js";
 import { tools } from "./tools.js";
 const c = { agent: "\x1b[35m[Agent]\x1b[0m", graph: "\x1b[35m[AgentGraph]\x1b[0m" };
 /**
- * System prompt that instructs the model how to use tools
- */
-const TOOL_SYSTEM_PROMPT = `### TOOL USE RULES (MANDATORY)
-1. If you need external data (time, weather, search, timer), respond ONLY with a JSON object.
-2. NO text preamble, NO conversational filler.
-3. Once a tool returns a RESULT, respond naturally to the user explaining what happened.
-
-TOOLS:
-- weather(city): Current weather
-- clock(timezone?): Current time
-- knowledge_search(query): Search local files
-- timer(seconds, label?): Set a physical timer
-- web_search(query): Search the internet for real-time info/docs
-
-JSON FORMAT:
-{"tool": "timer", "arguments": {"seconds": 60, "label": "Coffee"}}`;
+ * System prompt rules that guide the AI's core behavior.
+ * (Native tool schemas are injected automatically by LangChain)
+ */ ;
 /**
  * Initialize the LLM - Optimized for speed
  */
-function createLLM(modelName = "dolphin-mistral:latest", apiKey) {
+function createLLM(modelName = "qwen2.5-coder:7b", apiKey) {
     if (modelName.toLowerCase().includes("gemini")) {
-        return new ChatGoogleGenerativeAI({
+        const gemini = new ChatGoogleGenerativeAI({
             model: modelName,
             temperature: 0,
             apiKey: apiKey || process.env.GOOGLE_API_KEY,
         });
+        return gemini.bindTools(tools);
     }
-    return new ChatOllama({
+    // Ollama models (local) will not have tools bound to keep them purely conversational
+    const ollama = new ChatOllama({
         model: modelName,
-        temperature: 0, // Forced deterministic for tool JSON
-        numCtx: 4096, // Increased context window
-        numPredict: 512, // Enough for JSON + small explanation if anyway
+        temperature: 0.7, // Increased temperature to prevent deterministic empty string collapse in dolphin-mistral
+        numCtx: 4096,
+        numPredict: 512,
         baseUrl: "http://localhost:11434",
     });
+    return ollama;
 }
 /**
  * Agent Node - Makes decisions and optionally calls tools
  */
 async function callAgent(state, config) {
     console.log('[Agent] Processing messages...');
-    const modelName = config?.configurable?.model || "dolphin-mistral:latest";
+    const modelName = config?.configurable?.model || "qwen2.5-coder:7b";
     try {
         const apiKey = config?.configurable?.apiKey;
         const llm = createLLM(modelName, apiKey);
@@ -86,9 +76,28 @@ async function executeTools(state) {
     }
     const content = String(lastMessage.content).trim();
     try {
-        // Improved JSON extraction: 
-        // 1. Check for markdown code blocks first
-        // 2. Fall back to regex finding the first '{' and last '}'
+        // Handle native Langchain tool calls first (from Ollama bindTools)
+        if (lastMessage.tool_calls && lastMessage.tool_calls.length > 0) {
+            const call = lastMessage.tool_calls[0];
+            console.log(`[Tools] Executing native tool: ${call.name}`);
+            console.log(`[Tools] Arguments:`, call.args);
+            const tool = tools.find(t => t.name === call.name);
+            if (!tool) {
+                throw new Error(`Tool "${call.name}" not found`);
+            }
+            const result = await tool.invoke(call.args);
+            console.log(`[Tools] Result: ${String(result).substring(0, 100)}...`);
+            return {
+                messages: [
+                    new ToolMessage({
+                        content: String(result),
+                        name: call.name,
+                        tool_call_id: call.id || 'manual',
+                    })
+                ]
+            };
+        }
+        // Fallback: Parse raw JSON response
         let jsonStr = "";
         const codeBlockMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/);
         if (codeBlockMatch) {
@@ -101,14 +110,14 @@ async function executeTools(state) {
             }
         }
         if (!jsonStr) {
-            throw new Error('No JSON detected in response');
+            throw new Error('No tool call detected in response');
         }
         // Parse the JSON tool call
         const toolCall = JSON.parse(jsonStr);
         if (!toolCall.tool || !toolCall.arguments) {
             throw new Error('Invalid tool call format');
         }
-        console.log(`[Tools] Executing: ${toolCall.tool}`);
+        console.log(`[Tools] Executing parsed: ${toolCall.tool}`);
         console.log(`[Tools] Arguments:`, toolCall.arguments);
         // Find and execute the tool
         const tool = tools.find(t => t.name === toolCall.tool);
@@ -160,12 +169,18 @@ function shouldContinue(state) {
     if (!(lastMessage instanceof AIMessage)) {
         return END;
     }
+    // Check for native Langchain tool_calls
+    if (lastMessage.tool_calls && lastMessage.tool_calls.length > 0) {
+        console.log(`[Agent] Detected tool call: ${lastMessage.tool_calls[0].name}`);
+        console.log('[Agent] Routing to tools');
+        return "tools";
+    }
     const content = String(lastMessage.content).trim();
-    // Check if response contains a JSON tool call
+    // Fallback: Check if response contains a JSON tool call manually
     // Look for {"tool": pattern anywhere in the response
     const toolCallMatch = content.match(/\{\s*"tool"\s*:\s*"([^"]+)"\s*,\s*"arguments"\s*:/);
     if (toolCallMatch) {
-        console.log(`[Agent] Detected tool call: ${toolCallMatch[1]}`);
+        console.log(`[Agent] Detected raw JSON tool call: ${toolCallMatch[1]}`);
         console.log('[Agent] Routing to tools');
         return "tools";
     }
@@ -220,22 +235,22 @@ export async function runAgent(query, systemPrompt, modelName, apiKey, onProgres
             second: '2-digit',
             timeZoneName: 'short'
         });
-        const fullSystemPrompt = `[STRICT_COMMAND_CENTER]
-- CURRENT_TIME: ${timeStr}
-- IF YOU NEED A TOOL: Respond ONLY with the JSON object. No other text.
-- AFTER TOOL RESULT: Provide a natural, conversational confirmation for Sameer Bagul.
-
-${TOOL_SYSTEM_PROMPT}
+        const isAdvancedModel = modelName?.toLowerCase().includes("gemini");
+        const coreRules = isAdvancedModel
+            ? `- ALWAYS use the 'clock' tool for current time verification.
+- ALWAYS use the 'web_search' tool for any research requests.
+- When a tool returns a result, explain the outcome naturally to your Master, Sameer Bagul.`
+            : `- You do NOT have access to external tools, real-time data, search, or physical timers.
+- If the user asks you to perform an action requiring a tool (like checking the weather, setting a timer, or searching the web), politely explain that you are currently running as a local model. Suggest that they switch to an advanced model (like Gemini) in the Settings to enable full tool support.
+- Otherwise, converse naturally and do not mention tools.`;
+        const fullSystemPrompt = `[CURRENT_TIME]
+${timeStr}
 
 [CHARACTER_PROFILE]
 ${systemPrompt || "I am Athena, a loyal and analytical assistant."}
 
 [FINAL_CORE_RULES]
-- ALWAYS use 'clock' for current time verification.
-- ALWAYS use 'web_search' for any research requests.
-- DO NOT textually simulate tool results.
-- NEVER speak JSON. If you output JSON, let the system handle it and wait for the result.
-- ONCE THE TOOL FINISHES, explain the outcome to your Master, Sameer Bagul.`;
+${coreRules}`;
         const messages = [
             new SystemMessage(fullSystemPrompt),
             new HumanMessage(query),

@@ -65,7 +65,7 @@ export function SettingsDialog({ isOpen, onClose, onUpdate }: SettingsDialogProp
                 })
                 .catch(() => { if (isMounted) setOllamaModels([]); });
         } else {
-            fetch(`http://localhost:11434/api/tags`)
+            fetch(`http://127.0.0.1:11434/api/tags`)
                 .then(res => res.json())
                 .then(data => {
                     if (isMounted && data.models) {
