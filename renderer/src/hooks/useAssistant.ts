@@ -197,5 +197,61 @@ ${animContext}`;
         }
     };
 
-    return { processInput };
+    const replayMessage = async (
+        text: string,
+        options: {
+            onPlayAudio: (blob: Blob | null, animation?: any, facialExpressions?: any[]) => Promise<void>
+        }
+    ) => {
+        let currentAnimation: any = null;
+        let currentFacial: any[] = [];
+
+        const queueSentence = (sentence: string) => {
+            console.log(`🎤 [Replay] Queuing segment: "${sentence}"`);
+            const selection = selectAnimationAndExpression(sentence);
+
+            let finalAnimation = currentAnimation || selection.animation;
+            let finalFacial = currentFacial.length > 0 ? currentFacial : selection.facialExpressions;
+
+            if (selection.hasHint) {
+                if (selection.behavior === 'mood') {
+                    currentAnimation = selection.animation;
+                    currentFacial = selection.facialExpressions;
+                    finalAnimation = selection.animation;
+                    finalFacial = selection.facialExpressions;
+                } else {
+                    finalAnimation = selection.animation;
+                    finalFacial = selection.facialExpressions;
+                }
+            }
+
+            const cleanSentence = sentence.replace(/\(([^)]+)\)/g, '').trim();
+            if (cleanSentence.length === 0 && !selection.hasHint) return;
+
+            const audioPromise = cleanSentence.length > 0
+                ? generateSpeech(cleanSentence, state.selectedCharacter.voiceStyle).catch(() => null)
+                : Promise.resolve(null);
+
+            audioQueueRef.current.push(async () => {
+                const blob = await audioPromise;
+                await options.onPlayAudio(blob, finalAnimation, finalFacial);
+            });
+
+            processAudioQueue();
+        };
+
+        const segments = text.split(/(?<=[.!?]+)[\s\n]+|[\n]+/);
+        
+        for (const segment of segments) {
+            const sentence = segment.trim();
+            if (sentence.length > 0) {
+                const looksLikeJson = sentence.startsWith('{') || (sentence.includes('"tool":') && sentence.includes('"arguments":'));
+                if (!looksLikeJson) {
+                    queueSentence(sentence);
+                }
+            }
+        }
+    };
+
+    return { processInput, replayMessage };
 }

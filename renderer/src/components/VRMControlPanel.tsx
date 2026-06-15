@@ -32,7 +32,7 @@ export function VRMControlPanel({ onOpenWidget }: VRMControlPanelProps) {
     });
 
     // 1. Assistant Logic (LLM + TTS)
-    const { processInput } = useAssistant();
+    const { processInput, replayMessage } = useAssistant();
 
     // 2. Speech Result Handler (Bridge between Speech and Assistant)
     const handleSpeechResult = React.useCallback(async (text: string) => {
@@ -61,6 +61,14 @@ export function VRMControlPanel({ onOpenWidget }: VRMControlPanelProps) {
             }
         });
     }, [actions, processInput]);
+
+    const handleReplayMessage = React.useCallback(async (text: string) => {
+        await replayMessage(text, {
+            onPlayAudio: async (blob: Blob | null, animation?: string, facialExpressions?: Array<{ name: string; value: number }>) => {
+                if (stageRef.current) await stageRef.current.playAudio(blob, animation, facialExpressions);
+            }
+        });
+    }, [replayMessage]);
 
     const handleVrmDrop = React.useCallback((f: File) => {
         actions.setVrmFile(f);
@@ -184,6 +192,7 @@ export function VRMControlPanel({ onOpenWidget }: VRMControlPanelProps) {
             >
                 <ChatPanel
                     onSendMessage={handleTextSubmit}
+                    onReplayMessage={handleReplayMessage}
                     onClearHistory={actions.clearChat}
                 />
             </aside>

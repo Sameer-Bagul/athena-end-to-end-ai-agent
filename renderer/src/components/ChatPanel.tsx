@@ -2,7 +2,7 @@ import * as React from "react";
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { motion, AnimatePresence } from "framer-motion";
-import { Send, Bot, MessageSquare, Sparkles, Trash2, Paperclip, FileText, X, ChevronDown } from "lucide-react";
+import { Send, Bot, MessageSquare, Sparkles, Trash2, Paperclip, FileText, X, ChevronDown, PlayCircle } from "lucide-react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { cn } from "../lib/utils";
@@ -24,10 +24,11 @@ export interface ChatMessage {
 
 interface ChatPanelProps {
     onSendMessage: (text: string) => void | Promise<void>;
+    onReplayMessage?: (text: string) => void;
     onClearHistory?: () => void;
 }
 
-export const ChatPanel = React.memo(function ChatPanel({ onSendMessage, onClearHistory }: ChatPanelProps) {
+export const ChatPanel = React.memo(function ChatPanel({ onSendMessage, onReplayMessage, onClearHistory }: ChatPanelProps) {
     const actions = useAppStore(s => s.actions);
     const chatMessages = useAppStore(s => s.state.chatMessages);
     const isChatProcessing = useAppStore(s => s.state.isChatProcessing);
@@ -334,6 +335,19 @@ export const ChatPanel = React.memo(function ChatPanel({ onSendMessage, onClearH
                                                 {tool}
                                             </div>
                                         ))}
+                                    </div>
+                                )}
+
+                                {/* Replay Button */}
+                                {msg.role === 'assistant' && onReplayMessage && (
+                                    <div className="absolute -bottom-3 -right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <button 
+                                            onClick={() => onReplayMessage(msg.content)}
+                                            className="size-8 flex items-center justify-center rounded-full bg-white border border-black/10 text-black hover:bg-gray-50 shadow-lg transition-transform hover:scale-105"
+                                            title="Replay Animation & Audio"
+                                        >
+                                            <PlayCircle className="size-4 text-black/70" />
+                                        </button>
                                     </div>
                                 )}
                             </div>
