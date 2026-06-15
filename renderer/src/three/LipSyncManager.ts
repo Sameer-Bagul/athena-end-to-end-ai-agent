@@ -18,6 +18,10 @@ export class LipSyncManager {
         oh: 0
     };
 
+    private targetVowelWeights = { aa: 0, ih: 0, ou: 0, ee: 0, oh: 0 };
+    private lastAnalysisTime: number = 0;
+    private readonly ANALYSIS_INTERVAL_MS = 50;
+
     // Lerp factor for smoothing (0.0 = frozen, 1.0 = instant)
     private readonly SMOOTHING_FACTOR = 0.4;
     private readonly SENSITIVITY = 1.0;
@@ -122,86 +126,53 @@ export class LipSyncManager {
             return;
         }
 
-        // Get frequency data
-        if (this.dataArray) {
-            this.analyser.getByteFrequencyData(this.dataArray as Uint8Array<ArrayBuffer>);
+        const now = performance.now();
+        if (now - this.lastAnalysisTime > this.ANALYSIS_INTERVAL_MS) {
+            this.lastAnalysisTime = now;
+
+            // Get frequency data
+            if (this.dataArray) {
+                this.analyser.getByteFrequencyData(this.dataArray as Uint8Array<ArrayBuffer>);
+            }
+
+            // Analyze Formant Energy Bands
+            const lowEnergy = this.getAverageEnergy(2, 14);
+            const midEnergy = this.getAverageEnergy(14, 46);
+            const highEnergy = this.getAverageEnergy(46, 140);
+
+            // Total volume factor
+            const volume = Math.max(lowEnergy, midEnergy, highEnergy) / 255;
+            const isSpeaking = volume > 0.1;
+
+            if (!isSpeaking) {
+                this.targetVowelWeights = { aa: 0, ih: 0, ou: 0, ee: 0, oh: 0 };
+            } else {
+                const targets = { aa: 0, ih: 0, ou: 0, ee: 0, oh: 0 };
+
+                const relLow = lowEnergy / 255;
+                const relMid = midEnergy / 255;
+                const relHigh = highEnergy / 255;
+
+                if (relMid > 0.4 && relHigh > 0.3) targets.aa = (relMid + relHigh) * 0.8;
+                if (relLow > 0.5 && relHigh < 0.3) targets.ou = relLow * 1.2;
+                if (relHigh > 0.5 && relLow < 0.4) targets.ih = relHigh * 1.1;
+                if (relLow > 0.5 && relMid > 0.4) targets.oh = (relLow + relMid) * 0.6;
+                if (relMid > 0.4 && relLow > 0.3) targets.ee = relMid * 0.7;
+
+                // Apply Global Sensitivity and Clamp
+                Object.keys(targets).forEach((key) => {
+                    const k = key as keyof typeof targets;
+                    this.targetVowelWeights[k] = Math.min(targets[k] * this.SENSITIVITY, 1.0);
+                });
+            }
         }
 
-        // Analyze Formant Energy Bands
-        // AudioContext default sample rate is usually 44.1kHz or 48kHz.
-        // fftSize 1024 -> bin size ≈ 43 Hz
-
-        // Low (Base/Ou/Oh): ~100Hz - 600Hz (Bins ~2 - 14)
-        const lowEnergy = this.getAverageEnergy(2, 14);
-
-        // Mid (Aa/Ee): ~600Hz - 2000Hz (Bins ~14 - 46)
-        const midEnergy = this.getAverageEnergy(14, 46);
-
-        // High (Ih/Sibilance): ~2000Hz - 6000Hz (Bins ~46 - 140)
-        const highEnergy = this.getAverageEnergy(46, 140);
-
-        // Calculate Target Weights based on heuristics
-        // -------------------------------------------------------------
-        // These are experimental heuristics for mapping frequency to vowel shapes
-
-        // Total volume factor
-        const volume = Math.max(lowEnergy, midEnergy, highEnergy) / 255;
-        const isSpeaking = volume > 0.1;
-
-        if (!isSpeaking) {
-            this.resetMouth(true); // Decay to close
-            return;
-        }
-
-        const targets = { aa: 0, ih: 0, ou: 0, ee: 0, oh: 0 };
-
-        // Scale energies relative to volume for shape selection
-        const relLow = lowEnergy / 255;
-        const relMid = midEnergy / 255;
-        const relHigh = highEnergy / 255;
-
-        // 1. 'aa' (Open Mouth): High volume, balanced mid/high
-        if (relMid > 0.4 && relHigh > 0.3) {
-            targets.aa = (relMid + relHigh) * 0.8;
-        }
-
-        // 2. 'ou' (Narrow/Puckered): Dominant Low, muted High
-        if (relLow > 0.5 && relHigh < 0.3) {
-            targets.ou = relLow * 1.2;
-        }
-
-        // 3. 'ih' (Wide/High Pitch): Dominant High Frequency
-        if (relHigh > 0.5 && relLow < 0.4) {
-            targets.ih = relHigh * 1.1;
-        }
-
-        // 4. 'oh' (Open Round): Strong Low + Mid
-        if (relLow > 0.5 && relMid > 0.4) {
-            targets.oh = (relLow + relMid) * 0.6;
-        }
-
-        // 5. 'ee' (Wide/Teeth): Balanced, specific formant mix.
-        // Often acts as fallback or transitional.
-        if (relMid > 0.4 && relLow > 0.3) {
-            targets.ee = relMid * 0.7;
-        }
-
-        // Normalize Targets: Ensure we don't overdrive multiple shapes too much
-        // VRM additive blendshapes can look weird if total > 1.0. 
-        // But for "anime" exaggeration, slight overdrive is okay.
-
-        // Apply Global Sensitivity and Clamp
-        Object.keys(targets).forEach((key) => {
-            const k = key as keyof typeof targets;
-            targets[k] = Math.min(targets[k] * this.SENSITIVITY, 1.0);
-        });
-
-        // Apply Smoothing (Lerp)
-        this.currentVowelWeights.aa = this.lerp(this.currentVowelWeights.aa, targets.aa, this.SMOOTHING_FACTOR);
-        this.currentVowelWeights.ih = this.lerp(this.currentVowelWeights.ih, targets.ih, this.SMOOTHING_FACTOR);
-        this.currentVowelWeights.ou = this.lerp(this.currentVowelWeights.ou, targets.ou, this.SMOOTHING_FACTOR);
-        this.currentVowelWeights.ee = this.lerp(this.currentVowelWeights.ee, targets.ee, this.SMOOTHING_FACTOR);
-        this.currentVowelWeights.oh = this.lerp(this.currentVowelWeights.oh, targets.oh, this.SMOOTHING_FACTOR);
+        // Apply Smoothing (Lerp) - Happens every frame at 60Hz
+        this.currentVowelWeights.aa = this.lerp(this.currentVowelWeights.aa, this.targetVowelWeights.aa, this.SMOOTHING_FACTOR);
+        this.currentVowelWeights.ih = this.lerp(this.currentVowelWeights.ih, this.targetVowelWeights.ih, this.SMOOTHING_FACTOR);
+        this.currentVowelWeights.ou = this.lerp(this.currentVowelWeights.ou, this.targetVowelWeights.ou, this.SMOOTHING_FACTOR);
+        this.currentVowelWeights.ee = this.lerp(this.currentVowelWeights.ee, this.targetVowelWeights.ee, this.SMOOTHING_FACTOR);
+        this.currentVowelWeights.oh = this.lerp(this.currentVowelWeights.oh, this.targetVowelWeights.oh, this.SMOOTHING_FACTOR);
 
         // Apply to VRM
         this.applyWeights();
@@ -228,6 +199,8 @@ export class LipSyncManager {
 
     private resetMouth(decay: boolean = false) {
         if (!this.vrm || !this.vrm.expressionManager) return;
+
+        this.targetVowelWeights = { aa: 0, ih: 0, ou: 0, ee: 0, oh: 0 };
 
         if (decay) {
             // Smoothly decay to zero (for pauses between words)

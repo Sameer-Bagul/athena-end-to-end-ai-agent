@@ -236,6 +236,29 @@ const ThreeStageComponent = forwardRef<ThreeStageHandle, ThreeStageProps>(({
         vrmRef.current = vrm;
         sceneRef.current!.add(vrm.scene);
 
+        // Optimize VRM meshes for performance and stability
+        vrm.scene.traverse((obj) => {
+          if ((obj as THREE.Mesh).isMesh) {
+            const mesh = obj as THREE.Mesh;
+            // Prevent mesh from disappearing when camera zooms into the face
+            mesh.frustumCulled = false;
+            
+            // Default shadow casting
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+
+            // Optimize shadows: don't cast shadows from transparent materials
+            // VRM transparent meshes (like hair outlines or eye glints) overlap and cause massive shadow-map overhead
+            if (mesh.material) {
+              const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+              const isTransparent = materials.some(mat => mat.transparent || mat.opacity < 1.0);
+              if (isTransparent) {
+                mesh.castShadow = false;
+              }
+            }
+          }
+        });
+
         animationManagerRef.current!.initialize(vrm);
         lipSyncRef.current!.setVRM(vrm);
         naturalPresenceRef.current.initialize(vrm, sceneRef.current!.getCamera(), cameraDeviceId);

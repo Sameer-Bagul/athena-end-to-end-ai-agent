@@ -14,7 +14,7 @@
 
 import * as THREE from 'three';
 import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
-import { VRM } from '@pixiv/three-vrm';
+import { VRM, VRMUtils } from '@pixiv/three-vrm';
 import { animationFacialMap } from '../lib/facialMapping';
 import type { FacialExpression } from '../lib/facialMapping';
 import { retargetAnimation } from 'vrm-mixamo-retarget';
@@ -298,14 +298,19 @@ export class AnimationManager {
           clip = retargetAnimation(fbxGroup, this.vrm!);
         } catch (e) {
           console.error("Retargeting failed", e);
+          VRMUtils.deepDispose(fbxGroup);
           reject(e);
           return;
         }
 
         if (!clip) {
+          VRMUtils.deepDispose(fbxGroup);
           reject(new Error(`Failed to retarget FBX animation: ${filename}`));
           return;
         }
+
+        // Deep dispose FBX geometry to prevent memory leak
+        VRMUtils.deepDispose(fbxGroup);
 
         // FIX: Strip Root Motion (Smart Lock)
         this.stripRootMotion(clip);
@@ -370,14 +375,19 @@ export class AnimationManager {
           clip = retargetAnimation(fbxGroup, this.vrm!);
         } catch (e) {
           console.error("Retargeting failed", e);
+          VRMUtils.deepDispose(fbxGroup);
           reject(e);
           return;
         }
 
         if (!clip) {
+          VRMUtils.deepDispose(fbxGroup);
           reject(new Error("Failed to retarget FBX animation"));
           return;
         }
+
+        // Deep dispose FBX geometry to prevent memory leak
+        VRMUtils.deepDispose(fbxGroup);
 
         // FIX: Strip Root Motion (Smart Lock)
         this.stripRootMotion(clip);

@@ -204,7 +204,8 @@ export class AthenaScene {
     this.renderer = new THREE.WebGLRenderer({
       antialias: true,
       alpha: true, // Allow transparency
-      preserveDrawingBuffer: true // Required for screenshot/canvas capture
+      preserveDrawingBuffer: true, // Required for screenshot/canvas capture
+      powerPreference: "high-performance" // Ensure discrete GPU is used
     });
     this.renderer.setSize(container.clientWidth, container.clientHeight);
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
