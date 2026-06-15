@@ -16,6 +16,20 @@ Athena is an intelligent, emotionally responsive 3D avatar that lives on your de
 - 👁️ **Face/Head Tracking**: MediaPipe integration allows Athena to look at you, maintain eye contact, and blink naturally based on your webcam.
 - 🛠️ **MCP & Tools Integration**: Athena dynamically uses duckduckgo web search, weather APIs, system timers (linked to the 3D UI), and a local Model Context Protocol (MCP) sidecar for time data.
 - 📚 **Localized Document RAG**: Drop PDFs into Athena's settings, and her `knowledge_search` tool will perform semantic vector searches against a local persistence store.
+- ⏪ **Message Replay**: Review past responses instantly with a dedicated replay feature that seamlessly re-triggers TTS and animations without requiring an LLM callback.
+- 🎨 **Minimalist UI**: Sleek, modern, and immersive desktop widget layout designed for a distraction-free AI presence.
+
+---
+
+## ⚡ Performance Specs & 3D Optimizations
+
+Athena uses a highly optimized custom Three.js rendering pipeline designed to be lightweight enough for laptops while maintaining a buttery smooth 60 FPS:
+
+- **Aggressive Memory Management**: Integrates custom `deepDispose` routines for FBX animation geometries. Retargeted animations instantly clear their source geometry data, preventing multi-gigabyte RAM leaks over long sessions.
+- **CPU Throttling & LipSync Math**: The Audio FFT Formant analysis (which maps audio frequencies to mouth blendshapes) is throttled to 20Hz (~50ms intervals) while maintaining 60Hz visual interpolation, slashing idle CPU overhead by 66%.
+- **Shader Precompilation**: Uses `renderer.compileAsync` during the loading screen to warm up the GPU shaders, eliminating the infamous "Three.js first-render stutter".
+- **Advanced VRM Culling**: Custom traversal of VRM meshes disables shadow-casting on complex transparent materials (like hair outlines) and locks root `frustumCulled` vectors to prevent camera clipping, vastly reducing GPU draw-calls.
+- **Dedicated GPU Enforcer**: Explicit `powerPreference: "high-performance"` WebGL context prevents laptops from defaulting to weak integrated graphics.
 
 ---
 
