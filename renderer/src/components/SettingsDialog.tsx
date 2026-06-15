@@ -1,5 +1,5 @@
 import * as React from "react";
-import { X, Keyboard, Activity, Link as LinkIcon, User, Newspaper, CloudSun, BrainCircuit, Server, Zap, Cpu, Brain, Box, Palette, Sun } from "lucide-react";
+import { X, Keyboard, Activity, Link as LinkIcon, User, Newspaper, CloudSun, BrainCircuit, Server, Zap, Cpu, Brain, Box, Palette, Sun, Gauge, Sparkles } from "lucide-react";
 import { ModelHub } from "./ModelHub";
 
 import { cn } from "../lib/utils";
@@ -30,7 +30,7 @@ interface SettingsDialogProps {
 export function SettingsDialog({ isOpen, onClose, onUpdate }: SettingsDialogProps) {
     const state = useAppStore(s => s.state);
     const actions = useAppStore(s => s.actions);
-    const [activeTab, setActiveTab] = React.useState<'general' | 'profile' | 'ai' | 'cognition' | 'widget' | 'plugins' | 'env'>('general');
+    const [activeTab, setActiveTab] = React.useState<'general' | 'profile' | 'ai' | 'cognition' | 'widget' | 'plugins' | 'env' | 'performance'>('general');
     const [wakeWord] = React.useState("Alt + Space");
 
     // Local state
@@ -137,6 +137,7 @@ export function SettingsDialog({ isOpen, onClose, onUpdate }: SettingsDialogProp
                         <NavButton active={activeTab === 'widget'} onClick={() => setActiveTab('widget')} icon={<Activity className="size-4" />} label="Widget" />
                         <NavButton active={activeTab === 'plugins'} onClick={() => setActiveTab('plugins')} icon={<LinkIcon className="size-4" />} label="Connect" />
                         <NavButton active={activeTab === 'env'} onClick={() => setActiveTab('env')} icon={<Box className="size-4" />} label="Environment" />
+                        <NavButton active={activeTab === 'performance'} onClick={() => setActiveTab('performance')} icon={<Gauge className="size-4" />} label="Performance" />
                     </div>
 
                     <div className="px-3 mt-auto">
@@ -385,6 +386,70 @@ export function SettingsDialog({ isOpen, onClose, onUpdate }: SettingsDialogProp
                                 </Section>
                             )}
 
+                            {/* PERFORMANCE TAB */}
+                            {activeTab === 'performance' && (
+                                <Section title="Performance Mode" description="Optimize Athena for your hardware capabilities.">
+                                    <div className="space-y-8">
+                                        {/* Presets */}
+                                        <div>
+                                            <Label className="text-[10px] font-bold text-white/40 uppercase tracking-widest mb-3 block">Global Presets</Label>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                                {[
+                                                    { id: 'full', title: 'Full Experience', desc: 'All animations & effects enabled', icon: <Sparkles className="size-4 text-primary" /> },
+                                                    { id: 'balanced', title: 'Balanced', desc: 'Smooth performance with core animations', icon: <Activity className="size-4 text-blue-400" /> },
+                                                    { id: 'performance', title: 'Performance', desc: 'Lightweight UI, full AI capability', icon: <Zap className="size-4 text-yellow-400" /> },
+                                                    { id: 'assistant-only', title: 'Assistant Only', desc: 'Minimal UI, avatar hidden entirely', icon: <Box className="size-4 text-white/40" /> },
+                                                ].map(preset => (
+                                                    <button key={preset.id} 
+                                                        onClick={() => {
+                                                            let updates: any = { mode: preset.id };
+                                                            if (preset.id === 'full') updates = { ...updates, avatarEnabled: true, facialAnimations: true, toolAnimations: true, particleEffects: true, lipSync: true, shadowQuality: 'high' };
+                                                            else if (preset.id === 'balanced') updates = { ...updates, avatarEnabled: true, facialAnimations: true, toolAnimations: true, particleEffects: false, lipSync: true, shadowQuality: 'medium' };
+                                                            else if (preset.id === 'performance') updates = { ...updates, avatarEnabled: true, facialAnimations: false, toolAnimations: false, particleEffects: false, lipSync: false, shadowQuality: 'low' };
+                                                            else if (preset.id === 'assistant-only') updates = { ...updates, avatarEnabled: false, facialAnimations: false, toolAnimations: false, particleEffects: false, lipSync: false, shadowQuality: 'low' };
+                                                            actions.setPerformanceConfig(updates);
+                                                        }}
+                                                        className={cn(
+                                                            "flex items-start gap-4 p-4 rounded-xl border text-left transition-all",
+                                                            state.performanceConfig.mode === preset.id 
+                                                                ? "bg-primary/10 border-primary" 
+                                                                : "bg-white/3 border-white/5 hover:bg-white/5"
+                                                        )}
+                                                    >
+                                                        <div className="mt-0.5">{preset.icon}</div>
+                                                        <div>
+                                                            <div className="text-sm font-medium text-white">{preset.title}</div>
+                                                            <div className="text-xs text-white/50 mt-1">{preset.desc}</div>
+                                                        </div>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        <Separator className="bg-white/5" />
+
+                                        {/* Granular Overrides */}
+                                        <div>
+                                            <Label className="text-[10px] font-bold text-white/40 uppercase tracking-widest mb-3 block">Granular Settings</Label>
+                                            <div className="space-y-4">
+                                                <ToggleRow label="Enable Avatar" description="Render the 3D companion" 
+                                                    checked={state.performanceConfig.avatarEnabled} 
+                                                    onChange={v => actions.setPerformanceConfig({ avatarEnabled: v, mode: 'custom' as any })} />
+                                                <ToggleRow label="Facial Animations" description="Complex expressions and eye movement" 
+                                                    checked={state.performanceConfig.facialAnimations} disabled={!state.performanceConfig.avatarEnabled}
+                                                    onChange={v => actions.setPerformanceConfig({ facialAnimations: v, mode: 'custom' as any })} />
+                                                <ToggleRow label="Tool Animations" description="Play special animations when tools are used" 
+                                                    checked={state.performanceConfig.toolAnimations} disabled={!state.performanceConfig.avatarEnabled}
+                                                    onChange={v => actions.setPerformanceConfig({ toolAnimations: v, mode: 'custom' as any })} />
+                                                <ToggleRow label="Lip Sync" description="Real-time audio FFT analysis" 
+                                                    checked={state.performanceConfig.lipSync} disabled={!state.performanceConfig.avatarEnabled}
+                                                    onChange={v => actions.setPerformanceConfig({ lipSync: v, mode: 'custom' as any })} />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </Section>
+                            )}
+
                         </div>
                     </div>
                 </div>
@@ -612,3 +677,27 @@ function PluginCard({ icon, title, value, setValue, onBlur, placeholder }: Plugi
     )
 }
 
+interface ToggleRowProps {
+    label: string;
+    description: string;
+    checked: boolean;
+    disabled?: boolean;
+    onChange: (checked: boolean) => void;
+}
+
+function ToggleRow({ label, description, checked, disabled, onChange }: ToggleRowProps) {
+    return (
+        <div className={cn("flex items-center justify-between p-3 rounded-xl bg-white/3 border border-white/5", disabled && "opacity-50 pointer-events-none")}>
+            <div className="space-y-0.5">
+                <div className="text-sm font-medium text-white/80">{label}</div>
+                <div className="text-[10px] text-white/40">{description}</div>
+            </div>
+            <button 
+                onClick={() => onChange(!checked)}
+                className={cn("w-10 h-6 rounded-full transition-colors relative", checked ? "bg-primary" : "bg-white/10")}
+            >
+                <div className={cn("absolute top-1 bottom-1 w-4 rounded-full bg-white transition-all shadow-sm", checked ? "left-5" : "left-1")} />
+            </button>
+        </div>
+    );
+}

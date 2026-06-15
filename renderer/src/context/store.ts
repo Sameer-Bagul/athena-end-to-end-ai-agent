@@ -34,6 +34,16 @@ export interface SceneSettings {
     fogDensity: number;
 }
 
+export interface PerformanceConfig {
+    mode: 'full' | 'balanced' | 'performance' | 'assistant-only';
+    avatarEnabled: boolean;
+    facialAnimations: boolean;
+    toolAnimations: boolean;
+    particleEffects: boolean;
+    lipSync: boolean;
+    shadowQuality: "low" | "medium" | "high";
+}
+
 export type AiProviderType = 'ollama' | 'lmstudio' | 'grok' | 'gemini';
 
 export interface AiConfig {
@@ -75,6 +85,7 @@ export interface AppState {
     downloadingModels: Record<string, { progress: number, status: string }>;
     activeTimers: ActiveTimer[];
     activeSidecars: string[];
+    performanceConfig: PerformanceConfig;
 }
 
 export interface AppActions {
@@ -113,6 +124,7 @@ export interface AppActions {
     setActiveTimers: (timers: ActiveTimer[] | ((prev: ActiveTimer[]) => ActiveTimer[])) => void;
     setActiveSidecars: (sidecars: string[] | ((prev: string[]) => string[])) => void;
     setRagStatus: (status: { isReady: boolean, indexedFiles: string[] }) => void;
+    setPerformanceConfig: (config: Partial<PerformanceConfig>) => void;
 }
 
 interface StoreState {
@@ -172,6 +184,30 @@ export const useAppStore = create<StoreState>((set) => {
             }
             initialAiConfig = { ...initialAiConfig, ...parsed };
         }
+    } catch {}
+
+    // Auto-detect hardware performance
+    const detectHardwarePerformance = (): PerformanceConfig => {
+        let score = 50; // Default to balanced
+        try {
+            const memory = (navigator as any).deviceMemory || 8;
+            const cores = navigator.hardwareConcurrency || 4;
+            score = (memory * 5) + (cores * 5); // 8GB + 8 Cores = 80
+        } catch {}
+
+        if (score < 30) {
+            return { mode: 'performance', avatarEnabled: true, facialAnimations: false, toolAnimations: false, particleEffects: false, lipSync: false, shadowQuality: 'low' };
+        } else if (score < 70) {
+            return { mode: 'balanced', avatarEnabled: true, facialAnimations: true, toolAnimations: true, particleEffects: false, lipSync: true, shadowQuality: 'medium' };
+        } else {
+            return { mode: 'full', avatarEnabled: true, facialAnimations: true, toolAnimations: true, particleEffects: true, lipSync: true, shadowQuality: 'high' };
+        }
+    };
+
+    let initialPerformanceConfig = detectHardwarePerformance();
+    try {
+        const saved = localStorage.getItem("athena-performance-config");
+        if (saved) initialPerformanceConfig = { ...initialPerformanceConfig, ...JSON.parse(saved) };
     } catch {}
 
     let initialSceneSettings: SceneSettings = {
@@ -237,7 +273,8 @@ export const useAppStore = create<StoreState>((set) => {
             currentAnimation: "Idle",
             downloadingModels: {},
             activeTimers: [],
-            activeSidecars: []
+            activeSidecars: [],
+            performanceConfig: initialPerformanceConfig
         },
         actions: {
             setModel: (id) => set(s => {
@@ -273,6 +310,11 @@ export const useAppStore = create<StoreState>((set) => {
             setPluginConfig: (config) => set(s => ({ state: { ...s.state, pluginConfig: config } })),
             setAiConfig: (config) => set(s => ({ state: { ...s.state, aiConfig: config } })),
             setSceneSettings: (settings) => set(s => ({ state: { ...s.state, sceneSettings: { ...s.state.sceneSettings, ...settings } } })),
+            setPerformanceConfig: (config) => set(s => {
+                const newConfig = { ...s.state.performanceConfig, ...config };
+                localStorage.setItem("athena-performance-config", JSON.stringify(newConfig));
+                return { state: { ...s.state, performanceConfig: newConfig } };
+            }),
             toggleLeftCollapse: () => set(s => ({ state: { ...s.state, isLeftCollapsed: !s.state.isLeftCollapsed } })),
             toggleRightCollapse: () => set(s => ({ state: { ...s.state, isRightCollapsed: !s.state.isRightCollapsed } })),
             updateLastMessage: (msg) => set(s => {

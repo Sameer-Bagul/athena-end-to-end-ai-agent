@@ -119,11 +119,23 @@ export class AnimationManager {
       }
     }, 2000);
   }
+
+  /**
+   * Set performance configurations
+   */
+  public setPerformanceConfig(config: { facialAnimations?: boolean, toolAnimations?: boolean }) {
+      if (config.facialAnimations !== undefined) this.enabledFacialAnimations = config.facialAnimations;
+      if (config.toolAnimations !== undefined) this.enabledToolAnimations = config.toolAnimations;
+      if (!this.enabledFacialAnimations) this.resetExpressions();
+  }
+
   /**
    * Play animation and set facial expressions explicitly (for AI/LLM-driven control)
    */
   public playWithFacial(action: AnimationAction, facialExpressions?: FacialExpression[], fadeTime?: number): void {
     this.play(action, fadeTime);
+
+    if (!this.enabledFacialAnimations) return;
 
     // Reset previous expressions to avoid mixing
     this.resetExpressions();
@@ -216,6 +228,10 @@ export class AnimationManager {
   private currentAction: THREE.AnimationAction | null = null;
   private currentAnimationType: AnimationAction = AnimationAction.RELAX;
   private baseHipsHeight: number = 0; // Natural resting height of hips
+
+  // Performance toggles
+  private enabledFacialAnimations: boolean = true;
+  private enabledToolAnimations: boolean = true;
 
   // Animation settings
   private readonly CROSSFADE_DURATION = 0.5; // seconds
@@ -475,6 +491,23 @@ export class AnimationManager {
   public play(action: AnimationAction, fadeTime?: number): void {
     console.log(`🎯 Play request for: ${action}`);
 
+    // Performance Mode: Restrict complex tool animations
+    if (!this.enabledToolAnimations) {
+        const isEssential = ([
+            AnimationAction.IDLE, 
+            AnimationAction.IDLE_ALT, 
+            AnimationAction.TALK_NORMAL, 
+            AnimationAction.THINKING, 
+            AnimationAction.RELAX,
+            AnimationAction.GREETING
+        ] as AnimationAction[]).includes(action);
+        
+        if (!isEssential) {
+            console.log(`⚡ Performance Mode: Skipping complex animation ${action}, playing IDLE instead`);
+            action = AnimationAction.IDLE;
+        }
+    }
+
     const animConfig = this.animations.get(action);
     if (!animConfig) {
       console.warn(`⚠️ Animation ${action} not loaded yet`);
@@ -520,7 +553,7 @@ export class AnimationManager {
    * Triggers facial blendshapes for the given animation action
    */
   private triggerFacialExpressions(action: AnimationAction) {
-    if (!this.vrm || !this.vrm.expressionManager) return;
+    if (!this.vrm || !this.vrm.expressionManager || !this.enabledFacialAnimations) return;
     // Find FBX filename for this action
     const fbxFile = ANIMATION_FILES[action];
     const expressions = animationFacialMap[fbxFile];

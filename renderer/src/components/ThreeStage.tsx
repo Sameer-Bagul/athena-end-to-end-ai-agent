@@ -135,6 +135,23 @@ const ThreeStageComponent = forwardRef<ThreeStageHandle, ThreeStageProps>(({
     animationManager: animationManagerRef.current ?? undefined
   }));
 
+  // Apply performance settings
+  useEffect(() => {
+    if (sceneRef.current) {
+      sceneRef.current.setRenderEnabled(state.performanceConfig.avatarEnabled);
+      sceneRef.current.setShadowQuality(state.performanceConfig.shadowQuality);
+    }
+    if (lipSyncRef.current) {
+      lipSyncRef.current.setEnabled(state.performanceConfig.lipSync);
+    }
+    if (animationManagerRef.current) {
+      animationManagerRef.current.setPerformanceConfig({
+        facialAnimations: state.performanceConfig.facialAnimations,
+        toolAnimations: state.performanceConfig.toolAnimations
+      });
+    }
+  }, [state.performanceConfig]);
+
   // 1. Scene Initialization (Once)
   useEffect(() => {
     if (!containerRef.current) return;

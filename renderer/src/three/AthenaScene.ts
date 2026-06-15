@@ -22,6 +22,7 @@ export class AthenaScene {
   private container: HTMLDivElement | null = null;
   private controls: OrbitControls | null = null;
   private resizeObserver: ResizeObserver | null = null;
+  private skipRender: boolean = false;
 
   // Scene objects for dynamic updates
   private ambientLight: THREE.AmbientLight | null = null;
@@ -466,7 +467,7 @@ export class AthenaScene {
       }
 
       // Render the scene
-      if (this.renderer) {
+      if (this.renderer && !this.skipRender) {
         this.renderer.render(this.scene, this.camera);
       }
     };
@@ -522,6 +523,41 @@ export class AthenaScene {
    */
   public getCamera(): THREE.PerspectiveCamera {
     return this.camera;
+  }
+
+  /**
+   * Set Render Enabled
+   * Use this to pause rendering (e.g. Performance Mode)
+   */
+  public setRenderEnabled(enabled: boolean): void {
+    this.skipRender = !enabled;
+    if (!enabled && this.renderer) {
+      // Clear the canvas to transparent when disabled
+      this.renderer.clear();
+    }
+  }
+
+  /**
+   * Set Shadow Quality
+   */
+  public setShadowQuality(quality: "low" | "medium" | "high"): void {
+    if (!this.keyLight || !this.renderer) return;
+
+    if (quality === "low") {
+      this.renderer.shadowMap.enabled = false;
+      this.keyLight.castShadow = false;
+    } else {
+      this.renderer.shadowMap.enabled = true;
+      this.keyLight.castShadow = true;
+      
+      const size = quality === "high" ? 2048 : 1024;
+      if (this.keyLight.shadow.mapSize.width !== size) {
+        this.keyLight.shadow.mapSize.width = size;
+        this.keyLight.shadow.mapSize.height = size;
+        this.keyLight.shadow.map?.dispose();
+        this.keyLight.shadow.map = null as any; // Force recreation
+      }
+    }
   }
 
   /**

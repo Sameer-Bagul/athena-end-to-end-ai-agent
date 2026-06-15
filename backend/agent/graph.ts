@@ -340,9 +340,19 @@ ${coreRules}`;
       const lastMessage = event.messages[event.messages.length - 1];
 
       if (lastMessage instanceof AIMessage) {
+        // If it has native tool calls, do NOT treat it as the final response yet
+        // The graph will loop back to the 'tools' node, and then back to the 'agent' node
+        if (lastMessage.tool_calls && lastMessage.tool_calls.length > 0) {
+           if (onProgress) {
+               onProgress(`Using tool: ${lastMessage.tool_calls[0].name}...`);
+           }
+           // Do not set finalResponse here, let the graph loop continue
+           continue; 
+        }
+
         const content = String(lastMessage.content);
 
-        // Check if it's a tool call (JSON format)
+        // Check if it's a legacy tool call (JSON format)
         if (content.trim().startsWith('{') && content.includes('"tool"')) {
           try {
             const parsed = JSON.parse(content);
@@ -372,6 +382,19 @@ ${coreRules}`;
     }
 
     console.log('[AgentGraph] Agent execution completed');
+
+    // If finalResponse is empty but we executed tools, the stream might have 
+    // ended before we captured the final text, so we check the last message state again
+    if (!finalResponse) {
+       const state = await graph.getState(config);
+       if (state && state.values && state.values.messages) {
+          const messages = state.values.messages;
+          const lastMsg = messages[messages.length - 1];
+          if (lastMsg instanceof AIMessage && lastMsg.content) {
+             finalResponse = String(lastMsg.content);
+          }
+       }
+    }
 
     return finalResponse || "I apologize, but I couldn't generate a response.";
 

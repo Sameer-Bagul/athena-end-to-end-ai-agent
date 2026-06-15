@@ -7,6 +7,7 @@ export class LipSyncManager {
     private source: AudioBufferSourceNode | null = null;
     private isPlaying: boolean = false;
     private dataArray: Uint8Array | null = null;
+    private enabled: boolean = true;
 
     // Vowel Smoothing State
     private currentVowelWeights = {
@@ -28,6 +29,13 @@ export class LipSyncManager {
 
     public setVRM(vrm: VRM) {
         this.vrm = vrm;
+    }
+
+    public setEnabled(enabled: boolean) {
+        this.enabled = enabled;
+        if (!enabled) {
+            this.resetMouth(false); // Instant reset when disabled
+        }
     }
 
     public async playAudio(audioBlob: Blob, isMuted: boolean = false): Promise<void> {
@@ -108,9 +116,9 @@ export class LipSyncManager {
     }
 
     public update(_delta: number) {
-        if (!this.vrm || !this.isPlaying || !this.analyser || !this.dataArray) {
+        if (!this.enabled || !this.vrm || !this.isPlaying || !this.analyser || !this.dataArray) {
             // If not playing, decay weights to 0
-            if (!this.isPlaying) this.resetMouth(true);
+            if (!this.isPlaying && this.enabled) this.resetMouth(true);
             return;
         }
 
