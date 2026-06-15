@@ -248,6 +248,12 @@ const ThreeStageComponent = forwardRef<ThreeStageHandle, ThreeStageProps>(({
 
         vrm.scene.rotation.y = Math.PI;
 
+        // Force shader compilation before dropping the loading screen
+        if (sceneRef.current) {
+            setLoadingStatus(`Compiling Shaders...`);
+            await sceneRef.current.precompile();
+        }
+
         const headNode = vrm.humanoid.getNormalizedBoneNode('head');
         if (headNode) {
           const headPos = new THREE.Vector3();

@@ -476,6 +476,21 @@ export class AthenaScene {
   }
 
   /**
+   * Precompile shaders to prevent initial stutter/lag
+   * Call this after adding complex models to the scene but before rendering
+   */
+  public async precompile(): Promise<void> {
+    if (this.renderer) {
+      try {
+        await this.renderer.compileAsync(this.scene, this.camera);
+        console.log("🎬 [AthenaScene] Shaders precompiled successfully");
+      } catch (error) {
+        console.warn("🎬 [AthenaScene] Failed to precompile shaders:", error);
+      }
+    }
+  }
+
+  /**
    * Add an object to the scene
    */
   public add(object: THREE.Object3D): void {

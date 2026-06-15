@@ -415,71 +415,32 @@ export class AnimationManager {
   }
 
   /**
-   * Load all animations
-   * Loads all defined animations in parallel
+   * Load all animations synchronously (while loading screen is up)
+   * This prevents main-thread jank/stuttering when the model is visible.
    */
   public async loadAllAnimations(): Promise<void> {
-    console.log('[AnimationManager] Starting animation preload...');
+    console.log('[AnimationManager] Starting animation preload (Blocking)...');
     
-    // Priority animations (load first for immediate use)
-    const ESSENTIAL_ANIMATIONS: AnimationAction[] = [
-      AnimationAction.IDLE,
-      AnimationAction.TALK_NORMAL,
-      AnimationAction.THINKING,
-      AnimationAction.RELAX
-    ];
+    const ALL_ANIMATIONS = Object.values(AnimationAction) as AnimationAction[];
 
-    const SECONDARY_ANIMATIONS = (Object.values(AnimationAction) as AnimationAction[]).filter(
-      action => !(ESSENTIAL_ANIMATIONS as readonly AnimationAction[]).includes(action)
-    );
+    // Load in smaller batches to avoid browser timeout/memory spikes, 
+    // but we STILL await the entire process so the loading screen stays up.
+    const BATCH_SIZE = 5;
+    let loadedCount = 0;
 
-    // Load essential animations first
-    const essentialPromises = ESSENTIAL_ANIMATIONS.map(async (action) => {
-      try {
-        await this.loadAnimation(action);
-        return { action, status: 'success' };
-      } catch (error) {
-        console.warn(`⚠️ Failed to load essential animation: ${action}`, error);
-        return { action, status: 'failed', error };
-      }
-    });
-
-    const essentialResults = await Promise.all(essentialPromises);
-    const essentialSuccess = essentialResults.filter(r => r.status === 'success').length;
-    console.log(`✅ Essential animations loaded: ${essentialSuccess}/${ESSENTIAL_ANIMATIONS.length}`);
-
-    // Lazy load secondary animations in background
-    if (typeof requestIdleCallback !== 'undefined') {
-      SECONDARY_ANIMATIONS.forEach((action, index) => {
-        requestIdleCallback(() => {
-          this.loadAnimation(action as AnimationAction).catch(e => 
-            console.warn(`⚠️ Failed to lazy-load animation: ${action}`, e)
-          );
-        }, { timeout: 2000 + index * 100 }); // Stagger loading
-      });
-      console.log(`🔄 Lazy-loading ${SECONDARY_ANIMATIONS.length} secondary animations in background`);
-    } else {
-      // Fallback: Load in batches with delays
-      this.lazyLoadAnimationsBatched(SECONDARY_ANIMATIONS as AnimationAction[]);
+    for (let i = 0; i < ALL_ANIMATIONS.length; i += BATCH_SIZE) {
+      const batch = ALL_ANIMATIONS.slice(i, i + BATCH_SIZE);
+      await Promise.all(batch.map(async (action) => {
+        try {
+            await this.loadAnimation(action);
+            loadedCount++;
+        } catch (error) {
+            console.warn(`⚠️ Failed to load animation: ${action}`, error);
+        }
+      }));
     }
-  }
 
-  /**
-   * Lazy load animations in batches (fallback for browsers without requestIdleCallback)
-   */
-  private async lazyLoadAnimationsBatched(animations: AnimationAction[]) {
-    const BATCH_SIZE = 3;
-    for (let i = 0; i < animations.length; i += BATCH_SIZE) {
-      const batch = animations.slice(i, i + BATCH_SIZE);
-      await Promise.all(batch.map(action => 
-        this.loadAnimation(action).catch(e => 
-          console.warn(`⚠️ Failed to load ${action}:`, e)
-        )
-      ));
-      // Small delay between batches
-      await new Promise(resolve => setTimeout(resolve, 100));
-    }
-    console.log(`✅ Completed lazy-loading ${animations.length} secondary animations`);
+    console.log(`✅ All animations preloaded: ${loadedCount}/${ALL_ANIMATIONS.length}`);
   }
 
   /**
