@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="https://via.placeholder.com/800x200/1a1a2e/ffffff?text=Athena+AI+Assistant" alt="Athena Banner" />
+  <img src="athena.png" alt="Athena Banner" />
   <h1>Athena - 3D VRM AI Assistant</h1>
   <p>A fully integrated, autonomous 3D AI companion driven by LangGraph, Electron, Three.js, and local AI microservices.</p>
 </div>
