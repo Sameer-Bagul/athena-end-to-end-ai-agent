@@ -44,11 +44,11 @@ export function selectAnimationAndExpression(text: string): AIAnimationSelection
   let bestMatch: AnimationMetadata | null = hintedMeta;
   let highestScore = hintedMeta ? 100 : 0;
 
-  const nsfwKeywords = ["fuck", "wet", "cock", "pussy", "hard", "dick", "moan", "pleasure", "slut", "horny", "intimate", "naked", "sex"];
-  const isNSFW = nsfwKeywords.some(kw => new RegExp(`\\b${kw}\\b`, 'g').test(t));
+  const cyberKeywords = ["hack", "grid", "mainframe", "stealth", "shadow", "cyber", "neon", "breach", "rogue", "tactical", "infiltrate", "ops"];
+  const isCyber = cyberKeywords.some(kw => new RegExp(`\\b${kw}\\b`, 'g').test(t));
 
   if (!hintedMeta) {
-    if (isNSFW) {
+    if (isCyber) {
       bestMatch = ANIMATION_METADATA.find(m => m.action === AnimationAction.IDLE) || null;
     } else {
       for (const meta of ANIMATION_METADATA) {
