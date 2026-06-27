@@ -306,7 +306,9 @@ export const ChatPanel = React.memo(function ChatPanel({ onSendMessage, onReplay
                                         a: (props) => <a className={cn("underline underline-offset-4 transition-opacity", msg.role === 'user' ? "text-white/60 hover:text-white" : "text-black/60 hover:text-black")} target="_blank" rel="noopener noreferrer" {...props} />,
                                     }}
                                 >
-                                    {msg.content}
+                                    {msg.role === 'assistant' 
+                                        ? msg.content.replace(/\((idle1|Talking|angry|armStretching|buttonPushing|danceBboyHipHop|danceHipHop|danceRumba|defeated|dismissingGesture|excitedDance|greeting|Drunk|SingleBigjump|bigJumps|layingFemalePose|nervousLookAround|pointForward|salute|surprised|talkingArguing|talkingBig|talking1|talkingOnPhone|Rapping|Singing)\)/gi, '').trim() 
+                                        : msg.content}
                                 </ReactMarkdown>
 
                                 {/* Attachments Display */}
