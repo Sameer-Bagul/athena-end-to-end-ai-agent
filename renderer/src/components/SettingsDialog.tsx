@@ -1,5 +1,5 @@
 import * as React from "react";
-import { X, Keyboard, Activity, Link as LinkIcon, User, Newspaper, CloudSun, BrainCircuit, Server, Zap, Cpu, Brain, Box, Palette, Sun, Gauge, Sparkles } from "lucide-react";
+import { X, Keyboard, Activity, Link as LinkIcon, User, Newspaper, CloudSun, BrainCircuit, Server, Zap, Cpu, Brain, Box, Palette, Sun, Gauge, Sparkles, Globe, Key } from "lucide-react";
 import { ModelHub } from "./ModelHub";
 
 import { cn } from "../lib/utils";
@@ -30,7 +30,7 @@ interface SettingsDialogProps {
 export function SettingsDialog({ isOpen, onClose, onUpdate }: SettingsDialogProps) {
     const state = useAppStore(s => s.state);
     const actions = useAppStore(s => s.actions);
-    const [activeTab, setActiveTab] = React.useState<'general' | 'profile' | 'ai' | 'cognition' | 'widget' | 'plugins' | 'env' | 'performance'>('general');
+    const [activeTab, setActiveTab] = React.useState<'general' | 'profile' | 'ai' | 'cognition' | 'widget' | 'plugins' | 'env' | 'performance' | 'accounts'>('general');
     const [wakeWord] = React.useState("Alt + Space");
 
     // Local state
@@ -132,6 +132,7 @@ export function SettingsDialog({ isOpen, onClose, onUpdate }: SettingsDialogProp
                     <div className="flex-1 flex flex-col gap-1 px-3">
                         <NavButton active={activeTab === 'general'} onClick={() => setActiveTab('general')} icon={<Keyboard className="size-4" />} label="General" />
                         <NavButton active={activeTab === 'profile'} onClick={() => setActiveTab('profile')} icon={<User className="size-4" />} label="Identity" />
+                        <NavButton active={activeTab === 'accounts'} onClick={() => setActiveTab('accounts')} icon={<Globe className="size-4" />} label="Browser & Accounts" />
                         <NavButton active={activeTab === 'ai'} onClick={() => setActiveTab('ai')} icon={<BrainCircuit className="size-4" />} label="Intelligence" />
                         <NavButton active={activeTab === 'cognition'} onClick={() => setActiveTab('cognition')} icon={<Brain className="size-4" />} label="Cognition" />
                         <NavButton active={activeTab === 'widget'} onClick={() => setActiveTab('widget')} icon={<Activity className="size-4" />} label="Widget" />
@@ -200,6 +201,35 @@ export function SettingsDialog({ isOpen, onClose, onUpdate }: SettingsDialogProp
                                 </Section>
                             )}
 
+                            {/* ACCOUNTS TAB */}
+                            {activeTab === 'accounts' && (
+                                <Section title="Connected Accounts & Browser" description="Manage agent browser connectivity and authenticated vaults.">
+                                    <div className="space-y-6">
+                                        <div className="p-6 rounded-2xl bg-white/3 border border-white/5 space-y-4">
+                                            <div className="flex items-center gap-2 text-white/70 mb-2">
+                                                <Globe className="size-5" /> <span className="font-medium">Agent Browser Connectivity</span>
+                                            </div>
+                                            <p className="text-xs text-white/50">Configure headless/headed modes and live streaming options for agentic web navigation.</p>
+                                            <div className="space-y-4 pt-2">
+                                                <ToggleRow label="Enable Live Streaming" description="Stream browser interactions to the dashboard" checked={state.showBrowserStream} onChange={(val) => actions.toggleBrowserStream(val)} />
+                                                <ToggleRow label="Headless Mode" description="Run the browser invisibly in the background" checked={false} onChange={() => {}} />
+                                                <ToggleRow label="HITL Approvals" description="Require manual approval before sensitive actions (payments, logins)" checked={true} onChange={() => {}} />
+                                            </div>
+                                        </div>
+                                        
+                                        <div className="p-6 rounded-2xl bg-white/3 border border-white/5 space-y-4">
+                                            <div className="flex items-center gap-2 text-white/70 mb-2">
+                                                <Key className="size-5" /> <span className="font-medium">Authentication Vault</span>
+                                            </div>
+                                            <p className="text-xs text-white/50">Securely store session tokens and credentials for automated logins.</p>
+                                            <Button variant="outline" className="w-full border border-dashed border-white/20 text-white/60 hover:text-white hover:bg-white/10 transition-colors">
+                                                + Add New Account Context
+                                            </Button>
+                                        </div>
+                                    </div>
+                                </Section>
+                            )}
+
                             {/* AI TAB */}
                             {activeTab === 'ai' && (
                                 <Section title="Intelligence Core" description="Select your primary AI Provider and configure it.">
@@ -242,7 +272,7 @@ export function SettingsDialog({ isOpen, onClose, onUpdate }: SettingsDialogProp
 
                                         {aiPriority[0] === 'ollama' && (
                                             <ConfigGroup title="Ollama Configuration" icon={<Server className="size-4" />} configs={ollamaConfig} setConfigs={setOllamaConfig}
-                                                template={{ baseUrl: "http://localhost:11434", model: "dolphin-mistral", numCtx: 2048, numThread: 0, numGpu: -1 }}
+                                                template={{ baseUrl: "http://localhost:11434", model: "qwen2.5-coder:7b", numCtx: 2048, numThread: 0, numGpu: -1 }}
                                                 fields={['baseUrl', 'model']} onBlur={() => {}}
                                                 showPerformance
                                                 modelOptions={ollamaModels}
@@ -251,7 +281,7 @@ export function SettingsDialog({ isOpen, onClose, onUpdate }: SettingsDialogProp
 
                                         {aiPriority[0] === 'gemini' && (
                                             <ConfigGroup title="Gemini Configuration" icon={<BrainCircuit className="size-4" />} configs={geminiConfig} setConfigs={setGeminiConfig}
-                                                template={{ apiKey: "", model: "gemini-1.5-flash" }}
+                                                template={{ apiKey: "", model: "gemini-2.5-flash" }}
                                                 fields={['apiKey', 'model']} onBlur={() => {}}
                                             />
                                         )}
@@ -290,16 +320,24 @@ export function SettingsDialog({ isOpen, onClose, onUpdate }: SettingsDialogProp
                             {activeTab === 'widget' && (
                                 <Section title="Widget Appearance" description="Customize your floating companion.">
                                     <div className="grid gap-6 p-1">
-                                        <MinimalSlider label="Size" value={state.widgetSettings.size} min={200} max={600} step={10}
-                                            onChange={(v) => onUpdate({ ...state.widgetSettings, size: v })} unit="px" />
-                                        <MinimalSlider label="Zoom" value={state.widgetSettings.zoom} min={0.2} max={2.0} step={0.1}
-                                            onChange={(v) => onUpdate({ ...state.widgetSettings, zoom: v })} />
-                                        <MinimalSlider label="Opacity" value={state.widgetSettings.opacity} min={0} max={1} step={0.05}
-                                            onChange={(v) => onUpdate({ ...state.widgetSettings, opacity: v })} />
-                                        <MinimalSlider label="Blur" value={state.widgetSettings.blur} min={0} max={20} step={1}
-                                            onChange={(v) => onUpdate({ ...state.widgetSettings, blur: v })} unit="px" />
-                                        <MinimalSlider label="Corner Radius" value={state.widgetSettings.borderRadius} min={0} max={100} step={2}
-                                            onChange={(v) => onUpdate({ ...state.widgetSettings, borderRadius: v })} unit="px" />
+                                        {[
+                                            { id: 'size', label: 'Size', value: state.widgetSettings.size, min: 200, max: 600, step: 10, unit: 'px' },
+                                            { id: 'zoom', label: 'Zoom', value: state.widgetSettings.zoom, min: 0.2, max: 2.0, step: 0.1 },
+                                            { id: 'opacity', label: 'Opacity', value: state.widgetSettings.opacity, min: 0, max: 1, step: 0.05 },
+                                            { id: 'blur', label: 'Blur', value: state.widgetSettings.blur, min: 0, max: 20, step: 1, unit: 'px' },
+                                            { id: 'borderRadius', label: 'Corner Radius', value: state.widgetSettings.borderRadius, min: 0, max: 100, step: 2, unit: 'px' },
+                                        ].map(slider => (
+                                            <MinimalSlider 
+                                                key={slider.id} 
+                                                label={slider.label} 
+                                                value={slider.value} 
+                                                min={slider.min} 
+                                                max={slider.max} 
+                                                step={slider.step}
+                                                onChange={(v) => onUpdate({ ...state.widgetSettings, [slider.id]: v })} 
+                                                unit={slider.unit} 
+                                            />
+                                        ))}
                                     </div>
                                 </Section>
                             )}
@@ -432,18 +470,21 @@ export function SettingsDialog({ isOpen, onClose, onUpdate }: SettingsDialogProp
                                         <div>
                                             <Label className="text-[10px] font-bold text-white/40 uppercase tracking-widest mb-3 block">Granular Settings</Label>
                                             <div className="space-y-4">
-                                                <ToggleRow label="Enable Avatar" description="Render the 3D companion" 
-                                                    checked={state.performanceConfig.avatarEnabled} 
-                                                    onChange={v => actions.setPerformanceConfig({ avatarEnabled: v, mode: 'custom' as any })} />
-                                                <ToggleRow label="Facial Animations" description="Complex expressions and eye movement" 
-                                                    checked={state.performanceConfig.facialAnimations} disabled={!state.performanceConfig.avatarEnabled}
-                                                    onChange={v => actions.setPerformanceConfig({ facialAnimations: v, mode: 'custom' as any })} />
-                                                <ToggleRow label="Tool Animations" description="Play special animations when tools are used" 
-                                                    checked={state.performanceConfig.toolAnimations} disabled={!state.performanceConfig.avatarEnabled}
-                                                    onChange={v => actions.setPerformanceConfig({ toolAnimations: v, mode: 'custom' as any })} />
-                                                <ToggleRow label="Lip Sync" description="Real-time audio FFT analysis" 
-                                                    checked={state.performanceConfig.lipSync} disabled={!state.performanceConfig.avatarEnabled}
-                                                    onChange={v => actions.setPerformanceConfig({ lipSync: v, mode: 'custom' as any })} />
+                                                {[
+                                                    { id: 'avatarEnabled', label: 'Enable Avatar', description: 'Render the 3D companion', disabled: false },
+                                                    { id: 'facialAnimations', label: 'Facial Animations', description: 'Complex expressions and eye movement', disabled: !state.performanceConfig.avatarEnabled },
+                                                    { id: 'toolAnimations', label: 'Tool Animations', description: 'Play special animations when tools are used', disabled: !state.performanceConfig.avatarEnabled },
+                                                    { id: 'lipSync', label: 'Lip Sync', description: 'Real-time audio FFT analysis', disabled: !state.performanceConfig.avatarEnabled }
+                                                ].map(toggle => (
+                                                    <ToggleRow 
+                                                        key={toggle.id} 
+                                                        label={toggle.label} 
+                                                        description={toggle.description} 
+                                                        checked={state.performanceConfig[toggle.id as keyof typeof state.performanceConfig] as boolean} 
+                                                        disabled={toggle.disabled}
+                                                        onChange={v => actions.setPerformanceConfig({ [toggle.id]: v, mode: 'custom' as any })} 
+                                                    />
+                                                ))}
                                             </div>
                                         </div>
                                     </div>

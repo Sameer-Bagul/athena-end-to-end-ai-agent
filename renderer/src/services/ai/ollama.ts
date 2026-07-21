@@ -12,15 +12,6 @@ export class OllamaProvider implements AIProvider {
         return this.config.model;
     }
 
-    async getChatModel() {
-        const { ChatOllama } = await import("@langchain/ollama");
-        return new ChatOllama({
-            baseUrl: this.config.baseUrl,
-            model: this.config.model,
-            temperature: 0.7,
-        });
-    }
-
     async generateStream(
         prompt: string,
         systemPrompt: string,

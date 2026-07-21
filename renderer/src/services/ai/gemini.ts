@@ -18,15 +18,6 @@ export class GeminiProvider implements AIProvider {
         return this.apiKey;
     }
 
-    async getChatModel() {
-        const { ChatGoogleGenerativeAI } = await import("@langchain/google-genai");
-        return new ChatGoogleGenerativeAI({
-            apiKey: this.apiKey,
-            model: this.model,
-            temperature: 0.7,
-        });
-    }
-
     async generateStream(
         prompt: string,
         systemPrompt: string,

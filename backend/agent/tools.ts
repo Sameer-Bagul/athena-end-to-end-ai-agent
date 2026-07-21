@@ -1,16 +1,28 @@
-import { tool } from "@langchain/core/tools";
-import { z } from "zod";
 import { ipcMain } from "electron";
-import { mcpManager } from "./mcpManager.js";
+import { mcpManager } from "../services/mcpManager.js";
+
+export interface Tool {
+  name: string;
+  description: string;
+  schema: any;
+  invoke: (args: any) => Promise<string>;
+}
 
 /**
  * Weather Tool - Get current weather for a city
  */
-export const weatherTool = tool(
-  async ({ city }: { city: string }) => {
+export const weatherTool: Tool = {
+  name: "weather",
+  description: "Get current weather for a specific city. Use this when user asks about weather, temperature, or climate conditions.",
+  schema: {
+    type: "object",
+    properties: {
+      city: { type: "string", description: "The name of the city to get weather for (e.g., 'London', 'Mumbai', 'New York')" }
+    },
+    required: ["city"]
+  },
+  invoke: async ({ city }: { city: string }) => {
     console.log(`[WeatherTool] Fetching weather for ${city}`);
-
-    // Note: API key should be configured in settings
     const apiKey = process.env.OPENWEATHER_API_KEY;
 
     if (!apiKey) {
@@ -37,51 +49,50 @@ export const weatherTool = tool(
     } catch (error) {
       return `Failed to fetch weather: ${error}`;
     }
-  },
-  {
-    name: "weather",
-    description: "Get current weather for a specific city. Use this when user asks about weather, temperature, or climate conditions.",
-    schema: z.object({
-      city: z.string().describe("The name of the city to get weather for (e.g., 'London', 'Mumbai', 'New York')"),
-    }),
   }
-);
+};
 
 /**
  * Clock Tool - Get current date and time (Bridged to MCP)
  */
-export const clockTool = tool(
-  async ({ timezone }: { timezone?: string }) => {
+export const clockTool: Tool = {
+  name: "clock",
+  description: "Get the current date and time or check a specific timezone. Use this when user asks about time, date, or 'what time is it'.",
+  schema: {
+    type: "object",
+    properties: {
+      timezone: { type: "string", description: "The timezone to check (e.g., 'UTC', 'America/New_York', 'Asia/Kolkata'). Optional, defaults to local time." }
+    }
+  },
+  invoke: async ({ timezone }: { timezone?: string }) => {
     console.log(`[ClockTool] Calling MCP Time sidecar for timezone: ${timezone || 'local'}`);
-
     try {
-      // Call the MCP sidecar via the manager
       const result = await mcpManager.callTool("time", "get_time", { timezone });
-      return result;
+      return result as string;
     } catch (error: any) {
       console.error(`[ClockTool] MCP Error: ${error.message}`);
       return `Error getting time from MCP sidecar: ${error.message}`;
     }
-  },
-  {
-    name: "clock",
-    description: "Get the current date and time or check a specific timezone. Use this when user asks about time, date, or 'what time is it'.",
-    schema: z.object({
-      timezone: z.string().optional().describe("The timezone to check (e.g., 'UTC', 'America/New_York', 'Asia/Kolkata'). Optional, defaults to local time."),
-    }),
   }
-);
+};
 
 /**
  * Knowledge Search Tool - RAG integration
  */
-export const knowledgeSearchTool = tool(
-  async ({ query }: { query: string }) => {
+export const knowledgeSearchTool: Tool = {
+  name: "knowledge_search",
+  description: "Search the internal knowledge base for information from uploaded documents. Use this when the user asks about specific information that might be in their documents.",
+  schema: {
+    type: "object",
+    properties: {
+      query: { type: "string", description: "The search query to find relevant information in the knowledge base" }
+    },
+    required: ["query"]
+  },
+  invoke: async ({ query }: { query: string }) => {
     console.log(`[KnowledgeSearchTool] Searching for: ${query}`);
-
-    // This will be integrated with the existing RAG service
     try {
-      const { ragService } = await import('../rag.js');
+      const { ragService } = await import('../services/rag.js');
       const result = await ragService.query(query);
 
       if (result && result.answer) {
@@ -93,49 +104,49 @@ export const knowledgeSearchTool = tool(
       console.error('[KnowledgeSearchTool] Error:', error);
       return "Knowledge base is not available or has not been initialized.";
     }
-  },
-  {
-    name: "knowledge_search",
-    description: "Search the internal knowledge base for information from uploaded documents. Use this when the user asks about specific information that might be in their documents.",
-    schema: z.object({
-      query: z.string().describe("The search query to find relevant information in the knowledge base"),
-    }),
   }
-);
+};
 
 /**
  * Timer Tool - Set a timer for specified seconds
  */
-export const timerTool = tool(
-  async ({ seconds, label }: { seconds: number, label?: string }) => {
+export const timerTool: Tool = {
+  name: "timer",
+  description: "Set a timer or reminder. Use this when the user asks to set a timer, alarm, or be reminded after some time.",
+  schema: {
+    type: "object",
+    properties: {
+      seconds: { type: "number", description: "Number of seconds for the timer" },
+      label: { type: "string", description: "Optional label for the timer" }
+    },
+    required: ["seconds"]
+  },
+  invoke: async ({ seconds, label }: { seconds: number, label?: string }) => {
     console.log(`[TimerTool] Setting timer for ${seconds} seconds`);
-
-    // Broadcast to renderer via main process IPC
     ipcMain.emit('agent:add-timer', {}, { duration: seconds, unit: 'seconds', label });
 
     const minutes = Math.floor(seconds / 60);
     const secs = seconds % 60;
-    const timeStr = minutes > 0
-      ? `${minutes}m ${secs}s`
-      : `${seconds}s`;
+    const timeStr = minutes > 0 ? `${minutes}m ${secs}s` : `${seconds}s`;
 
     return `I've set a timer for ${timeStr}. You should see a countdown appearing in your 3D view now!`;
-  },
-  {
-    name: "timer",
-    description: "Set a timer or reminder. Use this when the user asks to set a timer, alarm, or be reminded after some time.",
-    schema: z.object({
-      seconds: z.number().describe("Number of seconds for the timer"),
-      label: z.string().optional().describe("Optional label for the timer"),
-    }),
   }
-);
+};
 
 /**
  * Web Search Tool - Search the internet for real-time information
  */
-export const webSearchTool = tool(
-  async ({ query }: { query: string }) => {
+export const webSearchTool: Tool = {
+  name: "web_search",
+  description: "Search the internet for real-time information, facts, or documentation. Use this whenever you don't have the answer in your training data or for recent events.",
+  schema: {
+    type: "object",
+    properties: {
+      query: { type: "string", description: "The search query" }
+    },
+    required: ["query"]
+  },
+  invoke: async ({ query }: { query: string }) => {
     console.log(`[WebSearchTool] Searching for: ${query}`);
     try {
       const url = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`;
@@ -145,13 +156,9 @@ export const webSearchTool = tool(
         }
       });
 
-      if (!response.ok) {
-        throw new Error(`Search API error: ${response.status}`);
-      }
+      if (!response.ok) throw new Error(`Search API error: ${response.status}`);
 
       const html = await response.text();
-      
-      // Extract snippets using regex to avoid heavy HTML parsers
       const snippets = [...html.matchAll(/<a class="result__snippet[^>]*>([\s\S]*?)<\/a>/g)]
         .map(m => m[1].replace(/<\/?[^>]+(>|$)/g, "").trim())
         .slice(0, 3);
@@ -160,29 +167,122 @@ export const webSearchTool = tool(
         return `I found the following web results for "${query}":\n\n` + snippets.map(s => `- ${s}`).join('\n\n') + '\n\n(Source: DuckDuckGo)';
       }
 
-      // Fallback if no snippets found
       return `I searched for "${query}" but couldn't find a definitive answer. Try rephrasing or being more specific.`;
     } catch (error: any) {
       console.error('[WebSearchTool] Error:', error);
       return `Search failed: ${error.message}. I'm currently having trouble reaching the search servers.`;
     }
-  },
-  {
-    name: "web_search",
-    description: "Search the internet for real-time information, facts, or documentation. Use this whenever you don't have the answer in your training data or for recent events.",
-    schema: z.object({
-      query: z.string().describe("The search query"),
-    }),
   }
-);
+};
 
 /**
- * Export all tools
+ * Browser Open Tool
  */
+export const browserOpenTool: Tool = {
+  name: "browser_open",
+  description: "Navigate the browser to a specific URL. Use this to open a webpage.",
+  schema: {
+    type: "object",
+    properties: {
+      url: { type: "string", description: "The full URL to navigate to (e.g., 'https://example.com')" }
+    },
+    required: ["url"]
+  },
+  invoke: async ({ url }: { url: string }) => {
+    console.log(`[BrowserOpenTool] Navigating to: ${url}`);
+    try {
+      const result = await mcpManager.callTool("agent-browser", "agent_browser_open", { url });
+      return JSON.stringify(result);
+    } catch (error: any) {
+      console.error(`[BrowserOpenTool] MCP Error: ${error.message}`);
+      return `Error navigating to URL: ${error.message}`;
+    }
+  }
+};
+
+/**
+ * Browser Snapshot Tool
+ */
+export const browserSnapshotTool: Tool = {
+  name: "browser_snapshot",
+  description: "Get a text-based snapshot of the current webpage's interactive elements and their [ref] IDs.",
+  schema: { type: "object", properties: {} },
+  invoke: async () => {
+    console.log(`[BrowserSnapshotTool] Capturing snapshot`);
+    try {
+      const result = await mcpManager.callTool("agent-browser", "agent_browser_snapshot", { compact: true });
+      let jsonResult = JSON.stringify(result);
+      if (jsonResult.length > 50000) {
+        console.warn(`[BrowserSnapshotTool] Warning: Snapshot is huge (${jsonResult.length} chars). Trimming to fit LLM window.`);
+        jsonResult = jsonResult.substring(0, 50000) + '\n\n... [TRUNCATED]';
+      }
+      return jsonResult;
+    } catch (error: any) {
+      console.error(`[BrowserSnapshotTool] MCP Error: ${error.message}`);
+      return `Error capturing snapshot: ${error.message}`;
+    }
+  }
+};
+
+/**
+ * Browser Click Tool
+ */
+export const browserClickTool: Tool = {
+  name: "browser_click",
+  description: "Click an interactive element on the webpage using its reference ID.",
+  schema: {
+    type: "object",
+    properties: {
+      ref: { type: "string", description: "The reference ID of the element to click (e.g., '@e1')" }
+    },
+    required: ["ref"]
+  },
+  invoke: async ({ ref }: { ref: string }) => {
+    console.log(`[BrowserClickTool] Clicking ref: ${ref}`);
+    try {
+      const result = await mcpManager.callTool("agent-browser", "agent_browser_click", { selector: ref });
+      return JSON.stringify(result);
+    } catch (error: any) {
+      console.error(`[BrowserClickTool] MCP Error: ${error.message}`);
+      return `Error clicking element: ${error.message}`;
+    }
+  }
+};
+
+/**
+ * Browser Fill Tool
+ */
+export const browserFillTool: Tool = {
+  name: "browser_fill",
+  description: "Fill an input field on the webpage using its reference ID.",
+  schema: {
+    type: "object",
+    properties: {
+      ref: { type: "string", description: "The reference ID of the input element (e.g., '@e2')" },
+      value: { type: "string", description: "The text to type into the input field" }
+    },
+    required: ["ref", "value"]
+  },
+  invoke: async ({ ref, value }: { ref: string, value: string }) => {
+    console.log(`[BrowserFillTool] Filling ref: ${ref} with value: ${value}`);
+    try {
+      const result = await mcpManager.callTool("agent-browser", "agent_browser_fill", { selector: ref, text: value });
+      return JSON.stringify(result);
+    } catch (error: any) {
+      console.error(`[BrowserFillTool] MCP Error: ${error.message}`);
+      return `Error filling element: ${error.message}`;
+    }
+  }
+};
+
 export const tools = [
   weatherTool,
   clockTool,
   knowledgeSearchTool,
   timerTool,
   webSearchTool,
+  browserOpenTool,
+  browserSnapshotTool,
+  browserClickTool,
+  browserFillTool,
 ];

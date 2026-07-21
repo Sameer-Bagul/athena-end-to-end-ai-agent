@@ -5,7 +5,6 @@ import { ClockTool } from "../utility/clock";
 import { TimerTool } from "../utility/timer";
 import { LaptopControlTool } from "../system/laptop";
 import { FileManagerTool } from "../system/fileManager";
-import { convertToLangChainTool } from "./langchainTools";
 
 class ToolRegistryService {
     private tools: Tool[] = [];
@@ -55,32 +54,6 @@ class ToolRegistryService {
     getAllTools(): Tool[] {
         this.ensureInitialized();
         return this.tools;
-    }
-
-    async getLangChainTools(): Promise<any[]> {
-        this.ensureInitialized();
-        console.log('[ToolRegistry] Converting tools to LangChain format...');
-        try {
-            // Since convertToLangChainTool is now async, we await all conversions
-            const langchainTools = await Promise.all(
-                this.tools.map(async tool => {
-                    try {
-                        return await convertToLangChainTool(tool);
-                    } catch (error) {
-                        console.error(`[ToolRegistry] Failed to convert ${tool.name}, skipping:`, error);
-                        return null;
-                    }
-                })
-            );
-
-            // Filter out any failed conversions
-            const validTools = langchainTools.filter(t => t !== null);
-            console.log(`[ToolRegistry] Successfully converted ${validTools.length}/${this.tools.length} tools`);
-            return validTools;
-        } catch (error) {
-            console.error('[ToolRegistry] Error converting tools to LangChain format:', error);
-            return [];
-        }
     }
 
     /**

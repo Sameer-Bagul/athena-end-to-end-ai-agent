@@ -1,8 +1,7 @@
-import fetch from "node-fetch";
 import fs from "fs";
 import path from "path";
 import { app } from "electron";
-import { config } from "./config.js";
+import { config } from "../core/config.js";
 
 class TTSFileManager {
   private tempFiles: Set<string> = new Set();

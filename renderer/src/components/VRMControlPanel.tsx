@@ -7,6 +7,7 @@ import { SidePanel } from "./SidePanel";
 import { SettingsDialog } from "./SettingsDialog";
 import { ChatPanel } from "./ChatPanel";
 import { ExhibitionPage } from "./ExhibitionPage";
+import { BrowserStreamPanel } from "./BrowserStreamPanel";
 import { useAppStore } from "../context/AppContext";
 import { useSpeechManager } from "../hooks/useSpeechManager";
 import { useAssistant } from "../hooks/useAssistant";
@@ -203,6 +204,11 @@ export function VRMControlPanel({ onOpenWidget }: VRMControlPanelProps) {
                 onClose={() => actions.toggleSettings(false)}
                 settings={state.widgetSettings}
                 onUpdate={actions.setWidgetSettings}
+            />
+
+            <BrowserStreamPanel 
+                isOpen={state.showBrowserStream}
+                onClose={() => actions.toggleBrowserStream(false)}
             />
 
             {state.viewMode === 'exhibition' && (

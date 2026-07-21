@@ -1,14 +1,4 @@
-import axios from 'axios';
-import FormData from 'form-data';
-import { Agent } from 'http';
-import { config } from './config.js';
-// Connection pooling for better performance
-const httpAgent = new Agent({
-    keepAlive: true,
-    maxSockets: 5,
-    maxFreeSockets: 2,
-    timeout: 30000
-});
+import { config } from '../core/config.js';
 export async function transcribe(input) {
     const MAX_RETRIES = config.MAX_RETRIES;
     let attempt = 0;
@@ -18,22 +8,16 @@ export async function transcribe(input) {
             if (attempt === 0)
                 console.log(`[BACKEND STT] Sending ${buffer.length} bytes to Python Service...`);
             const form = new FormData();
-            form.append('file', buffer, {
-                filename: 'audio.webm',
-                contentType: 'audio/webm',
-                knownLength: buffer.length
+            form.append('file', new Blob([buffer], { type: 'audio/webm' }), 'audio.webm');
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), config.STT_TIMEOUT);
+            const response = await fetch(`${config.STT_URL}/stt`, {
+                method: 'POST',
+                body: form,
+                signal: controller.signal
             });
-            const response = await axios.post(`${config.STT_URL}/stt`, form, {
-                headers: {
-                    ...form.getHeaders(),
-                    'Content-Length': form.getLengthSync()
-                },
-                httpAgent,
-                maxBodyLength: Infinity,
-                maxContentLength: Infinity,
-                timeout: config.STT_TIMEOUT // timeout for processing
-            });
-            const json = response.data;
+            clearTimeout(timeout);
+            const json = await response.json();
             if (json.error) {
                 console.error('[BACKEND STT] Python Error:', json.error);
                 return "";
@@ -43,7 +27,8 @@ export async function transcribe(input) {
             return text;
         }
         catch (error) {
-            if (error.code === 'ECONNREFUSED') {
+            const isConnRefused = error.code === 'ECONNREFUSED' || error.cause?.code === 'ECONNREFUSED' || error.message.includes('ECONNREFUSED');
+            if (isConnRefused) {
                 attempt++;
                 console.warn(`[BACKEND STT] Python server not ready (Attempt ${attempt}/${MAX_RETRIES}). Retrying in ${attempt}s...`);
                 await new Promise(resolve => setTimeout(resolve, attempt * 1000));

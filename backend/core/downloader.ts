@@ -1,22 +1,39 @@
-import axios from 'axios';
 import fs from 'fs';
 import path from 'path';
 import { app } from 'electron';
-export async function downloadFile(url, destPath, onProgress) {
+import { Readable } from 'stream';
+
+export interface DownloadProgress {
+    total: number;
+    completed: number;
+    percent: number;
+}
+
+export async function downloadFile(
+    url: string,
+    destPath: string,
+    onProgress: (progress: DownloadProgress) => void
+): Promise<void> {
     const dir = path.dirname(destPath);
     if (!fs.existsSync(dir)) {
         fs.mkdirSync(dir, { recursive: true });
     }
-    const { data, headers } = await axios({
-        url,
-        method: 'GET',
-        responseType: 'stream'
-    });
-    const totalLength = parseInt(headers['content-length'], 10);
+
+    const res = await fetch(url);
+    if (!res.ok) {
+        throw new Error(`Failed to download: ${res.statusText}`);
+    }
+
+    const data = Readable.fromWeb(res.body as any);
+    const headers = res.headers;
+
+    const totalLength = parseInt(headers.get('content-length') || '0', 10);
     let completedLength = 0;
+
     const writer = fs.createWriteStream(destPath);
+
     return new Promise((resolve, reject) => {
-        data.on('data', (chunk) => {
+        data.on('data', (chunk: any) => {
             completedLength += chunk.length;
             const percent = Math.round((completedLength / totalLength) * 100);
             onProgress({
@@ -25,11 +42,14 @@ export async function downloadFile(url, destPath, onProgress) {
                 percent
             });
         });
+
         data.pipe(writer);
+
         writer.on('finish', resolve);
         writer.on('error', reject);
     });
 }
-export function getModelPath(category, modelName) {
+
+export function getModelPath(category: string, modelName: string): string {
     return path.join(app.getPath('userData'), 'models', category, modelName);
 }

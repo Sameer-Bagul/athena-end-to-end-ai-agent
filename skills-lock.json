@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "setup-serena-mcp": {
+      "source": "neolabhq/context-engineering-kit",
+      "sourceType": "github",
+      "skillPath": "plugins/mcp/skills/setup-serena-mcp/SKILL.md",
+      "computedHash": "7e4a1bddbfb1785b6e2f024dce477481fc85b0471c09717c3b33387f3054b6eb"
+    }
+  }
+}

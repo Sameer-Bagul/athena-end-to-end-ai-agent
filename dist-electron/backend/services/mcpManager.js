@@ -3,6 +3,8 @@ export class McpServerManager {
     servers = new Map();
     static instance;
     onStatus = null;
+    onNotification = null;
+    pendingRequests = new Map();
     static getInstance() {
         if (!McpServerManager.instance) {
             McpServerManager.instance = new McpServerManager();
@@ -16,10 +18,40 @@ export class McpServerManager {
         const proc = spawn(command, args, {
             stdio: ["pipe", "pipe", "pipe"],
             cwd,
-            env: { ...process.env, ATHENA_SIDEKICK: "true" }
+            env: { ...process.env, ATHENA_SIDEKICK: "true" },
+            shell: true
         });
         proc.stderr.on("data", (data) => {
             console.error(`[MCP:${name}] ${data.toString().trim()}`);
+        });
+        // Global stdout listener for responses and notifications
+        let buffer = "";
+        proc.stdout.on("data", (data) => {
+            buffer += data.toString();
+            const lines = buffer.split('\n');
+            buffer = lines.pop() || ""; // Keep the incomplete line in the buffer
+            for (const line of lines) {
+                if (!line.trim())
+                    continue;
+                try {
+                    const message = JSON.parse(line);
+                    if (message.id && this.pendingRequests.has(message.id.toString())) {
+                        const { resolve, reject } = this.pendingRequests.get(message.id.toString());
+                        this.pendingRequests.delete(message.id.toString());
+                        if (message.error)
+                            reject(new Error(message.error.message));
+                        else
+                            resolve(message.result);
+                    }
+                    else if (message.method) {
+                        // This is a notification
+                        this.onNotification?.(name, message.method, message.params);
+                    }
+                }
+                catch (e) {
+                    // Ignore parsing errors for partial/malformed JSON
+                }
+            }
         });
         proc.on("close", (code) => {
             console.log(`\n\x1b[31m[MCP]\x1b[0m Sidecar \x1b[33m${name}\x1b[0m exited with code ${code}`);
@@ -37,35 +69,18 @@ export class McpServerManager {
             const id = Math.random().toString(36).substring(7);
             const request = JSON.stringify({
                 jsonrpc: "2.0",
-                method: "call_tool",
+                method: "tools/call",
                 params: { name: toolName, arguments: args },
                 id
             }) + "\n";
-            const onData = (data) => {
-                try {
-                    const lines = data.toString().split('\n');
-                    for (const line of lines) {
-                        if (!line.trim())
-                            continue;
-                        const response = JSON.parse(line);
-                        if (response.id === id) {
-                            proc.stdout.removeListener('data', onData);
-                            if (response.error)
-                                reject(new Error(response.error.message));
-                            else
-                                resolve(response.result);
-                            return;
-                        }
-                    }
-                }
-                catch (e) { }
-            };
-            proc.stdout.on('data', onData);
+            this.pendingRequests.set(id, { resolve, reject });
             proc.stdin.write(request);
             // 15s timeout
             setTimeout(() => {
-                proc.stdout.removeListener('data', onData);
-                reject(new Error(`MCP Tool call ${toolName} timed out`));
+                if (this.pendingRequests.has(id)) {
+                    this.pendingRequests.delete(id);
+                    reject(new Error(`MCP Tool call ${toolName} timed out`));
+                }
             }, 15000);
         });
     }

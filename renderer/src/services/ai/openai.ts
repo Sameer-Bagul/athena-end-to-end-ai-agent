@@ -17,18 +17,6 @@ export class OpenAICompatibleProvider implements AIProvider {
         return this.model;
     }
 
-    async getChatModel() {
-        const { ChatOpenAI } = await import("@langchain/openai");
-        return new ChatOpenAI({
-            openAIApiKey: this.apiKey,
-            modelName: this.model,
-            configuration: {
-                baseURL: this.baseUrl,
-            },
-            temperature: 0.7,
-        });
-    }
-
     async generateStream(
         prompt: string,
         systemPrompt: string,

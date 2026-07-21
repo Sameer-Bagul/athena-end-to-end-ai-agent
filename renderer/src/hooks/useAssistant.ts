@@ -146,19 +146,22 @@ ${animContext}`;
             const activeConfig = state.aiConfig[activeType]?.[0];
             const provider = getAIProvider(activeType, activeConfig);
 
+            let streamedTokens = false;
+
             const result = await AgentManager.process(
                 text,
                 systemPrompt + (context ? `\n\n[CONTEXT INFO]\n${context}\n[END CONTEXT]` : ""),
                 provider,
                 (token) => {
+                    streamedTokens = true;
                     fullResponse += token;
                     pendingSpeechText += token;
 
                     actions.updateLastMessage({ content: fullResponse });
 
                     if (shouldSpeak) {
-                        const match = pendingSpeechText.match(/[.!?]+[\s\n]+|[\n]+/);
-                        if (match && match.index !== undefined) {
+                        let match;
+                        while ((match = pendingSpeechText.match(/[.!?]+[\s\n]+|[\n]+/)) && match.index !== undefined) {
                             const endIdx = match.index + match[0].length;
                             const sentence = pendingSpeechText.substring(0, endIdx).trim();
 
@@ -171,19 +174,43 @@ ${animContext}`;
                                 } else {
                                     logger.info('[useAssistant] Skipping TTS for JSON tool call block');
                                 }
-                                pendingSpeechText = pendingSpeechText.substring(endIdx);
                             }
+                            pendingSpeechText = pendingSpeechText.substring(endIdx);
                         }
                     }
                 },
                 (status) => actions.setTranscript(status)
             );
 
+            // If streaming failed or didn't fire, we use the final result content
+            if (!streamedTokens && result.content) {
+                pendingSpeechText = result.content;
+            }
+
             fullResponse = result.content;
 
             // 4. Handle Remainder
             if (shouldSpeak && pendingSpeechText.trim().length > 0) {
-                queueSentence(pendingSpeechText.trim());
+                let match;
+                while ((match = pendingSpeechText.match(/[.!?]+[\s\n]+|[\n]+/)) && match.index !== undefined) {
+                    const endIdx = match.index + match[0].length;
+                    const sentence = pendingSpeechText.substring(0, endIdx).trim();
+
+                    if (sentence.length > 0) {
+                        const looksLikeJson = sentence.startsWith('{') || (sentence.includes('"tool":') && sentence.includes('"arguments":'));
+                        if (!looksLikeJson) {
+                            queueSentence(sentence);
+                        }
+                    }
+                    pendingSpeechText = pendingSpeechText.substring(endIdx);
+                }
+
+                if (pendingSpeechText.trim().length > 0) {
+                    const looksLikeJson = pendingSpeechText.startsWith('{') || (pendingSpeechText.includes('"tool":') && pendingSpeechText.includes('"arguments":'));
+                    if (!looksLikeJson) {
+                        queueSentence(pendingSpeechText.trim());
+                    }
+                }
             }
 
             actions.updateLastMessage({ content: fullResponse, usedTools: result.usedTools });

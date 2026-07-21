@@ -1,0 +1,72 @@
+{
+  "_id": "portfolioathena-assistant-001",
+  "title": "Athena - 3D VRM AI Assistant",
+  "slug": "athena-3d-vrm-assistant",
+  "shortDescription": "A fully integrated, autonomous 3D AI companion driven by LangGraph, Electron, Three.js, and local AI microservices.",
+  "description": "Athena is an intelligent, emotionally responsive 3D avatar that lives on your desktop. Built for immersion and autonomy, Athena breaks out of the standard chatbox paradigm by featuring fully interactive 3D graphics driven by face-tracking, a localized RAG memory system, dynamic tool routing, and zero-latency local speech services. She utilizes a modular microservice architecture orchestrated via Electron IPC, ensuring a seamless and high-performance desktop experience.",
+  "category": "ai-assistant",
+  "isFeatured": true,
+  "status": "In Production",
+  "role": "Lead Full Stack Engineer",
+  "clientOrCompany": "Personal Project",
+  "duration": "Ongoing Development",
+  "targetAudience": "Desktop Users / AI Enthusiasts",
+  "techStackBreakdown": {
+    "frontend": ["React", "Vite", "Three.js", "MediaPipe Face Tracking", "Vaul"],
+    "backend": ["LangGraph", "Langchain", "Google Gemini", "Ollama", "Whisper (Python STT)", "SuperTonic (Node TTS)", "MCP"],
+    "infrastructure": ["Electron", "Node.js", "Python"]
+  },
+  "myContributions": [
+    "Architected a modular microservice application using Electron IPC bridging a Vite React frontend and local background services.",
+    "Developed a highly optimized custom Three.js rendering pipeline for VRM models and FBX animations ensuring buttery smooth 60 FPS.",
+    "Engineered memory management with custom deepDispose for FBX animations and GPU enforcer explicitly requesting high-performance WebGL context.",
+    "Integrated LangGraph to orchestrate tool execution allowing Athena to use web search, weather API, local timer, and localized document RAG.",
+    "Implemented zero-latency local voice stack combining Python whisper-fast for STT and Node-based SuperTonic for TTS.",
+    "Added Face/Head tracking using MediaPipe allowing Athena to maintain eye contact and blink based on webcam input.",
+    "Devised CPU throttling and LipSync math mapping audio frequencies to mouth blendshapes to reduce idle CPU overhead."
+  ],
+  "image": "https://raw.githubusercontent.com/Sameer-Bagul/athena-new/main/athena.png",
+  "gallery": [
+    { "url": "https://raw.githubusercontent.com/Sameer-Bagul/athena-new/main/athena.png", "caption": "Athena - 3D VRM AI Assistant Desktop Widget" }
+  ],
+  "architectureDiagram": "graph TD\n    subgraph Presentation_Layer[\"UI & 3D Render Engine (React + Three.js)\"]\n        UI_MAIN[\"React Vite Application\"]\n        THREE_ENGINE[\"Custom Three.js Pipeline\"]\n        VRM_MODEL[\"VRM Model Manager\"]\n        FBX_ANIM[\"FBX DeepDispose Manager\"]\n        LIPSYNC[\"FFT Audio Formant & Blendshapes\"]\n        MEDIAPIPE[\"MediaPipe WebGL Face Tracking\"]\n        \n        UI_MAIN <--> THREE_ENGINE\n        THREE_ENGINE --> VRM_MODEL\n        THREE_ENGINE --> FBX_ANIM\n        LIPSYNC -.-> VRM_MODEL\n        MEDIAPIPE -.->|\"Blink & Eye Contact\"| VRM_MODEL\n    end\n\n    subgraph Inter_Process_Communication[\"Electron Host & IPC Bridge\"]\n        IPC_BRIDGE[\"Electron ContextBridge / Preload\"]\n        MAIN_PROC[\"Electron Main Process\"]\n        WIN_MGR[\"BrowserWindow Manager\"]\n        \n        UI_MAIN <==>|\"Async IPC Payloads\"| IPC_BRIDGE\n        IPC_BRIDGE <==> MAIN_PROC\n        MAIN_PROC --> WIN_MGR\n    end\n\n    subgraph Local_Microservices[\"Local AI & Audio Microservices\"]\n        AGENT_ORCHESTRATOR[\"LangGraph Agent (Node.js)\"]\n        STT_SERVER[\"Whisper-Fast STT (Python 3.10)\"]\n        TTS_SERVER[\"SuperTonic TTS (Node.js)\"]\n        LLM_PROVIDER{\"LLM Model Gateway\"}\n        \n        MAIN_PROC ==>|\"Audio Stream\"| STT_SERVER\n        STT_SERVER ==>|\"Transcribed Text\"| AGENT_ORCHESTRATOR\n        AGENT_ORCHESTRATOR ==>|\"LLM Request\"| LLM_PROVIDER\n        LLM_PROVIDER ==>|\"Agent State & Response\"| AGENT_ORCHESTRATOR\n        AGENT_ORCHESTRATOR ==>|\"Text Stream\"| TTS_SERVER\n        TTS_SERVER ==>|\"Audio Buffer\"| MAIN_PROC\n        \n        LLM_PROVIDER -.->|\"Cloud\"| GEMINI[\"Google Gemini API\"]\n        LLM_PROVIDER -.->|\"Local\"| OLLAMA[\"Ollama / LMStudio\"]\n    end\n\n    subgraph LangGraph_Tool_Ecosystem[\"Agentic Tool Routing\"]\n        TOOL_ROUTER{\"Tool Node Router\"}\n        VECTOR_STORE[\"Local MemoryVectorStore (PDFs)\"]\n        DUCKDUCKGO[\"DuckDuckGo Scraper\"]\n        WEATHER_API[\"OpenWeather API\"]\n        MCP_SIDECAR[\"MCP Local Sidecar (Time/System)\"]\n        TIMER_INJECT[\"UI Timer Injector\"]\n        \n        AGENT_ORCHESTRATOR --> TOOL_ROUTER\n        TOOL_ROUTER -->|\"knowledge_search\"| VECTOR_STORE\n        TOOL_ROUTER -->|\"web_search\"| DUCKDUCKGO\n        TOOL_ROUTER -->|\"weather\"| WEATHER_API\n        TOOL_ROUTER -->|\"clock\"| MCP_SIDECAR\n        TOOL_ROUTER -->|\"timer\"| TIMER_INJECT\n        TIMER_INJECT -.->|\"IPC Broadcast\"| MAIN_PROC\n    end\n    \n    classDef frontend fill:#1a202c,stroke:#38b2ac,stroke-width:2px,color:#fff;\n    classDef backend fill:#2d3748,stroke:#9f7aea,stroke-width:2px,color:#fff;\n    classDef tools fill:#2b6cb0,stroke:#63b3ed,stroke-width:2px,color:#fff;\n    \n    class UI_MAIN,THREE_ENGINE,VRM_MODEL,FBX_ANIM,LIPSYNC,MEDIAPIPE frontend;\n    class AGENT_ORCHESTRATOR,STT_SERVER,TTS_SERVER,LLM_PROVIDER backend;\n    class VECTOR_STORE,DUCKDUCKGO,WEATHER_API,MCP_SIDECAR,TIMER_INJECT tools;",
+  "liveUrl": "",
+  "githubUrl": "https://github.com/Sameer-Bagul/athena-new",
+  "apiDocsUrl": "",
+  "contributors": ["Sameer Bagul"],
+  "features": [
+    "LangGraph Agent Engine: Powered by Google Gemini (and locally via Ollama), Athena acts as an agent, autonomously determining when to use tools.",
+    "Local Voice Stack: Lightning-fast local inference using Python whisper-fast for Speech-to-Text and Node-based SuperTonic for Text-to-Speech.",
+    "Face/Head Tracking: MediaPipe integration allows Athena to look at you, maintain eye contact, and blink naturally based on your webcam.",
+    "MCP & Tools Integration: Athena dynamically uses duckduckgo web search, weather APIs, system timers, and a local Model Context Protocol (MCP) sidecar.",
+    "Localized Document RAG: Drop PDFs into settings, and her knowledge_search tool will perform semantic vector searches against a local persistence store.",
+    "Message Replay: Review past responses instantly with a dedicated replay feature that seamlessly re-triggers TTS and animations without requiring an LLM callback.",
+    "Minimalist UI: Sleek, modern, and immersive desktop widget layout designed for a distraction-free AI presence."
+  ],
+  "challenges": [
+    "Performance & Memory Management: Preventing multi-gigabyte RAM leaks over long sessions by aggressively disposing source geometry data for FBX animations.",
+    "CPU Overhead: Optimizing Audio FFT Formant analysis (for LipSync) by throttling to 20Hz while maintaining 60Hz visual interpolation, cutting idle CPU by 66%.",
+    "Port Collisions: Resolving EADDRINUSE crashes by implementing dynamic port resolution for the Python STT server and Node TTS server.",
+    "Tool Payload Adherence: Ensuring ToolMessages strictly pass required fields for Langchain Google GenAI SDK to prevent Gemini crashes."
+  ],
+  "learnings": [
+    "Deepened expertise in Three.js optimizations, specifically around VRM model management and FBX animation memory disposal.",
+    "Mastered orchestrating multiple local microservices (Python and Node) seamlessly wrapped within an Electron desktop environment.",
+    "Gained extensive experience using LangGraph and Langchain for building agentic AI that autonomously decides when to use a suite of tools."
+  ],
+  "metrics": [
+    "Reduced idle CPU overhead by 66% utilizing LipSync math throttling and 20Hz FFT analysis.",
+    "Maintained a steady 60 FPS 3D rendering pipeline even on lower-end systems through GPU targeting and aggressive geometry disposal."
+  ],
+  "clientTestimonial": {
+    "name": "Sameer Bagul",
+    "role": "Creator",
+    "quote": "Building Athena was a phenomenal journey into merging 3D rendering optimizations with agentic AI workflows, creating an assistant that feels truly alive on the desktop."
+  },
+  "relatedBlogs": [],
+  "futureRoadmap": [
+    "Expand MCP capabilities for deeper system integration.",
+    "Further refine local LLM responsiveness and capability via Ollama updates.",
+    "Introduce additional modular VRM avatars and outfits."
+  ]
+}

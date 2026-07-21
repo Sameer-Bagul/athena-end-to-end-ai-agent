@@ -73,6 +73,7 @@ export interface AppState {
     isChatProcessing: boolean;
     widgetSettings: WidgetSettings;
     showSettings: boolean;
+    showBrowserStream: boolean;
     userProfile: UserProfile;
     pluginConfig: PluginConfig;
     aiConfig: AiConfig;
@@ -106,6 +107,7 @@ export interface AppActions {
     setTranscript: (text: string) => void;
     setWidgetSettings: (settings: WidgetSettings) => void;
     toggleSettings: (open?: boolean) => void;
+    toggleBrowserStream: (open?: boolean) => void;
     setUserProfile: (profile: UserProfile) => void;
     setPluginConfig: (config: PluginConfig) => void;
     setAiConfig: (config: AiConfig) => void;
@@ -261,6 +263,7 @@ export const useAppStore = create<StoreState>((set) => {
             chatMessages: initialChatMessages,
             isChatProcessing: false,
             showSettings: false,
+            showBrowserStream: false,
             widgetSettings: initialWidgetSettings,
             userProfile: initialUserProfile,
             pluginConfig: initialPluginConfig,
@@ -306,6 +309,7 @@ export const useAppStore = create<StoreState>((set) => {
                 return { state: { ...s.state, widgetSettings: settings } };
             }),
             toggleSettings: (open) => set(s => ({ state: { ...s.state, showSettings: open ?? !s.state.showSettings } })),
+            toggleBrowserStream: (open) => set(s => ({ state: { ...s.state, showBrowserStream: open ?? !s.state.showBrowserStream } })),
             setUserProfile: (profile) => set(s => ({ state: { ...s.state, userProfile: profile } })),
             setPluginConfig: (config) => set(s => ({ state: { ...s.state, pluginConfig: config } })),
             setAiConfig: (config) => set(s => ({ state: { ...s.state, aiConfig: config } })),

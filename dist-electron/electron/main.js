@@ -5,15 +5,14 @@ import fs from "fs";
 import net from "net";
 import { spawn } from "child_process";
 import "dotenv/config";
-import { chatWithLLM } from "../backend/llm.js";
-import { speak } from "../backend/tts.js";
-import { transcribe } from "../backend/stt.js";
-import { ragService } from "../backend/rag.js";
-import { downloadFile } from "../backend/downloader.js";
-import { NON_OLLAMA_MODELS, getLocalModelDir, isModelInstalled, deleteModel } from "../backend/modelRegistry.js";
-import { systemService } from "../backend/system.js";
+import { speak } from "../backend/audio/tts.js";
+import { transcribe } from "../backend/audio/stt.js";
+import { ragService } from "../backend/services/rag.js";
+import { downloadFile } from "../backend/core/downloader.js";
+import { NON_OLLAMA_MODELS, getLocalModelDir, isModelInstalled, deleteModel } from "../backend/core/modelRegistry.js";
+import { systemService } from "../backend/core/system.js";
 import { dialog } from "electron";
-import { mcpManager } from "../backend/agent/mcpManager.js";
+import { mcpManager } from "../backend/services/mcpManager.js";
 // ES Module equivalent of __dirname
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -110,7 +109,8 @@ function startTTSServer(port) {
             ...process.env,
             PORT: port.toString(),
             ATHENA_USER_DATA: app.getPath('userData')
-        }
+        },
+        shell: true
     });
     ttsServerProcess.stdout.on("data", (data) => {
         console.log(`\x1b[34m[NodeTTS]\x1b[0m ${data.toString().trim()}`);
@@ -263,10 +263,6 @@ ipcMain.handle("window:close", (event) => {
     win?.close();
 });
 // IPC handlers for LLM and TTS
-ipcMain.handle("llm:chat", async (_, messages) => {
-    console.log(`\x1b[33m[IPC]\x1b[0m Chat Request: llm:chat (${messages.length} messages)`);
-    return await chatWithLLM(messages);
-});
 // RAG Handlers
 ipcMain.handle("rag:upload-document", async (event) => {
     const win = BrowserWindow.fromWebContents(event.sender);
@@ -303,7 +299,7 @@ ipcMain.handle("rag:get-context", async (_, input) => {
 ipcMain.handle("agent:query", async (_, { query, systemPrompt, modelName }) => {
     console.log(`\x1b[33m[IPC]\x1b[0m Agent Request: agent:query`);
     try {
-        const { runAgent } = await import("../backend/agent/graph.js");
+        const { runAgent } = await import("../backend/agent/nativeAgent.js");
         const response = await runAgent(query, systemPrompt, modelName);
         return { success: true, response };
     }
@@ -315,7 +311,7 @@ ipcMain.handle("agent:query", async (_, { query, systemPrompt, modelName }) => {
 ipcMain.on("agent:query-stream", async (event, { queryId, query, systemPrompt, modelName, apiKey }) => {
     console.log(`\x1b[33m[IPC]\x1b[0m Agent Request: agent:query-stream (${queryId})`);
     try {
-        const { runAgent } = await import("../backend/agent/graph.js");
+        const { runAgent } = await import("../backend/agent/nativeAgent.js");
         const response = await runAgent(query, systemPrompt, modelName, apiKey, (msg) => {
             event.sender.send(`agent:progress-${queryId}`, msg);
         }, (token) => {
@@ -325,6 +321,22 @@ ipcMain.on("agent:query-stream", async (event, { queryId, query, systemPrompt, m
     }
     catch (error) {
         console.error("\n\x1b[31m[ERROR]\x1b[0m Agent Error:", error);
+        event.sender.send(`agent:complete-${queryId}`, { success: false, error: error.message });
+    }
+});
+ipcMain.on("agent:browser-query-stream", async (event, { queryId, query, modelName, apiKey }) => {
+    console.log(`\x1b[33m[IPC]\x1b[0m Agent Request: agent:browser-query-stream (${queryId})`);
+    try {
+        const { runBrowserAgent } = await import("../backend/agent/nativeBrowserAgent.js");
+        const response = await runBrowserAgent(query, modelName, apiKey, (msg) => {
+            event.sender.send(`agent:progress-${queryId}`, msg);
+        }, (token) => {
+            event.sender.send(`agent:token-${queryId}`, token);
+        });
+        event.sender.send(`agent:complete-${queryId}`, { success: true, response });
+    }
+    catch (error) {
+        console.error("\n\x1b[31m[ERROR]\x1b[0m Browser Agent Error:", error);
         event.sender.send(`agent:complete-${queryId}`, { success: false, error: error.message });
     }
 });
@@ -410,6 +422,25 @@ ipcMain.handle("agent:call-mcp", async (_, { serverName, toolName, args }) => {
         console.error(`\n\x1b[31m[ERROR]\x1b[0m MCP call ${serverName}.${toolName} failed:`, error);
         return { error: error.message };
     }
+});
+// --- HITL Bridging ---
+ipcMain.on("agent:hitl-request", (event, data) => {
+    console.log(`\n\x1b[36m[Main]\x1b[0m Bridging HITL request to UI: ${data.message}`);
+    if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send("agent:hitl-request-ui", data);
+    }
+    if (widgetWindow && !widgetWindow.isDestroyed()) {
+        widgetWindow.webContents.send("agent:hitl-request-ui", data);
+    }
+});
+ipcMain.on("agent:hitl-response-ui", (event, data) => {
+    console.log(`\n\x1b[36m[Main]\x1b[0m Received HITL response from UI, broadcasting to graph`);
+    // Broadcast to all (the graph listener should catch this)
+    if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send("agent:hitl-response", data);
+    }
+    // The backend graph process can listen to ipcMain
+    ipcMain.emit("agent:hitl-response-internal", data);
 });
 // --- System Control Handlers ---
 ipcMain.handle("system:get-volume", async () => {
@@ -551,9 +582,29 @@ ipcMain.handle("model:delete", async (_, modelId) => {
 // Bypass microphone permission prompts and enable speech API
 app.commandLine.appendSwitch("use-fake-ui-for-media-stream");
 app.commandLine.appendSwitch("enable-speech-dispatcher");
+import { WebSocketServer, WebSocket } from "ws";
 app.whenReady().then(async () => {
     const sttPort = await getAvailablePort(9001);
-    const ttsPort = await getAvailablePort(3000);
+    const ttsPort = await getAvailablePort(3001);
+    // Setup WebSocket Bridge for Agent Browser Stream
+    const wss = new WebSocketServer({ port: 3000 });
+    const wsClients = new Set();
+    wss.on('connection', (ws) => {
+        console.log(`\n\x1b[36m[Main]\x1b[0m Stream Bridge WebSocket client connected`);
+        wsClients.add(ws);
+        ws.on('close', () => wsClients.delete(ws));
+    });
+    // Listen to MCP Notifications
+    mcpManager.onNotification = (name, method, params) => {
+        if (name === "agent-browser" && params?.image) {
+            const message = JSON.stringify({ type: 'snapshot', image: params.image });
+            for (const client of wsClients) {
+                if (client.readyState === WebSocket.OPEN) {
+                    client.send(message);
+                }
+            }
+        }
+    };
     process.env.STT_URL = `http://127.0.0.1:${sttPort}`;
     process.env.TTS_URL = `http://localhost:${ttsPort}`;
     startPythonServer(sttPort);
@@ -584,6 +635,8 @@ app.whenReady().then(async () => {
     // Spawn PoC sidecars
     const sidecarPath = path.join(app.getAppPath(), "backend/agent/sidecars/time");
     mcpManager.spawnServer("time", "node", [path.join(sidecarPath, "index.js")], sidecarPath);
+    // Spawn Agent Browser MCP with persistent authentication vault
+    mcpManager.spawnServer("agent-browser", "npx", ["-y", "agent-browser@latest", "mcp", "--tools", "all", "--session", "athena_vault"], app.getAppPath());
 });
 app.on('will-quit', () => {
     globalShortcut.unregisterAll();
