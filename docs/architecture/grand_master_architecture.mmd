@@ -1,0 +1,166 @@
+flowchart TB
+    %% ==========================================
+    %% ATHENA GRAND MASTER ARCHITECTURE FLOWCHART
+    %% ==========================================
+
+    %% ------------------------------------------
+    %% 1. USER INPUT & PERIPHERAL LAYER
+    %% ------------------------------------------
+    subgraph Layer_Input ["1. User Input and Voice Capture Layer"]
+        Mic["Microphone Input (Audio Stream)"]
+        Keyboard["Keyboard Text Input (Chat Box)"]
+        Hotkey["Global Hotkey (Alt+Space Push-to-Talk)"]
+    end
+
+    %% ------------------------------------------
+    %% 2. FRONTEND RENDERER PROCESS (Vite + React 18)
+    %% ------------------------------------------
+    subgraph Layer_Renderer ["2. Frontend Renderer Process (Vite + React + Three.js)"]
+        ChatUI["React 18 Chat Interface<br/>(Zustand Store / store.ts)"]
+        AssistantHook["useAssistant Hook<br/>(Sentence Buffer and Queue)"]
+        
+        subgraph Sub_Avatar ["3D Avatar and Audio Engine"]
+            ThreeStage["ThreeStage Component<br/>(Canvas and Scene Setup)"]
+            VRMModel["Three.js VRM Avatar Model<br/>(Sakurada Male / M1 Voice)"]
+            AnimMgr["AnimationManager<br/>(FBX Skeletal Animations and Gestures)"]
+            LipSync["LipSyncManager<br/>(Web Audio API AnalyserNode)"]
+            FormantEngine["Formant Energy Viseme Engine<br/>(60 FPS Lerp: aa, ih, ou, ee, oh)"]
+        end
+    end
+
+    %% ------------------------------------------
+    %% 3. ELECTRON IPC & DESKTOP WINDOW MANAGEMENT
+    %% ------------------------------------------
+    subgraph Layer_Electron ["3. Electron Main Process and Desktop Window Manager"]
+        IPCBridge["Preload IPC Bridge<br/>(preload.ts - ContextBridge)"]
+        MainThread["Electron Main Entry<br/>(electron/main.ts)"]
+        WindowManager["Window Manager<br/>(1080p Main Window and Mini Widget)"]
+        StateSync["Sync Broadcasting<br/>(Main Window and Widget Sync)"]
+    end
+
+    %% ------------------------------------------
+    %% 4. AGENTIC AI CORE ENGINE
+    %% ------------------------------------------
+    subgraph Layer_Agentic ["4. Autonomous Agentic AI Core"]
+        NativeAgent["NativeAgent ReAct Loop<br/>(backend/agent/nativeAgent.ts)"]
+        ModelRouter["Intent Model Router<br/>(planner | coder | browser | default_chat)"]
+        PromptBuilder["System Prompt Builder<br/>(Inject Persona and Tool Schemas)"]
+        
+        subgraph Sub_Tools ["Tool Registry and MCP Integration"]
+            ToolRegistry["Native Tools Registry<br/>(weather, clock, web_search, python)"]
+            MCPManager["MCP Sidecar Manager<br/>(mcpManager.ts - Stdio JSON-RPC)"]
+            RAGService["RAG Vector Store<br/>(ragService.ts - Document Search)"]
+        end
+    end
+
+    %% ------------------------------------------
+    %% 5. LLM PROVIDER & RESILIENCY LAYER
+    %% ------------------------------------------
+    subgraph Layer_Providers ["5. AI Provider Layer and Fault Tolerance"]
+        ProviderFactory["getAIProvider Factory<br/>(providerLayer.ts)"]
+        GeminiProvider["GeminiProvider<br/>(Cloud Execution)"]
+        RetryHandler["503/429 Exponential Backoff<br/>(1s, 2s Retries and Backoff)"]
+        ModelFallback["Multi-Model Fallback Chain<br/>(3.6-flash to flash-latest to 2.5-flash)"]
+        OllamaProvider["OllamaProvider<br/>(Local Execution - dolphin-mistral)"]
+    end
+
+    %% ------------------------------------------
+    %% 6. LOCAL DEDICATED MICROSERVICES & SIDECARS
+    %% ------------------------------------------
+    subgraph Layer_Services ["6. Dedicated Local Microservices and Sidecars"]
+        STTServer["Whisper STT Server<br/>(Port 9001 - Python FastAPI)"]
+        TTSServer["Supertonic TTS Server<br/>(Port 3001 - Node ONNX Neural TTS)"]
+        BrowserBridge["Agent Browser WebSocket<br/>(Port 3000 - Live Stream Bridge)"]
+        BrowserMCP["agent-browser MCP Sidecar<br/>(Playwright + athena_vault Session)"]
+        TimeMCP["Time MCP Sidecar<br/>(Temporal Calculations)"]
+    end
+
+    %% ------------------------------------------
+    %% 7. EXTERNAL CLOUD SERVICES
+    %% ------------------------------------------
+    subgraph Layer_Cloud ["7. External Cloud Services and APIs"]
+        GoogleAPI["Google Gemini Cloud API<br/>(generativelanguage.googleapis.com)"]
+        OpenWeather["OpenWeatherMap API<br/>(Weather Data)"]
+        WebSearchAPI["Web Search Engine<br/>(Live Internet Intel)"]
+    end
+
+    %% ==========================================
+    %% CONNECTIONS & DATA FLOW
+    %% ==========================================
+
+    %% Voice and Text Input Flow
+    Mic -->|Audio Buffer| STTServer
+    STTServer -->|Transcribed Text| ChatUI
+    Keyboard -->|Text Prompt| ChatUI
+    Hotkey -->|Trigger Wake PTT| MainThread
+
+    %% Frontend to Electron IPC Flow
+    ChatUI -->|Submit Message| AssistantHook
+    AssistantHook -->|IPC: agent:query-stream| IPCBridge
+    IPCBridge -->|Forward Request| MainThread
+    MainThread -->|Delegate Query| NativeAgent
+
+    %% Window Sync
+    WindowManager --> StateSync
+    StateSync -->|Broadcast UI State| ChatUI
+
+    %% Native Agent Execution Loop
+    NativeAgent -->|1. Classify Intent| ModelRouter
+    ModelRouter -->|2. Assign Model| NativeAgent
+    NativeAgent -->|3. Assemble Context & Tool Schemas| PromptBuilder
+    PromptBuilder -->|4. Request Generation| ProviderFactory
+    
+    %% Provider Layer Execution & Resiliency
+    ProviderFactory --> GeminiProvider
+    ProviderFactory --> OllamaProvider
+    GeminiProvider -->|HTTPS POST| GoogleAPI
+    GoogleAPI -.->|503 High Demand Error| RetryHandler
+    RetryHandler -->|Exponential Wait and Retry| GeminiProvider
+    RetryHandler -.->|Fallback Model| ModelFallback
+    ModelFallback -->|Retry Alternate Candidate| GoogleAPI
+
+    %% Tool Calling Execution
+    NativeAgent -->|5. Check / Execute Tools| ToolRegistry
+    ToolRegistry -->|Query Weather| OpenWeather
+    ToolRegistry -->|Query Search| WebSearchAPI
+    ToolRegistry -->|Query Documents| RAGService
+    NativeAgent -->|Execute MCP Sidecars| MCPManager
+    MCPManager -->|Stdio JSON-RPC| BrowserMCP
+    MCPManager -->|Stdio JSON-RPC| TimeMCP
+    BrowserMCP -->|Live Stream| BrowserBridge
+
+    %% Response Streaming & TTS Voice Generation
+    NativeAgent -->|6. Stream Response Tokens| MainThread
+    MainThread -->|IPC agent:token| IPCBridge
+    IPCBridge -->|Render Streaming Text| AssistantHook
+    AssistantHook -->|Chunk Completed Sentences| AssistantHook
+    AssistantHook -->|HTTP POST /tts Port 3001| TTSServer
+    TTSServer -->|Return WAV Audio Blob| AssistantHook
+
+    %% 3D Avatar Rendering & Formant Lip Sync
+    AssistantHook -->|Play Audio Blob| LipSync
+    LipSync -->|Audio Buffer Source| FormantEngine
+    FormantEngine -->|Compute Vowel Energy Low/Mid/High| FormantEngine
+    FormantEngine -->|Set Blendshapes aa, ih, ou, ee, oh| VRMModel
+    AssistantHook -->|Trigger Motion Gesture| AnimMgr
+    AnimMgr -->|Apply FBX Skeleton Keyframes| VRMModel
+    ThreeStage -->|Render 60 FPS Canvas| VRMModel
+
+    %% Style Definitions (Custom Colors & High-Contrast Styling)
+    classDef inputStyle fill:#1e1b4b,stroke:#818cf8,stroke-width:2px,color:#ffffff;
+    classDef uiStyle fill:#064e3b,stroke:#34d399,stroke-width:2px,color:#ffffff;
+    classDef audioStyle fill:#701a75,stroke:#f0abfc,stroke-width:2px,color:#ffffff;
+    classDef mainStyle fill:#1e293b,stroke:#94a3b8,stroke-width:2px,color:#ffffff;
+    classDef agentStyle fill:#431407,stroke:#fb923c,stroke-width:2px,color:#ffffff;
+    classDef providerStyle fill:#312e81,stroke:#a5b4fc,stroke-width:2px,color:#ffffff;
+    classDef serviceStyle fill:#0284c7,stroke:#38bdf8,stroke-width:2px,color:#ffffff;
+    classDef cloudStyle fill:#831843,stroke:#f472b6,stroke-width:2px,color:#ffffff;
+
+    class Mic,Keyboard,Hotkey inputStyle;
+    class ChatUI,AssistantHook uiStyle;
+    class ThreeStage,VRMModel,AnimMgr,LipSync,FormantEngine audioStyle;
+    class IPCBridge,MainThread,WindowManager,StateSync mainStyle;
+    class NativeAgent,ModelRouter,PromptBuilder,ToolRegistry,MCPManager,RAGService agentStyle;
+    class ProviderFactory,GeminiProvider,RetryHandler,ModelFallback,OllamaProvider providerStyle;
+    class STTServer,TTSServer,BrowserBridge,BrowserMCP,TimeMCP serviceStyle;
+    class GoogleAPI,OpenWeather,WebSearchAPI cloudStyle;

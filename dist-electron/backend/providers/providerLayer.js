@@ -4,20 +4,58 @@ export class GeminiProvider {
         this.apiKey = apiKey;
     }
     async generate(messages, options) {
-        const targetModel = options?.model || "gemini-2.5-flash";
-        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${targetModel}:generateContent?key=${this.apiKey}`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                systemInstruction: options?.systemInstruction ? { parts: [{ text: options.systemInstruction }] } : undefined,
-                contents: messages,
-                generationConfig: options?.generationConfig
-            })
-        });
-        if (!res.ok)
-            throw new Error(`Gemini Error: ${await res.text()}`);
-        const data = await res.json();
-        return data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+        const keyToUse = this.apiKey || process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY || "";
+        const headers = { "Content-Type": "application/json" };
+        if (keyToUse) {
+            headers["X-goog-api-key"] = keyToUse;
+        }
+        const requestedModel = options?.model || "gemini-3.6-flash";
+        const modelsToTry = Array.from(new Set([
+            requestedModel,
+            "gemini-3.6-flash",
+            "gemini-flash-latest",
+            "gemini-2.5-flash",
+            "gemini-1.5-flash"
+        ]));
+        let lastError = null;
+        for (const model of modelsToTry) {
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+            for (let attempt = 0; attempt < 3; attempt++) {
+                try {
+                    const res = await fetch(url, {
+                        method: "POST",
+                        headers,
+                        body: JSON.stringify({
+                            systemInstruction: options?.systemInstruction ? { parts: [{ text: options.systemInstruction }] } : undefined,
+                            contents: messages,
+                            generationConfig: options?.generationConfig
+                        })
+                    });
+                    if (res.status === 503 || res.status === 429) {
+                        console.warn(`[GeminiProvider] Model ${model} returned HTTP ${res.status} (attempt ${attempt + 1}/3). Retrying in ${attempt + 1}s...`);
+                        await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+                        continue;
+                    }
+                    if (!res.ok) {
+                        const errText = await res.text();
+                        console.warn(`[GeminiProvider] Model ${model} returned HTTP ${res.status}: ${errText}`);
+                        lastError = new Error(`Gemini Error (${res.status}): ${errText}`);
+                        break; // Try next model candidate
+                    }
+                    const data = await res.json();
+                    const responseText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+                    if (responseText !== undefined) {
+                        return responseText;
+                    }
+                }
+                catch (e) {
+                    console.warn(`[GeminiProvider] Fetch error with model ${model}:`, e.message);
+                    lastError = e;
+                    await new Promise(r => setTimeout(r, 500));
+                }
+            }
+        }
+        throw lastError || new Error("Gemini Provider failed on all model candidates and retries.");
     }
 }
 export class OllamaProvider {

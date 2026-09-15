@@ -1,0 +1,91 @@
+sequenceDiagram
+    autonumber
+    actor User as Master User
+    participant Mic as Microphone / Whisper STT (Port 9001)
+    participant UI as React UI (useAssistant / store.ts)
+    participant IPC as Electron Main Process (IPC Bridge)
+    participant Agent as NativeAgent Core Loop
+    participant Router as ModelRouter Engine
+    participant Provider as GeminiProvider (Fault Tolerant)
+    participant Cloud as Google Gemini API
+    participant Tools as ToolsRegistry & MCP Sidecars
+    participant TTS as Supertonic TTS Server (Port 3001)
+    participant Audio as Web Audio API AnalyserNode
+    participant LipSync as LipSyncManager
+    participant VRM as Three.js VRM Avatar (Sakurada)
+
+    alt Voice Mode
+        User->>Mic: Speak prompt into microphone
+        Mic->>Mic: Python FastAPI / Uvicorn transcribe
+        Mic-->>UI: Transcribed Text Prompt
+    else Text Mode
+        User->>UI: Type text prompt and hit Enter
+    end
+
+    UI->>IPC: Send IPC event agent:query-stream
+    IPC->>Agent: Invoke runAgent(query, systemPrompt, modelName)
+    Agent->>Router: determineRoleForQuery(query)
+    Router-->>Agent: Role assigned (e.g. default_chat to gemini-3.6-flash)
+
+    loop Agentic ReAct Loop (Max 5 Iterations)
+        Agent->>Provider: generate(messages, systemInstruction + toolSchemas)
+        Provider->>Cloud: HTTPS POST /v1beta/models/gemini-3.6-flash:generateContent
+        
+        alt Cloud Returns HTTP 503 / 429
+            Cloud-->>Provider: HTTP 503 Unavailable (High Demand Spike)
+            Provider->>Provider: Attempt 1: Wait 1 second (Exponential Backoff)
+            Provider->>Cloud: Retry HTTPS POST /v1beta/models/gemini-3.6-flash
+            
+            alt Still 503 Error
+                Cloud-->>Provider: HTTP 503 Unavailable
+                Provider->>Provider: Attempt 2: Wait 2 seconds and Model Fallback
+                Provider->>Cloud: Retry HTTPS POST /v1beta/models/gemini-flash-latest
+            end
+        end
+
+        Cloud-->>Provider: HTTP 200 OK (Model JSON Response)
+        Provider-->>Agent: Return Model JSON String Output
+        
+        alt LLM Requests Tool Execution
+            Agent->>Tools: Execute tool.invoke(args)
+            alt Native Tool (weather / search / clock)
+                Tools->>Tools: Execute local API fetch or system call
+            else MCP Sidecar Tool (agent-browser)
+                Tools->>Tools: Stdio JSON-RPC call to agent-browser (Playwright athena_vault)
+            end
+            Tools-->>Agent: Return Tool Result Output String
+            Agent->>Agent: Append Tool Result to messages history and loop next iteration
+        else LLM Provides Final Response
+            Agent->>Agent: Break ReAct loop
+        end
+    end
+
+    loop Stream Response Tokens
+        Agent-->>IPC: Send chunk tokens
+        IPC-->>UI: Send IPC event agent:token
+        UI->>UI: Append streaming text to Chat UI
+    end
+
+    loop For Each Completed Sentence
+        UI->>UI: Match sentence regex [.!?]
+        UI->>TTS: POST /tts (Port 3001)
+        TTS->>TTS: ONNX Neural Synthesis on CPU
+        TTS-->>UI: Return audio/wav Blob Data
+        
+        UI->>LipSync: playAudio(wavBlob)
+        LipSync->>Audio: decodeAudioData(wavBlob)
+        LipSync->>Audio: Create BufferSource and AnalyserNode
+        Audio->>Audio: Connect AnalyserNode to Audio Destination
+        
+        loop Every Animation Frame (60 FPS Render Loop)
+            LipSync->>Audio: getByteFrequencyData(dataArray)
+            LipSync->>LipSync: Compute Formant Energy (Low, Mid, High)
+            LipSync->>LipSync: Smooth Vowel Weights via Lerp (0.4 factor)
+            LipSync->>VRM: expressionManager.setValue(aa, ih, ou, ee, oh)
+            UI->>VRM: Play concurrent FBX Gesture Animation (Talk / Gesture)
+            VRM->>User: Render 60 FPS 3D Avatar Speaking with Male M1 Voice
+        end
+        
+        Audio-->>LipSync: Audio Source playback ended
+        LipSync->>VRM: Reset mouth blendshapes to zero
+    end

@@ -3,8 +3,6 @@ export interface ChatMessage {
     content: string;
 }
 
-const TTS_API_URL = 'http://localhost:3000/tts';
-
 import { getAIProvider } from "../services/ai/factory";
 import type { AiConfig } from "../context/AppContext";
 
@@ -125,24 +123,33 @@ export async function sendMessageToOllama(
 }
 
 export async function generateSpeech(text: string, voiceStyle: string = 'F1', speed: number = 1.05): Promise<Blob> {
-    try {
-        const response = await fetch(TTS_API_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                text: text,
-                voiceStyle: voiceStyle,
-                speed: speed
-            })
-        });
+    const urls = [
+        'http://localhost:3001/tts',
+        'http://localhost:3000/tts'
+    ];
 
-        if (!response.ok) {
-            throw new Error(`TTS API Error: ${response.statusText}`);
+    let lastError: any = null;
+    for (const url of urls) {
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    text: text,
+                    voiceStyle: voiceStyle,
+                    speed: speed
+                })
+            });
+
+            if (response.ok) {
+                return await response.blob();
+            }
+            lastError = new Error(`TTS API Error: ${response.status} ${response.statusText}`);
+        } catch (error) {
+            lastError = error;
         }
-
-        return await response.blob();
-    } catch (error) {
-        console.error("TTS API Call Failed:", error);
-        throw error;
     }
+
+    console.error("TTS API Call Failed:", lastError);
+    throw lastError || new Error("Failed to generate speech");
 }

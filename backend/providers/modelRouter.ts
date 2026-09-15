@@ -13,13 +13,13 @@ export type ModelRole =
   | 'background';
 
 export const MODEL_ROUTER: Record<ModelRole, string> = {
-  default_chat: 'gemini-2.5-flash',
-  planner: 'gemini-2.5-pro',
-  browser_agent: 'gemini-2.5-flash',
-  coder: 'gemini-2.5-pro',
-  vision: 'gemini-2.5-pro',
-  voice: 'gemini-live-2.5-flash-native-audio',
-  background: 'gemini-2.5-flash-lite'
+  default_chat: 'gemini-3.6-flash',
+  planner: 'gemini-3.6-flash',
+  browser_agent: 'gemini-3.6-flash',
+  coder: 'gemini-3.6-flash',
+  vision: 'gemini-3.6-flash',
+  voice: 'gemini-3.6-flash',
+  background: 'gemini-3.6-flash'
 };
 
 /**

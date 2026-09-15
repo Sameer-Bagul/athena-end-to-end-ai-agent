@@ -1,0 +1,27 @@
+sequenceDiagram
+    autonumber
+    participant UI as Renderer (useAssistant)
+    participant TTS as Supertonic TTS (Port 3001)
+    participant Audio as Web Audio API Context
+    participant LipSync as LipSyncManager
+    participant VRM as Three.js VRM Model
+
+    UI->>UI: Chunk text stream into completed sentences
+    UI->>TTS: POST /tts { text: sentence, voiceStyle: "M1" }
+    TTS->>TTS: Synthesize ONNX Neural WAV Buffer
+    TTS-->>UI: Return audio/wav Blob
+    
+    UI->>LipSync: playAudio(blob)
+    LipSync->>Audio: decodeAudioData(blob)
+    LipSync->>Audio: Create BufferSource & AnalyserNode
+    Audio->>Audio: Connect AnalyserNode -> Destination
+    
+    loop Every Frame (60 FPS)
+        LipSync->>Audio: getByteFrequencyData(dataArray)
+        LipSync->>LipSync: Compute Formant Energy (Low, Mid, High)
+        LipSync->>LipSync: Lerp Vowel Weights (aa, ih, ou, ee, oh)
+        LipSync->>VRM: expressionManager.setValue(vowel, weight)
+    end
+    
+    Audio-->>LipSync: Audio source.onended
+    LipSync->>VRM: Reset mouth blendshapes to 0

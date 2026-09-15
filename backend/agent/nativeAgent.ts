@@ -16,7 +16,10 @@ export async function runAgent(
   
   // 1. Intent Routing
   const role = determineRoleForQuery(query);
-  const targetModel = modelName || getModelForRole(role);
+  let targetModel = modelName || getModelForRole(role);
+  if (targetModel.includes("gemini")) {
+    targetModel = "gemini-3.6-flash";
+  }
   
   console.log(`[NativeAgent] Router assigned role: ${role} -> Model: ${targetModel}`);
 

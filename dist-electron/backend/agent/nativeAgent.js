@@ -6,7 +6,10 @@ export async function runAgent(query, systemPrompt, modelName, apiKey, onProgres
     console.log('\n\x1b[32m[NativeAgent]\x1b[0m Starting pure cloud execution...');
     // 1. Intent Routing
     const role = determineRoleForQuery(query);
-    const targetModel = modelName || getModelForRole(role);
+    let targetModel = modelName || getModelForRole(role);
+    if (targetModel.includes("gemini")) {
+        targetModel = "gemini-3.6-flash";
+    }
     console.log(`[NativeAgent] Router assigned role: ${role} -> Model: ${targetModel}`);
     // 2. Provider Layer Initialization
     const providerName = targetModel.includes("gemini") ? "gemini" : "ollama";

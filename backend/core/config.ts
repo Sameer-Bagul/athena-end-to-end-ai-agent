@@ -9,7 +9,7 @@ export const config = {
 
     // External Services
     STT_URL: process.env.STT_URL || "http://127.0.0.1:9001",
-    TTS_URL: process.env.TTS_URL || "http://127.0.0.1:3000",
+    TTS_URL: process.env.TTS_URL || "http://127.0.0.1:3001",
 
     // Performance & Limits
     LLM_TIMEOUT: 30000,

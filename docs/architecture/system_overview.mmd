@@ -1,0 +1,39 @@
+graph TB
+    subgraph Frontend["Renderer Process (Vite + React + Three.js)"]
+        UI["Chat UI & Onboarding"]
+        UA["useAssistant Hook"]
+        3D["ThreeStage & VRM Model"]
+        LSM["LipSyncManager (Web Audio API)"]
+    end
+
+    subgraph Main["Electron Main Process (Node.js)"]
+        IPC["IPC Bridge & Router"]
+        NA["NativeAgent Loop"]
+        MR["Model Router"]
+        PL["GeminiProvider / OllamaProvider"]
+        TL["Native Tools & MCP Manager"]
+    end
+
+    subgraph Microservices["Dedicated Local Services"]
+        STT["Whisper STT Server (Port 9001 - Python FastAPI)"]
+        TTS["Supertonic TTS Server (Port 3001 - Node ONNX)"]
+        WS["Agent Browser Stream Bridge (Port 3000 - WebSocket)"]
+    end
+
+    subgraph Cloud["External API Services"]
+        Google["Google Gemini Cloud API"]
+    end
+
+    UI -->|User Input| UA
+    UA -->|IPC: agent:query-stream| IPC
+    IPC --> NA
+    NA --> MR
+    NA --> PL
+    PL -->|HTTPS Request w/ Exponential Backoff| Google
+    NA <-->|Execute Tool| TL
+    NA -->|Stream Tokens| IPC
+    IPC -->|Response Stream| UA
+    UA -->|Fetch WAV Audio| TTS
+    TTS -->|Return WAV Buffer| UA
+    UA -->|Play Audio Blob| LSM
+    LSM -->|Formant Frequency Analysis| 3D

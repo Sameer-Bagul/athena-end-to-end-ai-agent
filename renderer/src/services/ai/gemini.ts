@@ -25,11 +25,17 @@ export class GeminiProvider implements AIProvider {
         signal?: AbortSignal
     ): Promise<string> {
         try {
+            const targetModel = this.model || "gemini-3.6-flash";
+            const headers: Record<string, string> = { "Content-Type": "application/json" };
+            if (this.apiKey) {
+                headers["X-goog-api-key"] = this.apiKey;
+            }
+
             const response = await fetch(
-                `https://generativelanguage.googleapis.com/v1beta/models/${this.model}:streamGenerateContent?key=${this.apiKey}`,
+                `https://generativelanguage.googleapis.com/v1beta/models/${targetModel}:streamGenerateContent?key=${this.apiKey}`,
                 {
                     method: "POST",
-                    headers: { "Content-Type": "application/json" },
+                    headers,
                     body: JSON.stringify({
                         contents: [
                             { role: "user", parts: [{ text: systemPrompt + "\n\n" + prompt }] }

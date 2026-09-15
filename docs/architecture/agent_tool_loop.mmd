@@ -1,0 +1,32 @@
+sequenceDiagram
+    autonumber
+    actor User
+    participant UI as Renderer (useAssistant)
+    participant IPC as Electron Main (IPC)
+    participant Agent as NativeAgent
+    participant Router as ModelRouter
+    participant Gemini as GeminiProvider
+    participant Tools as ToolsRegistry / MCP
+
+    User->>UI: Type text or speak via STT
+    UI->>IPC: agent:query-stream(queryId, query, persona)
+    IPC->>Agent: runAgent(query, systemPrompt, modelName)
+    Agent->>Router: determineRoleForQuery(query)
+    Router-->>Agent: Role assigned (e.g., default_chat -> gemini-3.6-flash)
+    
+    loop Agent Loop (Max 5 Iterations)
+        Agent->>Gemini: generate(messages, systemInstruction + toolSchemas)
+        alt API Status 503 / 429
+            Gemini->>Gemini: Exponential backoff delay (1s, 2s) & model retry
+        end
+        Gemini-->>Agent: Model Output (JSON string)
+        
+        alt Tool Call Requested { tool: "name", args: {} }
+            Agent->>Tools: tool.invoke(args)
+            Tools-->>Agent: Tool Result Output
+            Agent->>Agent: Append Tool Result to messages history
+        else Final Answer Provided { response: "..." }
+            Agent-->>IPC: Stream final response tokens
+            IPC-->>UI: IPC agent:token event
+        end
+    end
