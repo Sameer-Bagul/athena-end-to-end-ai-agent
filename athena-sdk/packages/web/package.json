@@ -1,0 +1,30 @@
+{
+  "name": "@athena-ai/web",
+  "version": "0.1.0",
+  "description": "Framework-agnostic Web Component custom element <athena-agent> for CDN and HTML embedding",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch"
+  },
+  "dependencies": {
+    "@athena-ai/core": "workspace:*",
+    "@pixiv/three-vrm": "^3.4.4",
+    "three": "^0.182.0"
+  },
+  "devDependencies": {
+    "@types/three": "^0.182.0",
+    "tsup": "^8.3.6",
+    "typescript": "^5.9.3"
+  }
+}

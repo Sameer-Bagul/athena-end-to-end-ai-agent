@@ -1,0 +1,17 @@
+{
+  "name": "athena-sdk",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "build": "pnpm --filter @athena-ai/core build && pnpm --filter @athena-ai/react build && pnpm --filter @athena-ai/web build",
+    "build:core": "pnpm --filter @athena-ai/core build",
+    "build:react": "pnpm --filter @athena-ai/react build",
+    "build:web": "pnpm --filter @athena-ai/web build",
+    "typecheck": "pnpm --filter \"@athena-ai/*\" typecheck",
+    "clean": "rm -rf packages/*/dist"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  }
+}

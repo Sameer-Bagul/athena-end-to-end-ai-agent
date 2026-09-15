@@ -1,0 +1,10 @@
+packages:
+  - '.'
+  - 'renderer'
+  - 'services/*'
+  - 'athena-sdk'
+  - 'athena-sdk/packages/*'
+allowBuilds:
+  electron: true
+  esbuild: set this to true or false
+  onnxruntime-node: true
