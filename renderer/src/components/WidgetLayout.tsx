@@ -11,11 +11,14 @@ export function WidgetLayout() {
     // For V1, this is "good enough" - opens with your current settings.
 
     const [selectedCharacter] = useState(() => {
-        // Strategy: We could store "currentModelId" in localStorage in main app updates
-        // For now, let's just pick default or try to read last saved.
-        // Let's presume the main app is saving 'athena-last-model' or similar? 
-        // Actually, VRMControlPanel.tsx defaults to index 0. 
-        return AVAILABLE_MODELS[0];
+        try {
+            const savedCharId = localStorage.getItem("athena-selected-character-id");
+            if (savedCharId && savedCharId !== "athena") {
+                const found = AVAILABLE_MODELS.find(m => m.id === savedCharId);
+                if (found) return found;
+            }
+        } catch {}
+        return AVAILABLE_MODELS.find(m => m.id === "sakurada") || AVAILABLE_MODELS[0];
     });
 
     const [vrmUrl, setVrmUrl] = useState(`models/${selectedCharacter.file}`);

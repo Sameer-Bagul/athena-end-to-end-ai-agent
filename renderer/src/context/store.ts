@@ -135,8 +135,19 @@ interface StoreState {
 }
 
 export const useAppStore = create<StoreState>((set) => {
-    // Initialization reading from local storage where appropriate
-    let initialSelectedCharacter = AVAILABLE_MODELS[0];
+    let initialSelectedCharacter = AVAILABLE_MODELS.find(m => m.id === "sakurada") || AVAILABLE_MODELS[0];
+    try {
+        const savedCharId = localStorage.getItem("athena-selected-character-id");
+        if (savedCharId === "athena") {
+            localStorage.setItem("athena-selected-character-id", "sakurada");
+            initialSelectedCharacter = AVAILABLE_MODELS.find(m => m.id === "sakurada") || AVAILABLE_MODELS[0];
+        } else if (savedCharId) {
+            const found = AVAILABLE_MODELS.find(m => m.id === savedCharId);
+            if (found) initialSelectedCharacter = found;
+        } else {
+            localStorage.setItem("athena-selected-character-id", "sakurada");
+        }
+    } catch {}
     
     let initialThumbnailCache = {};
     try { initialThumbnailCache = JSON.parse(localStorage.getItem("athena-thumbnail-cache") || "{}"); } catch {}
@@ -283,6 +294,7 @@ export const useAppStore = create<StoreState>((set) => {
             setModel: (id) => set(s => {
                 const profile = AVAILABLE_MODELS.find(p => p.id === id);
                 if (profile) {
+                    try { localStorage.setItem("athena-selected-character-id", id); } catch {}
                     // @ts-ignore
                     window.athena?.broadcastState?.({ type: 'model', payload: { id } });
                     return { state: { ...s.state, selectedCharacter: profile, vrmFile: null, vrmThumbnail: null, vrmUrl: `models/${profile.file}` } };

@@ -586,11 +586,15 @@ import { WebSocketServer, WebSocket } from "ws";
 app.whenReady().then(async () => {
     const sttPort = await getAvailablePort(9001);
     const ttsPort = await getAvailablePort(3001);
+    const wsPort = await getAvailablePort(3000);
     // Setup WebSocket Bridge for Agent Browser Stream
-    const wss = new WebSocketServer({ port: 3000 });
+    const wss = new WebSocketServer({ port: wsPort });
     const wsClients = new Set();
+    wss.on('error', (err) => {
+        console.error(`\x1b[31m[ERROR]\x1b[0m WebSocket server error on port ${wsPort}:`, err);
+    });
     wss.on('connection', (ws) => {
-        console.log(`\n\x1b[36m[Main]\x1b[0m Stream Bridge WebSocket client connected`);
+        console.log(`\n\x1b[36m[Main]\x1b[0m Stream Bridge WebSocket client connected on port ${wsPort}`);
         wsClients.add(ws);
         ws.on('close', () => wsClients.delete(ws));
     });

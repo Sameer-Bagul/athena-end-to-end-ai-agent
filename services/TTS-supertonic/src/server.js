@@ -28,9 +28,16 @@ async function main() {
   // WebSocket streaming
   const server = http.createServer(app);
   const wss = new WebSocketServer({ server, path: '/ws-tts' });
+  wss.on('error', (err) => {
+    logger.error('TTS WebSocket Error:', err);
+  });
   setupWebSocket(wss, ttsEngine);
 
   const PORT = process.env.PORT || 3000;
+  server.on('error', (err) => {
+    logger.error('TTS HTTP Server Error:', err);
+    process.exit(1);
+  });
   server.listen(PORT, () => {
     logger.info(`[server] listening :${PORT}`);
   });
