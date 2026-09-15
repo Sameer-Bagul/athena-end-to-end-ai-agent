@@ -129,7 +129,7 @@ function startTTSServer(port: number) {
       PORT: port.toString(),
       ATHENA_USER_DATA: app.getPath('userData')
     },
-    shell: true
+    shell: false
   });
 
   ttsServerProcess.stdout.on("data", (data: any) => {

@@ -110,7 +110,7 @@ function startTTSServer(port) {
             PORT: port.toString(),
             ATHENA_USER_DATA: app.getPath('userData')
         },
-        shell: true
+        shell: false
     });
     ttsServerProcess.stdout.on("data", (data) => {
         console.log(`\x1b[34m[NodeTTS]\x1b[0m ${data.toString().trim()}`);

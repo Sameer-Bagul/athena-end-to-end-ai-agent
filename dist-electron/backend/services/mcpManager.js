@@ -1,4 +1,5 @@
 import { spawn } from "child_process";
+import fs from "fs";
 export class McpServerManager {
     servers = new Map();
     static instance;
@@ -14,12 +15,24 @@ export class McpServerManager {
     async spawnServer(name, command, args, cwd) {
         if (this.servers.has(name))
             return;
+        if (command === "node" && args[0] && !fs.existsSync(args[0])) {
+            console.warn(`\x1b[33m[MCP:${name}]\x1b[0m Sidecar script not found at ${args[0]} (skipping)`);
+            return;
+        }
         console.log(`\n\x1b[36m[MCP]\x1b[0m Spawning sidecar: \x1b[33m${name}\x1b[0m`);
-        const proc = spawn(command, args, {
+        const systemPath = process.env.PATH ? `${process.env.PATH}:/usr/local/bin:/usr/bin:/bin` : "/usr/local/bin:/usr/bin:/bin";
+        let resolvedCommand = command;
+        if (command === "node" && fs.existsSync("/usr/bin/node")) {
+            resolvedCommand = "/usr/bin/node";
+        }
+        else if (command === "npx" && fs.existsSync("/usr/bin/npx")) {
+            resolvedCommand = "/usr/bin/npx";
+        }
+        const proc = spawn(resolvedCommand, args, {
             stdio: ["pipe", "pipe", "pipe"],
             cwd,
-            env: { ...process.env, ATHENA_SIDEKICK: "true" },
-            shell: true
+            env: { ...process.env, PATH: systemPath, ATHENA_SIDEKICK: "true" },
+            shell: false
         });
         proc.on("error", (err) => {
             console.error(`\x1b[31m[ERROR]\x1b[0m Failed to spawn sidecar ${name}:`, err);
