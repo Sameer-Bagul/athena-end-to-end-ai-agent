@@ -142,7 +142,7 @@ ${animContext}`;
             };
 
             // 3. Call Agentic Reasoning Loop
-            const activeType = state.aiConfig.priority[0] || 'ollama';
+            const activeType = state.aiConfig.priority[0] || 'gemini';
             const activeConfig = state.aiConfig[activeType]?.[0];
             const provider = getAIProvider(activeType, activeConfig);
 

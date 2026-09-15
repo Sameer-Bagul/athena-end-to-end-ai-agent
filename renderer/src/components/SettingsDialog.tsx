@@ -86,7 +86,7 @@ export function SettingsDialog({ isOpen, onClose, onUpdate }: SettingsDialogProp
             setNewsKey(state.pluginConfig.newsApiKey);
             setWeatherKey(state.pluginConfig.weatherApiKey);
 
-            setAiPriority(state.aiConfig.priority || ['ollama', 'gemini', 'grok', 'lmstudio']);
+            setAiPriority(state.aiConfig.priority || ['gemini', 'ollama', 'grok', 'lmstudio']);
             setOllamaConfig(Array.isArray(state.aiConfig.ollama) ? state.aiConfig.ollama : [state.aiConfig.ollama]);
             setLmStudioConfig(Array.isArray(state.aiConfig.lmstudio) ? state.aiConfig.lmstudio : [state.aiConfig.lmstudio]);
             setGrokConfig(Array.isArray(state.aiConfig.grok) ? state.aiConfig.grok : [state.aiConfig.grok]);

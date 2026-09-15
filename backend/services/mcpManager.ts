@@ -26,6 +26,10 @@ export class McpServerManager {
             shell: true
         });
 
+        proc.on("error", (err) => {
+            console.error(`\x1b[31m[ERROR]\x1b[0m Failed to spawn sidecar ${name}:`, err);
+        });
+
         proc.stderr.on("data", (data) => {
             console.error(`[MCP:${name}] ${data.toString().trim()}`);
         });

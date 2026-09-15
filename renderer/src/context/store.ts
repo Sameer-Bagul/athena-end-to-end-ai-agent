@@ -164,11 +164,11 @@ export const useAppStore = create<StoreState>((set) => {
     } catch {}
 
     let initialAiConfig: AiConfig = {
-        priority: ['ollama', 'gemini', 'grok', 'lmstudio'],
+        priority: ['gemini', 'ollama', 'grok', 'lmstudio'],
+        gemini: [{ apiKey: "", model: "gemini-2.5-flash" }],
         ollama: [{ baseUrl: "http://localhost:11434", model: "dolphin-mistral:latest", numCtx: 2048, numThread: 0, numGpu: -1 }],
         lmstudio: [{ baseUrl: "http://localhost:1234/v1", model: "local-model", numCtx: 2048, numThread: 0 }],
-        grok: [{ apiKey: "", model: "grok-beta" }],
-        gemini: [{ apiKey: "", model: "gemini-pro" }]
+        grok: [{ apiKey: "", model: "grok-beta" }]
     };
     try {
         const saved = localStorage.getItem("athena-ai-config");
@@ -179,8 +179,8 @@ export const useAppStore = create<StoreState>((set) => {
             if (parsed.grok && !Array.isArray(parsed.grok)) parsed.grok = [parsed.grok];
             if (parsed.gemini && !Array.isArray(parsed.gemini)) parsed.gemini = [parsed.gemini];
             if (!parsed.priority) {
-                const oldProvider = parsed.provider || 'ollama';
-                const others = ['ollama', 'gemini', 'grok', 'lmstudio'].filter(p => p !== oldProvider);
+                const oldProvider = parsed.provider || 'gemini';
+                const others = ['gemini', 'ollama', 'grok', 'lmstudio'].filter(p => p !== oldProvider);
                 parsed.priority = [oldProvider, ...others];
                 delete parsed.provider;
             }
