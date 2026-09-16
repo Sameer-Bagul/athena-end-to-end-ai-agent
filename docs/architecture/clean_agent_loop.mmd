@@ -1,0 +1,32 @@
+graph TD
+    Start["User Query Received"] --> Step1["1. Intent Classification<br/>ModelRouter selects gemini-3.6-flash"]
+    Step1 --> Step2["2. Build System Context<br/>Inject Persona & Available Tool Schemas"]
+    Step2 --> Step3["3. Send Request to ProviderLayer"]
+    
+    Step3 --> CallCloud{"4. Execute Gemini Cloud Call"}
+    
+    CallCloud -->|HTTP 503 / 429 Error| Retry1["Attempt 1: Wait 1s Exponential Backoff"]
+    Retry1 -->|Retry Primary Model| CallCloud
+    Retry1 -->|Still 503 Error| Retry2["Attempt 2: Wait 2s & Fallback Model<br/>gemini-flash-latest to gemini-2.5-flash"]
+    Retry2 --> CallCloud
+    
+    CallCloud -->|HTTP 200 Success| Evaluate{"5. Evaluate Model Output"}
+    
+    Evaluate -->|Tool Call Requested| ExecTool["6. Execute Tool / MCP Sidecar<br/>weather / clock / search / browser"]
+    ExecTool -->|Append Result to Messages| Step2
+    
+    Evaluate -->|Final Text Response| Stream["7. Stream Tokens to Electron IPC"]
+    Stream --> AudioStep["8. Chunk Sentences to Supertonic TTS"]
+    AudioStep --> Finish["9. Render 60 FPS VRM Avatar Speech"]
+
+    classDef startStyle fill:#431407,stroke:#fb923c,color:#ffffff;
+    classDef stepStyle fill:#1e293b,stroke:#38bdf8,color:#ffffff;
+    classDef errStyle fill:#831843,stroke:#f472b6,color:#ffffff;
+    classDef decStyle fill:#312e81,stroke:#a5b4fc,color:#ffffff;
+    classDef endStyle fill:#064e3b,stroke:#34d399,color:#ffffff;
+
+    class Start startStyle;
+    class Step1,Step2,Step3,ExecTool,Stream,AudioStep stepStyle;
+    class Retry1,Retry2 errStyle;
+    class CallCloud,Evaluate decStyle;
+    class Finish endStyle;

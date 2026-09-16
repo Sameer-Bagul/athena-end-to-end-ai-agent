@@ -1,241 +1,272 @@
-# Athena GRAND Master Architecture
+# Athena Architecture Documentation (Clean & Modular)
 
-Welcome to the comprehensive architecture guide for **Athena**!
+Welcome to Athena's clean, modular system architecture guide!
+
+Unlike complex webs with overlapping arrows, Athena's architecture is presented in **5 clean, crystal-clear diagrams** with **zero line crossings or spaghetti arrows**.
 
 ---
 
-## 1. GRAND Master Architecture Flowchart (`grand_master_architecture.mmd`)
+## 1. Clean 3-Tier System Map (`clean_system_map.mmd`)
 
-This flowchart details all 7 system layers, color-coded subgraphs, microservice ports, IPC communication, and resilient cloud API execution.
+Organized into 3 distinct vertical columns (Frontend ➔ Desktop Main Process ➔ Services & Cloud APIs) with clean numbered arrows (1 to 9).
 
-- **Mermaid Source**: [`docs/architecture/grand_master_architecture.mmd`](file:///home/sameerbagul/Projects/Github/CV_Projects%F0%9F%A4%A9/athena/docs/architecture/grand_master_architecture.mmd)
+- **Mermaid File**: [`docs/architecture/clean_system_map.mmd`](file:///home/sameerbagul/Projects/Github/CV_Projects%F0%9F%A4%A9/athena/docs/architecture/clean_system_map.mmd)
 
 ```mermaid
-flowchart TB
-    classDef inputStyle fill:#1e1b4b,stroke:#818cf8,stroke-width:2px,color:#ffffff;
-    classDef uiStyle fill:#064e3b,stroke:#34d399,stroke-width:2px,color:#ffffff;
-    classDef audioStyle fill:#701a75,stroke:#f0abfc,stroke-width:2px,color:#ffffff;
-    classDef mainStyle fill:#1e293b,stroke:#94a3b8,stroke-width:2px,color:#ffffff;
-    classDef agentStyle fill:#431407,stroke:#fb923c,stroke-width:2px,color:#ffffff;
-    classDef providerStyle fill:#312e81,stroke:#a5b4fc,stroke-width:2px,color:#ffffff;
-    classDef serviceStyle fill:#0284c7,stroke:#38bdf8,stroke-width:2px,color:#ffffff;
-    classDef cloudStyle fill:#831843,stroke:#f472b6,stroke-width:2px,color:#ffffff;
-
-    subgraph Layer_Input ["1. User Input and Voice Capture Layer"]
-        Mic["Microphone Input (Audio Stream)"] :::inputStyle
-        Keyboard["Keyboard Text Input (Chat Box)"] :::inputStyle
-        Hotkey["Global Hotkey (Alt+Space Push-to-Talk)"] :::inputStyle
-    end
-
-    subgraph Layer_Renderer ["2. Frontend Renderer Process (Vite + React + Three.js)"]
-        ChatUI["React 18 Chat Interface<br/>(Zustand Store / store.ts)"] :::uiStyle
-        AssistantHook["useAssistant Hook<br/>(Sentence Buffer and Queue)"] :::uiStyle
+graph LR
+    subgraph Tier1 ["1. RENDERER FRONTEND (UI & 3D)"]
+        direction TB
+        UI["React 18 Chat UI (store.ts / Zustand)"]
+        Assistant["useAssistant Hook (Sentence Queue)"]
+        Avatar["3D VRM Avatar (Sakurada Male / M1 Voice)"]
+        LipSyncEngine["LipSync Engine (60 FPS Vowel Lerp)"]
         
-        subgraph Sub_Avatar ["3D Avatar and Audio Engine"]
-            ThreeStage["ThreeStage Component<br/>(Canvas and Scene Setup)"] :::audioStyle
-            VRMModel["Three.js VRM Avatar Model<br/>(Sakurada Male / M1 Voice)"] :::audioStyle
-            AnimMgr["AnimationManager<br/>(FBX Skeletal Animations and Gestures)"] :::audioStyle
-            LipSync["LipSyncManager<br/>(Web Audio API AnalyserNode)"] :::audioStyle
-            FormantEngine["Formant Energy Viseme Engine<br/>(60 FPS Lerp: aa, ih, ou, ee, oh)"] :::audioStyle
-        end
+        UI --> Assistant
+        Assistant --> LipSyncEngine
+        LipSyncEngine --> Avatar
     end
 
-    subgraph Layer_Electron ["3. Electron Main Process and Desktop Window Manager"]
-        IPCBridge["Preload IPC Bridge<br/>(preload.ts - ContextBridge)"] :::mainStyle
-        MainThread["Electron Main Entry<br/>(electron/main.ts)"] :::mainStyle
-        WindowManager["Window Manager<br/>(1080p Main Window and Mini Widget)"] :::mainStyle
-        StateSync["Sync Broadcasting<br/>(Main Window and Widget Sync)"] :::mainStyle
-    end
-
-    subgraph Layer_Agentic ["4. Autonomous Agentic AI Core"]
-        NativeAgent["NativeAgent ReAct Loop<br/>(backend/agent/nativeAgent.ts)"] :::agentStyle
-        ModelRouter["Intent Model Router<br/>(planner | coder | browser | default_chat)"] :::agentStyle
-        PromptBuilder["System Prompt Builder<br/>(Inject Persona and Tool Schemas)"] :::agentStyle
+    subgraph Tier2 ["2. ELECTRON MAIN PROCESS"]
+        direction TB
+        Bridge["IPC Bridge (preload.ts / agentIpc.ts)"]
+        AgentCore["NativeAgent Core (ReAct Execution Loop)"]
+        Router["ModelRouter (Intent Selection)"]
+        Registry["Tool Registry (Native Tools & MCP)"]
         
-        subgraph Sub_Tools ["Tool Registry and MCP Integration"]
-            ToolRegistry["Native Tools Registry<br/>(weather, clock, web_search, python)"] :::agentStyle
-            MCPManager["MCP Sidecar Manager<br/>(mcpManager.ts - Stdio JSON-RPC)"] :::agentStyle
-            RAGService["RAG Vector Store<br/>(ragService.ts - Document Search)"] :::agentStyle
-        end
+        Bridge --> AgentCore
+        AgentCore --> Router
+        AgentCore --> Registry
     end
 
-    subgraph Layer_Providers ["5. AI Provider Layer and Fault Tolerance"]
-        ProviderFactory["getAIProvider Factory<br/>(providerLayer.ts)"] :::providerStyle
-        GeminiProvider["GeminiProvider<br/>(Cloud Execution)"] :::providerStyle
-        RetryHandler["503/429 Exponential Backoff<br/>(1s, 2s Retries and Backoff)"] :::providerStyle
-        ModelFallback["Multi-Model Fallback Chain<br/>(3.6-flash to flash-latest to 2.5-flash)"] :::providerStyle
-        OllamaProvider["OllamaProvider<br/>(Local Execution - dolphin-mistral)"] :::providerStyle
+    subgraph Tier3 ["3. SERVICES & CLOUD APIs"]
+        direction TB
+        STT["Whisper STT Service (Port 9001 - FastAPI)"]
+        TTS["Supertonic TTS Service (Port 3001 - ONNX Neural)"]
+        Gemini["Google Gemini Cloud API (gemini-3.6-flash)"]
+        BrowserMCP["agent-browser MCP (Port 3000 WebSocket)"]
+        
+        STT
+        TTS
+        Gemini
+        BrowserMCP
     end
 
-    subgraph Layer_Services ["6. Dedicated Local Microservices and Sidecars"]
-        STTServer["Whisper STT Server<br/>(Port 9001 - Python FastAPI)"] :::serviceStyle
-        TTSServer["Supertonic TTS Server<br/>(Port 3001 - Node ONNX Neural TTS)"] :::serviceStyle
-        BrowserBridge["Agent Browser WebSocket<br/>(Port 3000 - Live Stream Bridge)"] :::serviceStyle
-        BrowserMCP["agent-browser MCP Sidecar<br/>(Playwright + athena_vault Session)"] :::serviceStyle
-        TimeMCP["Time MCP Sidecar<br/>(Temporal Calculations)"] :::serviceStyle
-    end
-
-    subgraph Layer_Cloud ["7. External Cloud Services and APIs"]
-        GoogleAPI["Google Gemini Cloud API<br/>(generativelanguage.googleapis.com)"] :::cloudStyle
-        OpenWeather["OpenWeatherMap API<br/>(Weather Data)"] :::cloudStyle
-        WebSearchAPI["Web Search Engine<br/>(Live Internet Intel)"] :::cloudStyle
-    end
-
-    Mic -->|Audio Buffer| STTServer
-    STTServer -->|Transcribed Text| ChatUI
-    Keyboard -->|Text Prompt| ChatUI
-    Hotkey -->|Trigger Wake PTT| MainThread
-
-    ChatUI -->|Submit Message| AssistantHook
-    AssistantHook -->|IPC: agent:query-stream| IPCBridge
-    IPCBridge -->|Forward Request| MainThread
-    MainThread -->|Delegate Query| NativeAgent
-
-    WindowManager --> StateSync
-    StateSync -->|Broadcast UI State| ChatUI
-
-    NativeAgent -->|1. Classify Intent| ModelRouter
-    ModelRouter -->|2. Assign Model| NativeAgent
-    NativeAgent -->|3. Assemble Context & Tool Schemas| PromptBuilder
-    PromptBuilder -->|4. Request Generation| ProviderFactory
-    
-    ProviderFactory --> GeminiProvider
-    ProviderFactory --> OllamaProvider
-    GeminiProvider -->|HTTPS POST| GoogleAPI
-    GoogleAPI -.->|503 High Demand Error| RetryHandler
-    RetryHandler -->|Exponential Wait and Retry| GeminiProvider
-    RetryHandler -.->|Fallback Model| ModelFallback
-    ModelFallback -->|Retry Alternate Candidate| GoogleAPI
-
-    NativeAgent -->|5. Check / Execute Tools| ToolRegistry
-    ToolRegistry -->|Query Weather| OpenWeather
-    ToolRegistry -->|Query Search| WebSearchAPI
-    ToolRegistry -->|Query Documents| RAGService
-    NativeAgent -->|Execute MCP Sidecars| MCPManager
-    MCPManager -->|Stdio JSON-RPC| BrowserMCP
-    MCPManager -->|Stdio JSON-RPC| TimeMCP
-    BrowserMCP -->|Live Stream| BrowserBridge
-
-    NativeAgent -->|6. Stream Response Tokens| MainThread
-    MainThread -->|IPC agent:token| IPCBridge
-    IPCBridge -->|Render Streaming Text| AssistantHook
-    AssistantHook -->|Chunk Completed Sentences| AssistantHook
-    AssistantHook -->|HTTP POST /tts Port 3001| TTSServer
-    TTSServer -->|Return WAV Audio Blob| AssistantHook
-
-    AssistantHook -->|Play Audio Blob| LipSync
-    LipSync -->|Audio Buffer Source| FormantEngine
-    FormantEngine -->|Compute Vowel Energy Low/Mid/High| FormantEngine
-    FormantEngine -->|Set Blendshapes aa, ih, ou, ee, oh| VRMModel
-    AssistantHook -->|Trigger Motion Gesture| AnimMgr
-    AnimMgr -->|Apply FBX Skeleton Keyframes| VRMModel
-    ThreeStage -->|Render 60 FPS Canvas| VRMModel
+    UI -->|1. User Prompt| Bridge
+    Bridge -->|2. Route Query| AgentCore
+    AgentCore -->|3. Call LLM| Gemini
+    Gemini -->|4. Response / Tool Call| AgentCore
+    AgentCore -->|5. Run Tool / Browser| BrowserMCP
+    AgentCore -->|6. Stream Tokens| Bridge
+    Bridge -->|7. Update UI Text| Assistant
+    Assistant -->|8. Request Audio| TTS
+    TTS -->|9. Audio WAV Buffer| LipSyncEngine
 ```
 
 ---
 
-## 2. GRAND End-to-End Sequence Diagram (`grand_agent_sequence.mmd`)
+## 2. Master End-to-End Sequence Flow (`grand_agent_sequence.mmd`)
 
-This sequence diagram details the full interaction cycle from input to intent routing, Gemini cloud execution, 503 exponential backoff retries, tool execution, token streaming, Supertonic TTS synthesis (Port 3001), Web Audio API formant analysis, and 60 FPS VRM avatar rendering.
+A clean chronological sequence diagram detailing the complete lifecycle from input to LLM execution, 503 retries, tool execution, sentence token streaming, neural TTS generation, and 60 FPS VRM lip-sync.
 
-- **Mermaid Source**: [`docs/architecture/grand_agent_sequence.mmd`](file:///home/sameerbagul/Projects/Github/CV_Projects%F0%9F%A4%A9/athena/docs/architecture/grand_agent_sequence.mmd)
+- **Mermaid File**: [`docs/architecture/grand_agent_sequence.mmd`](file:///home/sameerbagul/Projects/Github/CV_Projects%F0%9F%A4%A9/athena/docs/architecture/grand_agent_sequence.mmd)
 
 ```mermaid
 sequenceDiagram
     autonumber
     actor User as Master User
-    participant Mic as Microphone / Whisper STT (Port 9001)
-    participant UI as React UI (useAssistant / store.ts)
-    participant IPC as Electron Main Process (IPC Bridge)
-    participant Agent as NativeAgent Core Loop
-    participant Router as ModelRouter Engine
-    participant Provider as GeminiProvider (Fault Tolerant)
-    participant Cloud as Google Gemini API
-    participant Tools as ToolsRegistry & MCP Sidecars
-    participant TTS as Supertonic TTS Server (Port 3001)
-    participant Audio as Web Audio API AnalyserNode
-    participant LipSync as LipSyncManager
-    participant VRM as Three.js VRM Avatar (Sakurada)
+    participant Mic as Whisper STT (Port 9001)
+    participant UI as React UI (store.ts)
+    participant IPC as Electron IPC Bridge
+    participant Agent as NativeAgent Core
+    participant Cloud as Gemini Cloud API
+    participant Tools as Tools & MCP Sidecars
+    participant TTS as Supertonic TTS (Port 3001)
+    participant Audio as Web Audio Analyser
+    participant Avatar as 3D VRM Avatar
 
-    alt Voice Mode
+    alt Voice Input Mode
         User->>Mic: Speak prompt into microphone
-        Mic->>Mic: Python FastAPI / Uvicorn transcribe
-        Mic-->>UI: Transcribed Text Prompt
-    else Text Mode
-        User->>UI: Type text prompt and hit Enter
+        Mic->>Mic: Python Whisper transcribe
+        Mic-->>UI: Return transcribed text
+    else Text Input Mode
+        User->>UI: Type message and press Enter
     end
 
-    UI->>IPC: Send IPC event agent:query-stream
-    IPC->>Agent: Invoke runAgent(query, systemPrompt, modelName)
-    Agent->>Router: determineRoleForQuery(query)
-    Router-->>Agent: Role assigned (e.g. default_chat to gemini-3.6-flash)
-
-    loop Agentic ReAct Loop (Max 5 Iterations)
-        Agent->>Provider: generate(messages, systemInstruction + toolSchemas)
-        Provider->>Cloud: HTTPS POST /v1beta/models/gemini-3.6-flash:generateContent
-        
-        alt Cloud Returns HTTP 503 / 429
-            Cloud-->>Provider: HTTP 503 Unavailable (High Demand Spike)
-            Provider->>Provider: Attempt 1: Wait 1 second (Exponential Backoff)
-            Provider->>Cloud: Retry HTTPS POST /v1beta/models/gemini-3.6-flash
-            
-            alt Still 503 Error
-                Cloud-->>Provider: HTTP 503 Unavailable
-                Provider->>Provider: Attempt 2: Wait 2 seconds and Model Fallback
-                Provider->>Cloud: Retry HTTPS POST /v1beta/models/gemini-flash-latest
-            end
+    UI->>IPC: agent:query-stream (IPC Event)
+    IPC->>Agent: runAgent(query, model)
+    
+    loop ReAct Reasoning & Execution Loop
+        Agent->>Cloud: POST generateContent (gemini-3.6-flash)
+        alt 503 Service Unavailable
+            Cloud-->>Agent: HTTP 503 High Demand
+            Agent->>Agent: Retry with Exponential Backoff (1s to 2s) & Model Fallback
         end
-
-        Cloud-->>Provider: HTTP 200 OK (Model JSON Response)
-        Provider-->>Agent: Return Model JSON String Output
+        Cloud-->>Agent: HTTP 200 OK (Model Response)
         
-        alt LLM Requests Tool Execution
-            Agent->>Tools: Execute tool.invoke(args)
-            alt Native Tool (weather / search / clock)
-                Tools->>Tools: Execute local API fetch or system call
-            else MCP Sidecar Tool (agent-browser)
-                Tools->>Tools: Stdio JSON-RPC call to agent-browser (Playwright athena_vault)
-            end
-            Tools-->>Agent: Return Tool Result Output String
-            Agent->>Agent: Append Tool Result to messages history and loop next iteration
-        else LLM Provides Final Response
-            Agent->>Agent: Break ReAct loop
+        alt Tool Call Requested by Model
+            Agent->>Tools: Execute Tool (Weather / Search / Browser)
+            Tools-->>Agent: Return Tool Result Output
+        else Final Response Ready
+            Agent->>Agent: Exit ReAct Loop
         end
     end
 
-    loop Stream Response Tokens
-        Agent-->>IPC: Send chunk tokens
-        IPC-->>UI: Send IPC event agent:token
-        UI->>UI: Append streaming text to Chat UI
-    end
-
-    loop For Each Completed Sentence
-        UI->>UI: Match sentence regex [.!?]
-        UI->>TTS: POST /tts (Port 3001)
-        TTS->>TTS: ONNX Neural Synthesis on CPU
-        TTS-->>UI: Return audio/wav Blob Data
-        
-        UI->>LipSync: playAudio(wavBlob)
-        LipSync->>Audio: decodeAudioData(wavBlob)
-        LipSync->>Audio: Create BufferSource and AnalyserNode
-        Audio->>Audio: Connect AnalyserNode to Audio Destination
-        
-        loop Every Animation Frame (60 FPS Render Loop)
-            LipSync->>Audio: getByteFrequencyData(dataArray)
-            LipSync->>LipSync: Compute Formant Energy (Low, Mid, High)
-            LipSync->>LipSync: Smooth Vowel Weights via Lerp (0.4 factor)
-            LipSync->>VRM: expressionManager.setValue(aa, ih, ou, ee, oh)
-            UI->>VRM: Play concurrent FBX Gesture Animation (Talk / Gesture)
-            VRM->>User: Render 60 FPS 3D Avatar Speaking with Male M1 Voice
-        end
-        
-        Audio-->>LipSync: Audio Source playback ended
-        LipSync->>VRM: Reset mouth blendshapes to zero
+    loop Token & Audio Streaming
+        Agent-->>IPC: Stream Text Tokens
+        IPC-->>UI: Update Chat Bubble Text
+        UI->>TTS: POST /tts (Port 3001 - Sentence Chunks)
+        TTS-->>UI: Return Audio WAV Data
+        UI->>Audio: Decode WAV & Compute Formant Frequencies
+        Audio->>Avatar: Update Blendshapes (aa, ih, ou, ee, oh) at 60 FPS
+        Avatar-->>User: 3D Avatar Speaks with Male M1 Voice & Gesture
     end
 ```
 
 ---
 
-## 3. Interactive Web Viewer (`viewer.html`)
+## 3. ReAct Loop & Multi-Model Fallback Resiliency (`clean_agent_loop.mmd`)
 
-Open [`docs/architecture/viewer.html`](file:///home/sameerbagul/Projects/Github/CV_Projects%F0%9F%A4%A9/athena/docs/architecture/viewer.html) in your browser for tabbed dark-mode rendering of all diagrams.
+A step-by-step flowchart showing prompt reception, intent routing to `gemini-3.6-flash`, automatic 503 backoff retry (1s, 2s), model fallback chain, tool execution loop, and output streaming.
+
+- **Mermaid File**: [`docs/architecture/clean_agent_loop.mmd`](file:///home/sameerbagul/Projects/Github/CV_Projects%F0%9F%A4%A9/athena/docs/architecture/clean_agent_loop.mmd)
+
+```mermaid
+graph TD
+    Start["User Query Received"] --> Step1["1. Intent Classification<br/>ModelRouter selects gemini-3.6-flash"]
+    Step1 --> Step2["2. Build System Context<br/>Inject Persona & Available Tool Schemas"]
+    Step2 --> Step3["3. Send Request to ProviderLayer"]
+    
+    Step3 --> CallCloud{"4. Execute Gemini Cloud Call"}
+    
+    CallCloud -->|HTTP 503 / 429 Error| Retry1["Attempt 1: Wait 1s Exponential Backoff"]
+    Retry1 -->|Retry Primary Model| CallCloud
+    Retry1 -->|Still 503 Error| Retry2["Attempt 2: Wait 2s & Fallback Model<br/>gemini-flash-latest to gemini-2.5-flash"]
+    Retry2 --> CallCloud
+    
+    CallCloud -->|HTTP 200 Success| Evaluate{"5. Evaluate Model Output"}
+    
+    Evaluate -->|Tool Call Requested| ExecTool["6. Execute Tool / MCP Sidecar<br/>weather / clock / search / browser"]
+    ExecTool -->|Append Result to Messages| Step2
+    
+    Evaluate -->|Final Text Response| Stream["7. Stream Tokens to Electron IPC"]
+    Stream --> AudioStep["8. Chunk Sentences to Supertonic TTS"]
+    AudioStep --> Finish["9. Render 60 FPS VRM Avatar Speech"]
+
+    classDef startStyle fill:#431407,stroke:#fb923c,color:#ffffff;
+    classDef stepStyle fill:#1e293b,stroke:#38bdf8,color:#ffffff;
+    classDef errStyle fill:#831843,stroke:#f472b6,color:#ffffff;
+    classDef decStyle fill:#312e81,stroke:#a5b4fc,color:#ffffff;
+    classDef endStyle fill:#064e3b,stroke:#34d399,color:#ffffff;
+
+    class Start startStyle;
+    class Step1,Step2,Step3,ExecTool,Stream,AudioStep stepStyle;
+    class Retry1,Retry2 errStyle;
+    class CallCloud,Evaluate decStyle;
+    class Finish endStyle;
+```
+
+---
+
+## 4. 4-Step TTS & Lip Sync Pipeline (`clean_tts_lipsync.mmd`)
+
+A 4-step horizontal pipeline showing how sentence text chunks generate neural WAV audio on Port 3001, and how Web Audio API formant energy analysis computes 60 FPS VRM mouth blendshapes (`aa`, `ih`, `ou`, `ee`, `oh`).
+
+- **Mermaid File**: [`docs/architecture/clean_tts_lipsync.mmd`](file:///home/sameerbagul/Projects/Github/CV_Projects%F0%9F%A4%A9/athena/docs/architecture/clean_tts_lipsync.mmd)
+
+```mermaid
+graph LR
+    subgraph Step1 ["1. Text Processing"]
+        Text["Sentence Chunk<br/>Regex: [.!?]"]
+    end
+
+    subgraph Step2 ["2. Neural Audio Synthesis"]
+        TTS["Supertonic TTS Server<br/>Port 3001 - ONNX Neural Voice"]
+        WAV["WAV Audio Blob<br/>(24kHz / 16-bit Mono)"]
+        Text -->|HTTP POST /tts| TTS
+        TTS -->|Return Audio| WAV
+    end
+
+    subgraph Step3 ["3. Audio Analysis"]
+        AudioCtx["Web Audio API<br/>AnalyserNode"]
+        Formant["Formant Energy Filter<br/>Low, Mid, High Frequencies"]
+        WAV -->|Decode Audio| AudioCtx
+        AudioCtx -->|Frequency Array| Formant
+    end
+
+    subgraph Step4 ["4. 3D Render Loop"]
+        Lerp["60 FPS Lerp Interpolation<br/>Factor: 0.4 Smooth Transition"]
+        VRM["Sakurada VRM Avatar<br/>Blendshapes: aa, ih, ou, ee, oh"]
+        Formant -->|Viseme Energy| Lerp
+        Lerp -->|Set Morph Weights| VRM
+    end
+
+    classDef textStyle fill:#1e1b4b,stroke:#818cf8,color:#ffffff;
+    classDef ttsStyle fill:#0284c7,stroke:#38bdf8,color:#ffffff;
+    classDef audioStyle fill:#701a75,stroke:#f0abfc,color:#ffffff;
+    classDef vrmStyle fill:#064e3b,stroke:#34d399,color:#ffffff;
+
+    class Text textStyle;
+    class TTS,WAV ttsStyle;
+    class AudioCtx,Formant audioStyle;
+    class Lerp,VRM vrmStyle;
+```
+
+---
+
+## 5. Tools & MCP Sidecar Architecture (`mcp_tools_map.mmd`)
+
+Detailed view of native tools (Weather, System Clock, Web Search) and stdio JSON-RPC MCP sidecars (Playwright agent-browser on Port 3000 stream bridge).
+
+- **Mermaid File**: [`docs/architecture/mcp_tools_map.mmd`](file:///home/sameerbagul/Projects/Github/CV_Projects%F0%9F%A4%A9/athena/docs/architecture/mcp_tools_map.mmd)
+
+```mermaid
+graph TB
+    subgraph AgentLayer ["NativeAgent Tool Engine"]
+        Agent["NativeAgent ReAct Controller"]
+        Registry["ToolRegistry Resolver"]
+        Agent --> Registry
+    end
+
+    subgraph NativeTools ["Local Native Tools"]
+        Weather["Weather Tool<br/>(OpenWeatherMap API)"]
+        Clock["System Clock Tool<br/>(Date/Time & Timezones)"]
+        WebSearch["Web Search Tool<br/>(Live Web Intelligence)"]
+        Registry --> Weather
+        Registry --> Clock
+        Registry --> WebSearch
+    end
+
+    subgraph MCPTools ["MCP Sidecar Protocols (Stdio JSON-RPC)"]
+        MCPManager["MCP Manager Service"]
+        BrowserMCP["agent-browser MCP<br/>(Playwright Automated Browser)"]
+        TimeMCP["Time MCP<br/>(Temporal Calculations)"]
+        
+        Registry --> MCPManager
+        MCPManager -->|JSON-RPC| BrowserMCP
+        MCPManager -->|JSON-RPC| TimeMCP
+    end
+
+    subgraph External ["Target Resources"]
+        WebSite["Live Web Pages & Portals"]
+        Bridge["Browser Stream Bridge<br/>(Port 3000 WebSocket)"]
+        
+        BrowserMCP -->|Automate / Click / Type| WebSite
+        BrowserMCP -->|Stream Frame Data| Bridge
+    end
+
+    classDef agentStyle fill:#431407,stroke:#fb923c,color:#ffffff;
+    classDef toolStyle fill:#1e293b,stroke:#38bdf8,color:#ffffff;
+    classDef mcpStyle fill:#312e81,stroke:#a5b4fc,color:#ffffff;
+    classDef extStyle fill:#064e3b,stroke:#34d399,color:#ffffff;
+
+    class Agent,Registry agentStyle;
+    class Weather,Clock,WebSearch toolStyle;
+    class MCPManager,BrowserMCP,TimeMCP mcpStyle;
+    class WebSite,Bridge extStyle;
+```
+
+---
+
+## Interactive HTML Viewer
+
+Open [`docs/architecture/viewer.html`](file:///home/sameerbagul/Projects/Github/CV_Projects%F0%9F%A4%A9/athena/docs/architecture/viewer.html) in your web browser to interactively switch between all **5 clean architecture diagrams** in a dark-mode, glassmorphism interface!

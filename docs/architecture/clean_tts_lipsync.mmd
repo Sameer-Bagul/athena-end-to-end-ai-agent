@@ -1,0 +1,35 @@
+graph LR
+    subgraph Step1 ["1. Text Processing"]
+        Text["Sentence Chunk<br/>Regex: [.!?]"]
+    end
+
+    subgraph Step2 ["2. Neural Audio Synthesis"]
+        TTS["Supertonic TTS Server<br/>Port 3001 - ONNX Neural Voice"]
+        WAV["WAV Audio Blob<br/>(24kHz / 16-bit Mono)"]
+        Text -->|HTTP POST /tts| TTS
+        TTS -->|Return Audio| WAV
+    end
+
+    subgraph Step3 ["3. Audio Analysis"]
+        AudioCtx["Web Audio API<br/>AnalyserNode"]
+        Formant["Formant Energy Filter<br/>Low, Mid, High Frequencies"]
+        WAV -->|Decode Audio| AudioCtx
+        AudioCtx -->|Frequency Array| Formant
+    end
+
+    subgraph Step4 ["4. 3D Render Loop"]
+        Lerp["60 FPS Lerp Interpolation<br/>Factor: 0.4 Smooth Transition"]
+        VRM["Sakurada VRM Avatar<br/>Blendshapes: aa, ih, ou, ee, oh"]
+        Formant -->|Viseme Energy| Lerp
+        Lerp -->|Set Morph Weights| VRM
+    end
+
+    classDef textStyle fill:#1e1b4b,stroke:#818cf8,color:#ffffff;
+    classDef ttsStyle fill:#0284c7,stroke:#38bdf8,color:#ffffff;
+    classDef audioStyle fill:#701a75,stroke:#f0abfc,color:#ffffff;
+    classDef vrmStyle fill:#064e3b,stroke:#34d399,color:#ffffff;
+
+    class Text textStyle;
+    class TTS,WAV ttsStyle;
+    class AudioCtx,Formant audioStyle;
+    class Lerp,VRM vrmStyle;

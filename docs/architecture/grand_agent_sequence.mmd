@@ -1,91 +1,49 @@
 sequenceDiagram
     autonumber
     actor User as Master User
-    participant Mic as Microphone / Whisper STT (Port 9001)
-    participant UI as React UI (useAssistant / store.ts)
-    participant IPC as Electron Main Process (IPC Bridge)
-    participant Agent as NativeAgent Core Loop
-    participant Router as ModelRouter Engine
-    participant Provider as GeminiProvider (Fault Tolerant)
-    participant Cloud as Google Gemini API
-    participant Tools as ToolsRegistry & MCP Sidecars
-    participant TTS as Supertonic TTS Server (Port 3001)
-    participant Audio as Web Audio API AnalyserNode
-    participant LipSync as LipSyncManager
-    participant VRM as Three.js VRM Avatar (Sakurada)
+    participant Mic as Whisper STT (Port 9001)
+    participant UI as React UI (store.ts)
+    participant IPC as Electron IPC Bridge
+    participant Agent as NativeAgent Core
+    participant Cloud as Gemini Cloud API
+    participant Tools as Tools & MCP Sidecars
+    participant TTS as Supertonic TTS (Port 3001)
+    participant Audio as Web Audio Analyser
+    participant Avatar as 3D VRM Avatar
 
-    alt Voice Mode
+    alt Voice Input Mode
         User->>Mic: Speak prompt into microphone
-        Mic->>Mic: Python FastAPI / Uvicorn transcribe
-        Mic-->>UI: Transcribed Text Prompt
-    else Text Mode
-        User->>UI: Type text prompt and hit Enter
+        Mic->>Mic: Python Whisper transcribe
+        Mic-->>UI: Return transcribed text
+    else Text Input Mode
+        User->>UI: Type message and press Enter
     end
 
-    UI->>IPC: Send IPC event agent:query-stream
-    IPC->>Agent: Invoke runAgent(query, systemPrompt, modelName)
-    Agent->>Router: determineRoleForQuery(query)
-    Router-->>Agent: Role assigned (e.g. default_chat to gemini-3.6-flash)
-
-    loop Agentic ReAct Loop (Max 5 Iterations)
-        Agent->>Provider: generate(messages, systemInstruction + toolSchemas)
-        Provider->>Cloud: HTTPS POST /v1beta/models/gemini-3.6-flash:generateContent
-        
-        alt Cloud Returns HTTP 503 / 429
-            Cloud-->>Provider: HTTP 503 Unavailable (High Demand Spike)
-            Provider->>Provider: Attempt 1: Wait 1 second (Exponential Backoff)
-            Provider->>Cloud: Retry HTTPS POST /v1beta/models/gemini-3.6-flash
-            
-            alt Still 503 Error
-                Cloud-->>Provider: HTTP 503 Unavailable
-                Provider->>Provider: Attempt 2: Wait 2 seconds and Model Fallback
-                Provider->>Cloud: Retry HTTPS POST /v1beta/models/gemini-flash-latest
-            end
+    UI->>IPC: agent:query-stream (IPC Event)
+    IPC->>Agent: runAgent(query, model)
+    
+    loop ReAct Reasoning & Execution Loop
+        Agent->>Cloud: POST generateContent (gemini-3.6-flash)
+        alt 503 Service Unavailable
+            Cloud-->>Agent: HTTP 503 High Demand
+            Agent->>Agent: Retry with Exponential Backoff (1s -> 2s) & Model Fallback
         end
-
-        Cloud-->>Provider: HTTP 200 OK (Model JSON Response)
-        Provider-->>Agent: Return Model JSON String Output
+        Cloud-->>Agent: HTTP 200 OK (Model Response)
         
-        alt LLM Requests Tool Execution
-            Agent->>Tools: Execute tool.invoke(args)
-            alt Native Tool (weather / search / clock)
-                Tools->>Tools: Execute local API fetch or system call
-            else MCP Sidecar Tool (agent-browser)
-                Tools->>Tools: Stdio JSON-RPC call to agent-browser (Playwright athena_vault)
-            end
-            Tools-->>Agent: Return Tool Result Output String
-            Agent->>Agent: Append Tool Result to messages history and loop next iteration
-        else LLM Provides Final Response
-            Agent->>Agent: Break ReAct loop
+        alt Tool Call Requested by Model
+            Agent->>Tools: Execute Tool (Weather / Search / Browser)
+            Tools-->>Agent: Return Tool Result Output
+        else Final Response Ready
+            Agent->>Agent: Exit ReAct Loop
         end
     end
 
-    loop Stream Response Tokens
-        Agent-->>IPC: Send chunk tokens
-        IPC-->>UI: Send IPC event agent:token
-        UI->>UI: Append streaming text to Chat UI
-    end
-
-    loop For Each Completed Sentence
-        UI->>UI: Match sentence regex [.!?]
-        UI->>TTS: POST /tts (Port 3001)
-        TTS->>TTS: ONNX Neural Synthesis on CPU
-        TTS-->>UI: Return audio/wav Blob Data
-        
-        UI->>LipSync: playAudio(wavBlob)
-        LipSync->>Audio: decodeAudioData(wavBlob)
-        LipSync->>Audio: Create BufferSource and AnalyserNode
-        Audio->>Audio: Connect AnalyserNode to Audio Destination
-        
-        loop Every Animation Frame (60 FPS Render Loop)
-            LipSync->>Audio: getByteFrequencyData(dataArray)
-            LipSync->>LipSync: Compute Formant Energy (Low, Mid, High)
-            LipSync->>LipSync: Smooth Vowel Weights via Lerp (0.4 factor)
-            LipSync->>VRM: expressionManager.setValue(aa, ih, ou, ee, oh)
-            UI->>VRM: Play concurrent FBX Gesture Animation (Talk / Gesture)
-            VRM->>User: Render 60 FPS 3D Avatar Speaking with Male M1 Voice
-        end
-        
-        Audio-->>LipSync: Audio Source playback ended
-        LipSync->>VRM: Reset mouth blendshapes to zero
+    loop Token & Audio Streaming
+        Agent-->>IPC: Stream Text Tokens
+        IPC-->>UI: Update Chat Bubble Text
+        UI->>TTS: POST /tts (Port 3001 - Sentence Chunks)
+        TTS-->>UI: Return Audio WAV Data
+        UI->>Audio: Decode WAV & Compute Formant Frequencies
+        Audio->>Avatar: Update Blendshapes (aa, ih, ou, ee, oh) at 60 FPS
+        Avatar-->>User: 3D Avatar Speaks with Male M1 Voice & Gesture
     end

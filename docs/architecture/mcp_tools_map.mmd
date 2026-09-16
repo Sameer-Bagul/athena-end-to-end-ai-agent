@@ -1,0 +1,43 @@
+graph TB
+    subgraph AgentLayer ["NativeAgent Tool Engine"]
+        Agent["NativeAgent ReAct Controller"]
+        Registry["ToolRegistry Resolver"]
+        Agent --> Registry
+    end
+
+    subgraph NativeTools ["Local Native Tools"]
+        Weather["Weather Tool<br/>(OpenWeatherMap API)"]
+        Clock["System Clock Tool<br/>(Date/Time & Timezones)"]
+        WebSearch["Web Search Tool<br/>(Live Web Intelligence)"]
+        Registry --> Weather
+        Registry --> Clock
+        Registry --> WebSearch
+    end
+
+    subgraph MCPTools ["MCP Sidecar Protocols (Stdio JSON-RPC)"]
+        MCPManager["MCP Manager Service"]
+        BrowserMCP["agent-browser MCP<br/>(Playwright Automated Browser)"]
+        TimeMCP["Time MCP<br/>(Temporal Calculations)"]
+        
+        Registry --> MCPManager
+        MCPManager -->|JSON-RPC| BrowserMCP
+        MCPManager -->|JSON-RPC| TimeMCP
+    end
+
+    subgraph External ["Target Resources"]
+        WebSite["Live Web Pages & Portals"]
+        Bridge["Browser Stream Bridge<br/>(Port 3000 WebSocket)"]
+        
+        BrowserMCP -->|Automate / Click / Type| WebSite
+        BrowserMCP -->|Stream Frame Data| Bridge
+    end
+
+    classDef agentStyle fill:#431407,stroke:#fb923c,color:#ffffff;
+    classDef toolStyle fill:#1e293b,stroke:#38bdf8,color:#ffffff;
+    classDef mcpStyle fill:#312e81,stroke:#a5b4fc,color:#ffffff;
+    classDef extStyle fill:#064e3b,stroke:#34d399,color:#ffffff;
+
+    class Agent,Registry agentStyle;
+    class Weather,Clock,WebSearch toolStyle;
+    class MCPManager,BrowserMCP,TimeMCP mcpStyle;
+    class WebSite,Bridge extStyle;

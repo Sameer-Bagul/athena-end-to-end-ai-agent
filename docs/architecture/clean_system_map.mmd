@@ -1,0 +1,47 @@
+graph LR
+    subgraph Tier1 ["1. RENDERER FRONTEND (UI & 3D)"]
+        direction TB
+        UI["React 18 Chat UI<br/>(store.ts / Zustand)"]
+        Assistant["useAssistant Hook<br/>(Sentence Queue)"]
+        Avatar["3D VRM Avatar<br/>(Sakurada Male / M1 Voice)"]
+        LipSyncEngine["LipSync Engine<br/>(60 FPS Vowel Lerp)"]
+        
+        UI --> Assistant
+        Assistant --> LipSyncEngine
+        LipSyncEngine --> Avatar
+    end
+
+    subgraph Tier2 ["2. ELECTRON MAIN PROCESS"]
+        direction TB
+        Bridge["IPC Bridge<br/>(preload.ts / agentIpc.ts)"]
+        AgentCore["NativeAgent Core<br/>(ReAct Execution Loop)"]
+        Router["ModelRouter<br/>(Intent-Based Selection)"]
+        Registry["Tool Registry<br/>(Native Tools & MCP)"]
+        
+        Bridge --> AgentCore
+        AgentCore --> Router
+        AgentCore --> Registry
+    end
+
+    subgraph Tier3 ["3. SERVICES & CLOUD APIs"]
+        direction TB
+        STT["Whisper STT Service<br/>(Port 9001 - FastAPI)"]
+        TTS["Supertonic TTS Service<br/>(Port 3001 - ONNX Neural)"]
+        Gemini["Google Gemini Cloud API<br/>(3.6-flash / Fallback Chain)"]
+        BrowserMCP["agent-browser MCP<br/>(Port 3000 WebSocket)"]
+        
+        STT
+        TTS
+        Gemini
+        BrowserMCP
+    end
+
+    UI -->|1. User Prompt| Bridge
+    Bridge -->|2. Route Query| AgentCore
+    AgentCore -->|3. Call LLM| Gemini
+    Gemini -->|4. Response / Tool Call| AgentCore
+    AgentCore -->|5. Run Tool / Browser| BrowserMCP
+    AgentCore -->|6. Stream Tokens| Bridge
+    Bridge -->|7. Update UI Text| Assistant
+    Assistant -->|8. Request Audio| TTS
+    TTS -->|9. Audio WAV Buffer| LipSyncEngine

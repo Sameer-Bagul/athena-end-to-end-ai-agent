@@ -3,16 +3,15 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Athena AI Assistant - GRAND Master Architecture Viewer</title>
+  <title>Athena AI Assistant - Clean System Architecture Viewer</title>
   <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
   <style>
     :root {
-      --bg-color: #080911;
-      --card-bg: #0f1222;
-      --card-border: #1e2640;
-      --accent: #6366f1;
+      --bg-color: #090d16;
+      --card-bg: #111827;
+      --card-border: #1f2937;
       --accent-gradient: linear-gradient(135deg, #6366f1, #a855f7);
-      --text: #f3f4f6;
+      --text: #f9fafb;
       --text-muted: #9ca3af;
     }
     * { box-sizing: border-box; }
@@ -21,7 +20,7 @@
       background-color: var(--bg-color);
       color: var(--text);
       margin: 0;
-      padding: 32px 16px;
+      padding: 32px 20px;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -29,7 +28,7 @@
     }
     header {
       text-align: center;
-      margin-bottom: 32px;
+      margin-bottom: 28px;
       max-width: 900px;
     }
     .badge {
@@ -46,17 +45,16 @@
       margin-bottom: 12px;
     }
     h1 {
-      font-size: 2.8rem;
+      font-size: 2.6rem;
       font-weight: 800;
-      margin: 0 0 12px 0;
-      background: linear-gradient(135deg, #a5b4fc, #c084fc, #f472b6);
+      margin: 0 0 10px 0;
+      background: linear-gradient(135deg, #a5b4fc, #c084fc, #38bdf8);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
-      letter-spacing: -0.02em;
     }
     header p {
       color: var(--text-muted);
-      font-size: 1.1rem;
+      font-size: 1.05rem;
       margin: 0;
       line-height: 1.6;
     }
@@ -64,27 +62,29 @@
       display: flex;
       flex-wrap: wrap;
       justify-content: center;
-      gap: 12px;
+      gap: 10px;
       margin-bottom: 32px;
       background-color: var(--card-bg);
       padding: 8px;
       border-radius: 14px;
       border: 1px solid var(--card-border);
+      max-width: 1200px;
+      width: 100%;
     }
     .tab-btn {
       background: transparent;
       border: none;
       color: var(--text-muted);
-      padding: 12px 24px;
+      padding: 12px 20px;
       border-radius: 10px;
       font-weight: 600;
-      font-size: 0.95rem;
+      font-size: 0.9rem;
       cursor: pointer;
       transition: all 0.25s ease;
     }
     .tab-btn:hover {
       color: var(--text);
-      background-color: rgba(255, 255, 255, 0.05);
+      background-color: rgba(255, 255, 255, 0.06);
     }
     .tab-btn.active {
       background: var(--accent-gradient);
@@ -97,12 +97,9 @@
       border-radius: 16px;
       padding: 32px;
       width: 100%;
-      max-width: 1400px;
+      max-width: 1350px;
       box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
-      display: none;
-      overflow-x: auto;
-    }
-    .diagram-card.active {
+      /* Initially block so Mermaid calculates layout bounds properly */
       display: block;
     }
     .diagram-header {
@@ -114,23 +111,29 @@
       padding-bottom: 16px;
     }
     .diagram-header h2 {
-      font-size: 1.5rem;
+      font-size: 1.35rem;
       margin: 0;
       color: #38bdf8;
     }
-    .diagram-header span {
-      color: var(--text-muted);
-      font-size: 0.9rem;
+    .file-tag {
+      background: rgba(56, 189, 248, 0.1);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      color: #38bdf8;
+      font-family: monospace;
+      font-size: 0.85rem;
+      padding: 4px 10px;
+      border-radius: 6px;
     }
     .mermaid {
       display: flex;
       justify-content: center;
-      padding: 16px 0;
+      padding: 24px 0;
+      overflow-x: auto;
     }
     footer {
       margin-top: 48px;
       color: var(--text-muted);
-      font-size: 0.9rem;
+      font-size: 0.85rem;
       text-align: center;
     }
   </style>
@@ -138,323 +141,307 @@
 <body>
 
   <header>
-    <div class="badge">Architecture Blueprint</div>
-    <h1>Athena AI Companion Master Architecture</h1>
-    <p>Complete System Flowchart, Resilient Agentic ReAct Loop, Model Router, MCP Sidecars, & 60 FPS Formant Energy Lip-Sync Engine</p>
+    <div class="badge">Pragmatic Modular Architecture</div>
+    <h1>Athena AI System Map</h1>
+    <p>Clean, Crystal-Clear Component Diagrams Without Line Crossings or Spaghetti Arrows</p>
   </header>
 
   <div class="nav-tabs">
-    <button class="tab-btn active" onclick="showTab(event, 'master-flow')">1. GRAND Master Architecture Flowchart</button>
-    <button class="tab-btn" onclick="showTab(event, 'agent-sequence')">2. GRAND End-to-End Sequence Diagram</button>
-    <button class="tab-btn" onclick="showTab(event, 'system-overview')">3. System Components & Ports</button>
+    <button class="tab-btn active" onclick="showTab(event, 'clean-map')">1. Clean 3-Tier System Map</button>
+    <button class="tab-btn" onclick="showTab(event, 'master-seq')">2. End-to-End Sequence</button>
+    <button class="tab-btn" onclick="showTab(event, 'agent-loop')">3. ReAct Loop & Resiliency</button>
+    <button class="tab-btn" onclick="showTab(event, 'tts-pipeline')">4. TTS & Lip Sync Engine</button>
+    <button class="tab-btn" onclick="showTab(event, 'mcp-tools')">5. Tools & MCP Sidecars</button>
   </div>
 
-  <!-- Tab 1: GRAND Master Flowchart -->
-  <div id="master-flow" class="diagram-card active">
+  <!-- Tab 1: Clean System Map -->
+  <div id="clean-map" class="diagram-card">
     <div class="diagram-header">
-      <h2>1. GRAND Master Architecture Flowchart</h2>
-      <span>File: docs/architecture/grand_master_architecture.mmd</span>
+      <h2>1. Clean 3-Tier System Map (No Line Crossings)</h2>
+      <span class="file-tag">docs/architecture/clean_system_map.mmd</span>
     </div>
     <div class="mermaid">
-flowchart TB
-    subgraph Layer_Input ["1. User Input and Voice Capture Layer"]
-        Mic["Microphone Input (Audio Stream)"]
-        Keyboard["Keyboard Text Input (Chat Box)"]
-        Hotkey["Global Hotkey (Alt+Space Push-to-Talk)"]
-    end
-
-    subgraph Layer_Renderer ["2. Frontend Renderer Process (Vite + React + Three.js)"]
-        ChatUI["React 18 Chat Interface<br/>(Zustand Store / store.ts)"]
-        AssistantHook["useAssistant Hook<br/>(Sentence Buffer and Queue)"]
+graph LR
+    subgraph Tier1 ["1. RENDERER FRONTEND (UI & 3D)"]
+        direction TB
+        UI["React 18 Chat UI (store.ts / Zustand)"]
+        Assistant["useAssistant Hook (Sentence Queue)"]
+        Avatar["3D VRM Avatar (Sakurada Male / M1 Voice)"]
+        LipSyncEngine["LipSync Engine (60 FPS Vowel Lerp)"]
         
-        subgraph Sub_Avatar ["3D Avatar and Audio Engine"]
-            ThreeStage["ThreeStage Component<br/>(Canvas and Scene Setup)"]
-            VRMModel["Three.js VRM Avatar Model<br/>(Sakurada Male / M1 Voice)"]
-            AnimMgr["AnimationManager<br/>(FBX Skeletal Animations and Gestures)"]
-            LipSync["LipSyncManager<br/>(Web Audio API AnalyserNode)"]
-            FormantEngine["Formant Energy Viseme Engine<br/>(60 FPS Lerp: aa, ih, ou, ee, oh)"]
-        end
+        UI --> Assistant
+        Assistant --> LipSyncEngine
+        LipSyncEngine --> Avatar
     end
 
-    subgraph Layer_Electron ["3. Electron Main Process and Desktop Window Manager"]
-        IPCBridge["Preload IPC Bridge<br/>(preload.ts - ContextBridge)"]
-        MainThread["Electron Main Entry<br/>(electron/main.ts)"]
-        WindowManager["Window Manager<br/>(1080p Main Window and Mini Widget)"]
-        StateSync["Sync Broadcasting<br/>(Main Window and Widget Sync)"]
-    end
-
-    subgraph Layer_Agentic ["4. Autonomous Agentic AI Core"]
-        NativeAgent["NativeAgent ReAct Loop<br/>(backend/agent/nativeAgent.ts)"]
-        ModelRouter["Intent Model Router<br/>(planner | coder | browser | default_chat)"]
-        PromptBuilder["System Prompt Builder<br/>(Inject Persona and Tool Schemas)"]
+    subgraph Tier2 ["2. ELECTRON MAIN PROCESS"]
+        direction TB
+        Bridge["IPC Bridge (preload.ts / agentIpc.ts)"]
+        AgentCore["NativeAgent Core (ReAct Execution Loop)"]
+        Router["ModelRouter (Intent Selection)"]
+        Registry["Tool Registry (Native Tools & MCP)"]
         
-        subgraph Sub_Tools ["Tool Registry and MCP Integration"]
-            ToolRegistry["Native Tools Registry<br/>(weather, clock, web_search, python)"]
-            MCPManager["MCP Sidecar Manager<br/>(mcpManager.ts - Stdio JSON-RPC)"]
-            RAGService["RAG Vector Store<br/>(ragService.ts - Document Search)"]
-        end
+        Bridge --> AgentCore
+        AgentCore --> Router
+        AgentCore --> Registry
     end
 
-    subgraph Layer_Providers ["5. AI Provider Layer and Fault Tolerance"]
-        ProviderFactory["getAIProvider Factory<br/>(providerLayer.ts)"]
-        GeminiProvider["GeminiProvider<br/>(Cloud Execution)"]
-        RetryHandler["503/429 Exponential Backoff<br/>(1s, 2s Retries and Backoff)"]
-        ModelFallback["Multi-Model Fallback Chain<br/>(3.6-flash to flash-latest to 2.5-flash)"]
-        OllamaProvider["OllamaProvider<br/>(Local Execution - dolphin-mistral)"]
+    subgraph Tier3 ["3. SERVICES & CLOUD APIs"]
+        direction TB
+        STT["Whisper STT Service (Port 9001 - FastAPI)"]
+        TTS["Supertonic TTS Service (Port 3001 - ONNX Neural)"]
+        Gemini["Google Gemini Cloud API (gemini-3.6-flash)"]
+        BrowserMCP["agent-browser MCP (Port 3000 WebSocket)"]
+        
+        STT
+        TTS
+        Gemini
+        BrowserMCP
     end
 
-    subgraph Layer_Services ["6. Dedicated Local Microservices and Sidecars"]
-        STTServer["Whisper STT Server<br/>(Port 9001 - Python FastAPI)"]
-        TTSServer["Supertonic TTS Server<br/>(Port 3001 - Node ONNX Neural TTS)"]
-        BrowserBridge["Agent Browser WebSocket<br/>(Port 3000 - Live Stream Bridge)"]
-        BrowserMCP["agent-browser MCP Sidecar<br/>(Playwright + athena_vault Session)"]
-        TimeMCP["Time MCP Sidecar<br/>(Temporal Calculations)"]
-    end
-
-    subgraph Layer_Cloud ["7. External Cloud Services and APIs"]
-        GoogleAPI["Google Gemini Cloud API<br/>(generativelanguage.googleapis.com)"]
-        OpenWeather["OpenWeatherMap API<br/>(Weather Data)"]
-        WebSearchAPI["Web Search Engine<br/>(Live Internet Intel)"]
-    end
-
-    Mic -->|Audio Buffer| STTServer
-    STTServer -->|Transcribed Text| ChatUI
-    Keyboard -->|Text Prompt| ChatUI
-    Hotkey -->|Trigger Wake PTT| MainThread
-
-    ChatUI -->|Submit Message| AssistantHook
-    AssistantHook -->|IPC: agent:query-stream| IPCBridge
-    IPCBridge -->|Forward Request| MainThread
-    MainThread -->|Delegate Query| NativeAgent
-
-    WindowManager --> StateSync
-    StateSync -->|Broadcast UI State| ChatUI
-
-    NativeAgent -->|1. Classify Intent| ModelRouter
-    ModelRouter -->|2. Assign Model| NativeAgent
-    NativeAgent -->|3. Assemble Context & Tool Schemas| PromptBuilder
-    PromptBuilder -->|4. Request Generation| ProviderFactory
-    
-    ProviderFactory --> GeminiProvider
-    ProviderFactory --> OllamaProvider
-    GeminiProvider -->|HTTPS POST| GoogleAPI
-    GoogleAPI -.->|503 High Demand Error| RetryHandler
-    RetryHandler -->|Exponential Wait and Retry| GeminiProvider
-    RetryHandler -.->|Fallback Model| ModelFallback
-    ModelFallback -->|Retry Alternate Candidate| GoogleAPI
-
-    NativeAgent -->|5. Check / Execute Tools| ToolRegistry
-    ToolRegistry -->|Query Weather| OpenWeather
-    ToolRegistry -->|Query Search| WebSearchAPI
-    ToolRegistry -->|Query Documents| RAGService
-    NativeAgent -->|Execute MCP Sidecars| MCPManager
-    MCPManager -->|Stdio JSON-RPC| BrowserMCP
-    MCPManager -->|Stdio JSON-RPC| TimeMCP
-    BrowserMCP -->|Live Stream| BrowserBridge
-
-    NativeAgent -->|6. Stream Response Tokens| MainThread
-    MainThread -->|IPC agent:token| IPCBridge
-    IPCBridge -->|Render Streaming Text| AssistantHook
-    AssistantHook -->|Chunk Completed Sentences| AssistantHook
-    AssistantHook -->|HTTP POST /tts Port 3001| TTSServer
-    TTSServer -->|Return WAV Audio Blob| AssistantHook
-
-    AssistantHook -->|Play Audio Blob| LipSync
-    LipSync -->|Audio Buffer Source| FormantEngine
-    FormantEngine -->|Compute Vowel Energy Low/Mid/High| FormantEngine
-    FormantEngine -->|Set Blendshapes aa, ih, ou, ee, oh| VRMModel
-    AssistantHook -->|Trigger Motion Gesture| AnimMgr
-    AnimMgr -->|Apply FBX Skeleton Keyframes| VRMModel
-    ThreeStage -->|Render 60 FPS Canvas| VRMModel
-
-    classDef inputStyle fill:#1e1b4b,stroke:#818cf8,stroke-width:2px,color:#ffffff;
-    classDef uiStyle fill:#064e3b,stroke:#34d399,stroke-width:2px,color:#ffffff;
-    classDef audioStyle fill:#701a75,stroke:#f0abfc,stroke-width:2px,color:#ffffff;
-    classDef mainStyle fill:#1e293b,stroke:#94a3b8,stroke-width:2px,color:#ffffff;
-    classDef agentStyle fill:#431407,stroke:#fb923c,stroke-width:2px,color:#ffffff;
-    classDef providerStyle fill:#312e81,stroke:#a5b4fc,stroke-width:2px,color:#ffffff;
-    classDef serviceStyle fill:#0284c7,stroke:#38bdf8,stroke-width:2px,color:#ffffff;
-    classDef cloudStyle fill:#831843,stroke:#f472b6,stroke-width:2px,color:#ffffff;
-
-    class Mic,Keyboard,Hotkey inputStyle;
-    class ChatUI,AssistantHook uiStyle;
-    class ThreeStage,VRMModel,AnimMgr,LipSync,FormantEngine audioStyle;
-    class IPCBridge,MainThread,WindowManager,StateSync mainStyle;
-    class NativeAgent,ModelRouter,PromptBuilder,ToolRegistry,MCPManager,RAGService agentStyle;
-    class ProviderFactory,GeminiProvider,RetryHandler,ModelFallback,OllamaProvider providerStyle;
-    class STTServer,TTSServer,BrowserBridge,BrowserMCP,TimeMCP serviceStyle;
-    class GoogleAPI,OpenWeather,WebSearchAPI cloudStyle;
+    UI -->|1. User Prompt| Bridge
+    Bridge -->|2. Route Query| AgentCore
+    AgentCore -->|3. Call LLM| Gemini
+    Gemini -->|4. Response / Tool Call| AgentCore
+    AgentCore -->|5. Run Tool / Browser| BrowserMCP
+    AgentCore -->|6. Stream Tokens| Bridge
+    Bridge -->|7. Update UI Text| Assistant
+    Assistant -->|8. Request Audio| TTS
+    TTS -->|9. Audio WAV Buffer| LipSyncEngine
     </div>
   </div>
 
-  <!-- Tab 2: GRAND Sequence Diagram -->
-  <div id="agent-sequence" class="diagram-card">
+  <!-- Tab 2: Master Sequence -->
+  <div id="master-seq" class="diagram-card">
     <div class="diagram-header">
-      <h2>2. GRAND End-to-End Sequence Diagram</h2>
-      <span>File: docs/architecture/grand_agent_sequence.mmd</span>
+      <h2>2. Master End-to-End Sequence Flow</h2>
+      <span class="file-tag">docs/architecture/grand_agent_sequence.mmd</span>
     </div>
     <div class="mermaid">
 sequenceDiagram
     autonumber
     actor User as Master User
-    participant Mic as Microphone / Whisper STT (Port 9001)
-    participant UI as React UI (useAssistant / store.ts)
-    participant IPC as Electron Main Process (IPC Bridge)
-    participant Agent as NativeAgent Core Loop
-    participant Router as ModelRouter Engine
-    participant Provider as GeminiProvider (Fault Tolerant)
-    participant Cloud as Google Gemini API
-    participant Tools as ToolsRegistry & MCP Sidecars
-    participant TTS as Supertonic TTS Server (Port 3001)
-    participant Audio as Web Audio API AnalyserNode
-    participant LipSync as LipSyncManager
-    participant VRM as Three.js VRM Avatar (Sakurada)
+    participant Mic as Whisper STT (Port 9001)
+    participant UI as React UI (store.ts)
+    participant IPC as Electron IPC Bridge
+    participant Agent as NativeAgent Core
+    participant Cloud as Gemini Cloud API
+    participant Tools as Tools & MCP Sidecars
+    participant TTS as Supertonic TTS (Port 3001)
+    participant Audio as Web Audio Analyser
+    participant Avatar as 3D VRM Avatar
 
-    alt Voice Mode
+    alt Voice Input Mode
         User->>Mic: Speak prompt into microphone
-        Mic->>Mic: Python FastAPI / Uvicorn transcribe
-        Mic-->>UI: Transcribed Text Prompt
-    else Text Mode
-        User->>UI: Type text prompt and hit Enter
+        Mic->>Mic: Python Whisper transcribe
+        Mic-->>UI: Return transcribed text
+    else Text Input Mode
+        User->>UI: Type message and press Enter
     end
 
-    UI->>IPC: Send IPC event agent:query-stream
-    IPC->>Agent: Invoke runAgent(query, systemPrompt, modelName)
-    Agent->>Router: determineRoleForQuery(query)
-    Router-->>Agent: Role assigned (e.g. default_chat to gemini-3.6-flash)
-
-    loop Agentic ReAct Loop (Max 5 Iterations)
-        Agent->>Provider: generate(messages, systemInstruction + toolSchemas)
-        Provider->>Cloud: HTTPS POST /v1beta/models/gemini-3.6-flash:generateContent
-        
-        alt Cloud Returns HTTP 503 / 429
-            Cloud-->>Provider: HTTP 503 Unavailable (High Demand Spike)
-            Provider->>Provider: Attempt 1: Wait 1 second (Exponential Backoff)
-            Provider->>Cloud: Retry HTTPS POST /v1beta/models/gemini-3.6-flash
-            
-            alt Still 503 Error
-                Cloud-->>Provider: HTTP 503 Unavailable
-                Provider->>Provider: Attempt 2: Wait 2 seconds and Model Fallback
-                Provider->>Cloud: Retry HTTPS POST /v1beta/models/gemini-flash-latest
-            end
+    UI->>IPC: agent:query-stream (IPC Event)
+    IPC->>Agent: runAgent(query, model)
+    
+    loop ReAct Reasoning & Execution Loop
+        Agent->>Cloud: POST generateContent (gemini-3.6-flash)
+        alt 503 Service Unavailable
+            Cloud-->>Agent: HTTP 503 High Demand
+            Agent->>Agent: Retry with Exponential Backoff (1s to 2s) & Model Fallback
         end
-
-        Cloud-->>Provider: HTTP 200 OK (Model JSON Response)
-        Provider-->>Agent: Return Model JSON String Output
+        Cloud-->>Agent: HTTP 200 OK (Model Response)
         
-        alt LLM Requests Tool Execution
-            Agent->>Tools: Execute tool.invoke(args)
-            alt Native Tool (weather / search / clock)
-                Tools->>Tools: Execute local API fetch or system call
-            else MCP Sidecar Tool (agent-browser)
-                Tools->>Tools: Stdio JSON-RPC call to agent-browser (Playwright athena_vault)
-            end
-            Tools-->>Agent: Return Tool Result Output String
-            Agent->>Agent: Append Tool Result to messages history and loop next iteration
-        else LLM Provides Final Response
-            Agent->>Agent: Break ReAct loop
+        alt Tool Call Requested by Model
+            Agent->>Tools: Execute Tool (Weather / Search / Browser)
+            Tools-->>Agent: Return Tool Result Output
+        else Final Response Ready
+            Agent->>Agent: Exit ReAct Loop
         end
     end
 
-    loop Stream Response Tokens
-        Agent-->>IPC: Send chunk tokens
-        IPC-->>UI: Send IPC event agent:token
-        UI->>UI: Append streaming text to Chat UI
-    end
-
-    loop For Each Completed Sentence
-        UI->>UI: Match sentence regex [.!?]
-        UI->>TTS: POST /tts (Port 3001)
-        TTS->>TTS: ONNX Neural Synthesis on CPU
-        TTS-->>UI: Return audio/wav Blob Data
-        
-        UI->>LipSync: playAudio(wavBlob)
-        LipSync->>Audio: decodeAudioData(wavBlob)
-        LipSync->>Audio: Create BufferSource and AnalyserNode
-        Audio->>Audio: Connect AnalyserNode to Audio Destination
-        
-        loop Every Animation Frame (60 FPS Render Loop)
-            LipSync->>Audio: getByteFrequencyData(dataArray)
-            LipSync->>LipSync: Compute Formant Energy (Low, Mid, High)
-            LipSync->>LipSync: Smooth Vowel Weights via Lerp (0.4 factor)
-            LipSync->>VRM: expressionManager.setValue(aa, ih, ou, ee, oh)
-            UI->>VRM: Play concurrent FBX Gesture Animation (Talk / Gesture)
-            VRM->>User: Render 60 FPS 3D Avatar Speaking with Male M1 Voice
-        end
-        
-        Audio-->>LipSync: Audio Source playback ended
-        LipSync->>VRM: Reset mouth blendshapes to zero
+    loop Token & Audio Streaming
+        Agent-->>IPC: Stream Text Tokens
+        IPC-->>UI: Update Chat Bubble Text
+        UI->>TTS: POST /tts (Port 3001 - Sentence Chunks)
+        TTS-->>UI: Return Audio WAV Data
+        UI->>Audio: Decode WAV & Compute Formant Frequencies
+        Audio->>Avatar: Update Blendshapes (aa, ih, ou, ee, oh) at 60 FPS
+        Avatar-->>User: 3D Avatar Speaks with Male M1 Voice & Gesture
     end
     </div>
   </div>
 
-  <!-- Tab 3: System Overview -->
-  <div id="system-overview" class="diagram-card">
+  <!-- Tab 3: Agent ReAct Loop -->
+  <div id="agent-loop" class="diagram-card">
     <div class="diagram-header">
-      <h2>3. System Overview & Port Connections</h2>
-      <span>File: docs/architecture/system_overview.mmd</span>
+      <h2>3. ReAct Agent Loop & Multi-Model Fallback Resiliency</h2>
+      <span class="file-tag">docs/architecture/clean_agent_loop.mmd</span>
+    </div>
+    <div class="mermaid">
+graph TD
+    Start["User Query Received"] --> Step1["1. Intent Classification<br/>ModelRouter selects gemini-3.6-flash"]
+    Step1 --> Step2["2. Build System Context<br/>Inject Persona & Available Tool Schemas"]
+    Step2 --> Step3["3. Send Request to ProviderLayer"]
+    
+    Step3 --> CallCloud{"4. Execute Gemini Cloud Call"}
+    
+    CallCloud -->|HTTP 503 / 429 Error| Retry1["Attempt 1: Wait 1s Exponential Backoff"]
+    Retry1 -->|Retry Primary Model| CallCloud
+    Retry1 -->|Still 503 Error| Retry2["Attempt 2: Wait 2s & Fallback Model<br/>gemini-flash-latest to gemini-2.5-flash"]
+    Retry2 --> CallCloud
+    
+    CallCloud -->|HTTP 200 Success| Evaluate{"5. Evaluate Model Output"}
+    
+    Evaluate -->|Tool Call Requested| ExecTool["6. Execute Tool / MCP Sidecar<br/>weather / clock / search / browser"]
+    ExecTool -->|Append Result to Messages| Step2
+    
+    Evaluate -->|Final Text Response| Stream["7. Stream Tokens to Electron IPC"]
+    Stream --> AudioStep["8. Chunk Sentences to Supertonic TTS"]
+    AudioStep --> Finish["9. Render 60 FPS VRM Avatar Speech"]
+
+    classDef startStyle fill:#431407,stroke:#fb923c,color:#ffffff;
+    classDef stepStyle fill:#1e293b,stroke:#38bdf8,color:#ffffff;
+    classDef errStyle fill:#831843,stroke:#f472b6,color:#ffffff;
+    classDef decStyle fill:#312e81,stroke:#a5b4fc,color:#ffffff;
+    classDef endStyle fill:#064e3b,stroke:#34d399,color:#ffffff;
+
+    class Start startStyle;
+    class Step1,Step2,Step3,ExecTool,Stream,AudioStep stepStyle;
+    class Retry1,Retry2 errStyle;
+    class CallCloud,Evaluate decStyle;
+    class Finish endStyle;
+    </div>
+  </div>
+
+  <!-- Tab 4: TTS & Lip Sync Pipeline -->
+  <div id="tts-pipeline" class="diagram-card">
+    <div class="diagram-header">
+      <h2>4. Supertonic TTS & Formant Energy Lip-Sync Pipeline</h2>
+      <span class="file-tag">docs/architecture/clean_tts_lipsync.mmd</span>
+    </div>
+    <div class="mermaid">
+graph LR
+    subgraph Step1 ["1. Text Processing"]
+        Text["Sentence Chunk<br/>Regex: [.!?]"]
+    end
+
+    subgraph Step2 ["2. Neural Audio Synthesis"]
+        TTS["Supertonic TTS Server<br/>Port 3001 - ONNX Neural Voice"]
+        WAV["WAV Audio Blob<br/>(24kHz / 16-bit Mono)"]
+        Text -->|HTTP POST /tts| TTS
+        TTS -->|Return Audio| WAV
+    end
+
+    subgraph Step3 ["3. Audio Analysis"]
+        AudioCtx["Web Audio API<br/>AnalyserNode"]
+        Formant["Formant Energy Filter<br/>Low, Mid, High Frequencies"]
+        WAV -->|Decode Audio| AudioCtx
+        AudioCtx -->|Frequency Array| Formant
+    end
+
+    subgraph Step4 ["4. 3D Render Loop"]
+        Lerp["60 FPS Lerp Interpolation<br/>Factor: 0.4 Smooth Transition"]
+        VRM["Sakurada VRM Avatar<br/>Blendshapes: aa, ih, ou, ee, oh"]
+        Formant -->|Viseme Energy| Lerp
+        Lerp -->|Set Morph Weights| VRM
+    end
+
+    classDef textStyle fill:#1e1b4b,stroke:#818cf8,color:#ffffff;
+    classDef ttsStyle fill:#0284c7,stroke:#38bdf8,color:#ffffff;
+    classDef audioStyle fill:#701a75,stroke:#f0abfc,color:#ffffff;
+    classDef vrmStyle fill:#064e3b,stroke:#34d399,color:#ffffff;
+
+    class Text textStyle;
+    class TTS,WAV ttsStyle;
+    class AudioCtx,Formant audioStyle;
+    class Lerp,VRM vrmStyle;
+    </div>
+  </div>
+
+  <!-- Tab 5: Tools & MCP Sidecars -->
+  <div id="mcp-tools" class="diagram-card">
+    <div class="diagram-header">
+      <h2>5. Native Tools & MCP Sidecar Architecture</h2>
+      <span class="file-tag">docs/architecture/mcp_tools_map.mmd</span>
     </div>
     <div class="mermaid">
 graph TB
-    subgraph Frontend["Renderer Process (Vite + React + Three.js)"]
-        UI["Chat UI & Onboarding"]
-        UA["useAssistant Hook"]
-        3D["ThreeStage & VRM Model"]
-        LSM["LipSyncManager (Web Audio API)"]
+    subgraph AgentLayer ["NativeAgent Tool Engine"]
+        Agent["NativeAgent ReAct Controller"]
+        Registry["ToolRegistry Resolver"]
+        Agent --> Registry
     end
 
-    subgraph Main["Electron Main Process (Node.js)"]
-        IPC["IPC Bridge & Router"]
-        NA["NativeAgent Loop"]
-        MR["Model Router"]
-        PL["GeminiProvider / OllamaProvider"]
-        TL["Native Tools & MCP Manager"]
+    subgraph NativeTools ["Local Native Tools"]
+        Weather["Weather Tool<br/>(OpenWeatherMap API)"]
+        Clock["System Clock Tool<br/>(Date/Time & Timezones)"]
+        WebSearch["Web Search Tool<br/>(Live Web Intelligence)"]
+        Registry --> Weather
+        Registry --> Clock
+        Registry --> WebSearch
     end
 
-    subgraph Microservices["Dedicated Local Services"]
-        STT["Whisper STT Server (Port 9001 - Python FastAPI)"]
-        TTS["Supertonic TTS Server (Port 3001 - Node ONNX)"]
-        WS["Agent Browser Stream Bridge (Port 3000 - WebSocket)"]
+    subgraph MCPTools ["MCP Sidecar Protocols (Stdio JSON-RPC)"]
+        MCPManager["MCP Manager Service"]
+        BrowserMCP["agent-browser MCP<br/>(Playwright Automated Browser)"]
+        TimeMCP["Time MCP<br/>(Temporal Calculations)"]
+        
+        Registry --> MCPManager
+        MCPManager -->|JSON-RPC| BrowserMCP
+        MCPManager -->|JSON-RPC| TimeMCP
     end
 
-    subgraph Cloud["External API Services"]
-        Google["Google Gemini Cloud API"]
+    subgraph External ["Target Resources"]
+        WebSite["Live Web Pages & Portals"]
+        Bridge["Browser Stream Bridge<br/>(Port 3000 WebSocket)"]
+        
+        BrowserMCP -->|Automate / Click / Type| WebSite
+        BrowserMCP -->|Stream Frame Data| Bridge
     end
 
-    UI -->|User Input| UA
-    UA -->|IPC: agent:query-stream| IPC
-    IPC --> NA
-    NA --> MR
-    NA --> PL
-    PL -->|HTTPS Request w/ Exponential Backoff| Google
-    NA <-->|Execute Tool| TL
-    NA -->|Stream Tokens| IPC
-    IPC -->|Response Stream| UA
-    UA -->|Fetch WAV Audio| TTS
-    TTS -->|Return WAV Buffer| UA
-    UA -->|Play Audio Blob| LSM
-    LSM -->|Formant Frequency Analysis| 3D
+    classDef agentStyle fill:#431407,stroke:#fb923c,color:#ffffff;
+    classDef toolStyle fill:#1e293b,stroke:#38bdf8,color:#ffffff;
+    classDef mcpStyle fill:#312e81,stroke:#a5b4fc,color:#ffffff;
+    classDef extStyle fill:#064e3b,stroke:#34d399,color:#ffffff;
+
+    class Agent,Registry agentStyle;
+    class Weather,Clock,WebSearch toolStyle;
+    class MCPManager,BrowserMCP,TimeMCP mcpStyle;
+    class WebSite,Bridge extStyle;
     </div>
   </div>
 
   <footer>
-    Athena AI Assistant Architecture • Generated with Mermaid.js Dark Theme • Port 9001 (STT) • Port 3001 (TTS) • Port 3000 (WS Bridge)
+    Athena AI Assistant System Architecture • Clean 3-Tier Layout • Port 9001 (STT) • Port 3001 (TTS) • Port 3000 (WS Bridge)
   </footer>
 
   <script>
-    mermaid.initialize({
-      startOnLoad: true,
-      theme: 'dark',
-      securityLevel: 'loose',
-      fontFamily: 'Inter, Segoe UI, sans-serif'
+    document.addEventListener("DOMContentLoaded", async () => {
+      // 1. Initialize Mermaid render engine
+      mermaid.initialize({
+        startOnLoad: false,
+        theme: 'dark',
+        securityLevel: 'loose',
+        fontFamily: 'Inter, system-ui, sans-serif'
+      });
+
+      // 2. Render all mermaid elements
+      await mermaid.run({
+        nodes: document.querySelectorAll('.mermaid')
+      });
+
+      // 3. Hide non-active cards after rendering SVGs
+      const cards = document.querySelectorAll('.diagram-card');
+      cards.forEach((card, index) => {
+        card.style.display = index === 0 ? 'block' : 'none';
+      });
     });
 
     function showTab(evt, tabId) {
       document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-      document.querySelectorAll('.diagram-card').forEach(card => card.classList.remove('active'));
+      document.querySelectorAll('.diagram-card').forEach(card => card.style.display = 'none');
       
       evt.currentTarget.classList.add('active');
-      document.getElementById(tabId).classList.add('active');
+      document.getElementById(tabId).style.display = 'block';
     }
   </script>
 
