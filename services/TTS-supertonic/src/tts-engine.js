@@ -25,8 +25,17 @@ export class TTSEngine {
       }
     }
 
-    this.tts = await loadTextToSpeech(onnxDir, false);
-    console.log('[TTS] Engine ready');
+    if (!fs.existsSync(onnxDir) || !fs.existsSync(path.join(onnxDir, "tts.json"))) {
+      console.log('[TTS] Models not found yet. TTS Engine will initialize once models are downloaded.');
+      return;
+    }
+
+    try {
+      this.tts = await loadTextToSpeech(onnxDir, false);
+      console.log('[TTS] Engine ready');
+    } catch (err) {
+      console.error('[TTS] Failed to load TTS model:', err.message);
+    }
   }
 
   loadStyleByName(name) {
@@ -41,7 +50,10 @@ export class TTSEngine {
   }
 
   async synthesize(text, voice = 'M1', totalStep = 5, speed = 1.05) {
-    if (!this.tts) throw new Error('TTS engine not initialized');
+    if (!this.tts) {
+      await this.init();
+    }
+    if (!this.tts) throw new Error('TTS engine not initialized. Please ensure models are installed.');
 
     const stylePaths = this.loadStyleByName(voice);
     const style = loadVoiceStyle(stylePaths, false);
