@@ -16,7 +16,7 @@ export function CloudRegistry({ onNext, onBack }: CloudRegistryProps) {
 
     const handleSave = () => {
         const newConfig = { ...state.aiConfig };
-        if (!newConfig.gemini) newConfig.gemini = [{ apiKey: "", model: "gemini-2.5-flash" }];
+        if (!newConfig.gemini) newConfig.gemini = [{ apiKey: "", model: "gemini-flash-latest" }];
         newConfig.gemini[0].apiKey = geminiKey;
         actions.setAiConfig(newConfig);
         setIsSaved(true);

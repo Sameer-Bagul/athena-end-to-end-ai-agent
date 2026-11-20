@@ -91,7 +91,14 @@ export function registerSystemIpcHandlers() {
     ipcMain.handle("chat:load-history", async () => {
         try {
             if (fs.existsSync(CHAT_FILE)) {
-                return JSON.parse(fs.readFileSync(CHAT_FILE, "utf-8"));
+                const data = JSON.parse(fs.readFileSync(CHAT_FILE, "utf-8"));
+                if (Array.isArray(data) && data.length > 0 && !(data.length === 1 && data[0].content === "History cleared.")) {
+                    return data;
+                }
+            }
+            const projectChatFile = path.join(app.getAppPath(), "chat.json");
+            if (fs.existsSync(projectChatFile)) {
+                return JSON.parse(fs.readFileSync(projectChatFile, "utf-8"));
             }
             return null;
         }

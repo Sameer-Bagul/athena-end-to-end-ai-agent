@@ -9,18 +9,24 @@ export class GeminiProvider {
         if (keyToUse) {
             headers["X-goog-api-key"] = keyToUse;
         }
-        const requestedModel = options?.model || "gemini-3.6-flash";
+        const requestedModel = options?.model || "gemini-flash-latest";
         const modelsToTry = Array.from(new Set([
             requestedModel,
-            "gemini-3.6-flash",
             "gemini-flash-latest",
-            "gemini-2.5-flash",
-            "gemini-1.5-flash"
+            "gemini-flash-lite-latest",
+            "gemini-3.8-flash",
+            "gemini-3.7-flash",
+            "gemini-3.6-flash",
+            "gemini-3.5-flash-lite",
+            "gemini-3.1-flash-lite",
+            "gemini-3-flash-preview"
         ]));
         let lastError = null;
         for (const model of modelsToTry) {
             const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
             for (let attempt = 0; attempt < 3; attempt++) {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 12000);
                 try {
                     const res = await fetch(url, {
                         method: "POST",
@@ -29,8 +35,15 @@ export class GeminiProvider {
                             systemInstruction: options?.systemInstruction ? { parts: [{ text: options.systemInstruction }] } : undefined,
                             contents: messages,
                             generationConfig: options?.generationConfig
-                        })
+                        }),
+                        signal: controller.signal
                     });
+                    if (res.status === 404 || res.status === 400) {
+                        const errText = await res.text();
+                        console.warn(`[GeminiProvider] Model ${model} returned HTTP ${res.status}: ${errText}`);
+                        lastError = new Error(`Gemini Error (${res.status}): ${errText}`);
+                        break; // Try next model candidate immediately
+                    }
                     if (res.status === 503 || res.status === 429) {
                         console.warn(`[GeminiProvider] Model ${model} returned HTTP ${res.status} (attempt ${attempt + 1}/3). Retrying in ${attempt + 1}s...`);
                         await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
@@ -45,13 +58,21 @@ export class GeminiProvider {
                     const data = await res.json();
                     const responseText = data.candidates?.[0]?.content?.parts?.[0]?.text;
                     if (responseText !== undefined) {
+                        console.log(`[GeminiProvider] Generated content successfully using model: ${model}`);
                         return responseText;
                     }
                 }
                 catch (e) {
                     console.warn(`[GeminiProvider] Fetch error with model ${model}:`, e.message);
                     lastError = e;
+                    if (e.name === 'AbortError') {
+                        console.warn(`[GeminiProvider] Request timed out for model ${model}, trying next candidate...`);
+                        break; // Move to next candidate if timed out
+                    }
                     await new Promise(r => setTimeout(r, 500));
+                }
+                finally {
+                    clearTimeout(timeoutId);
                 }
             }
         }

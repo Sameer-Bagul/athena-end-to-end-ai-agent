@@ -176,7 +176,7 @@ export const useAppStore = create<StoreState>((set) => {
 
     let initialAiConfig: AiConfig = {
         priority: ['gemini', 'ollama', 'grok', 'lmstudio'],
-        gemini: [{ apiKey: "", model: "gemini-3.6-flash" }],
+        gemini: [{ apiKey: "", model: "gemini-flash-latest" }],
         ollama: [{ baseUrl: "http://localhost:11434", model: "dolphin-mistral:latest", numCtx: 2048, numThread: 0, numGpu: -1 }],
         lmstudio: [{ baseUrl: "http://localhost:1234/v1", model: "local-model", numCtx: 2048, numThread: 0 }],
         grok: [{ apiKey: "", model: "grok-beta" }]
@@ -189,8 +189,8 @@ export const useAppStore = create<StoreState>((set) => {
             if (parsed.lmstudio && !Array.isArray(parsed.lmstudio)) parsed.lmstudio = [parsed.lmstudio];
             if (parsed.grok && !Array.isArray(parsed.grok)) parsed.grok = [parsed.grok];
             if (parsed.gemini && !Array.isArray(parsed.gemini)) parsed.gemini = [parsed.gemini];
-            if (parsed.gemini?.[0]) {
-                parsed.gemini[0].model = "gemini-3.6-flash";
+            if (parsed.gemini?.[0] && !parsed.gemini[0].model) {
+                parsed.gemini[0].model = "gemini-flash-latest";
             }
             if (!parsed.priority) {
                 const oldProvider = parsed.provider || 'gemini';
@@ -284,7 +284,7 @@ export const useAppStore = create<StoreState>((set) => {
             aiConfig: initialAiConfig,
             sceneSettings: initialSceneSettings,
             isLeftCollapsed: true,
-            isRightCollapsed: true,
+            isRightCollapsed: false,
             ragStatus: { isReady: false, indexedFiles: [] },
             cameraDeviceId: initialCameraDeviceId,
             currentAnimation: "Idle",

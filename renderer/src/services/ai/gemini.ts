@@ -25,7 +25,7 @@ export class GeminiProvider implements AIProvider {
         signal?: AbortSignal
     ): Promise<string> {
         try {
-            const targetModel = this.model || "gemini-3.6-flash";
+            const targetModel = this.model || "gemini-flash-latest";
             const headers: Record<string, string> = { "Content-Type": "application/json" };
             if (this.apiKey) {
                 headers["X-goog-api-key"] = this.apiKey;

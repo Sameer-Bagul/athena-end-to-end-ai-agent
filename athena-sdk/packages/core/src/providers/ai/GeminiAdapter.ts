@@ -16,7 +16,7 @@ export class GeminiAdapter implements AIProviderAdapter {
 
   constructor(options: GeminiAdapterOptions) {
     this.apiKey = options.apiKey;
-    this.model = options.model || 'gemini-1.5-flash';
+    this.model = options.model || 'gemini-flash-latest';
     this.systemInstruction =
       options.systemInstruction ||
       'You are Athena, a helpful, friendly 3D interactive AI assistant. Keep responses engaging, natural, concise, and suitable for spoken dialogue.';

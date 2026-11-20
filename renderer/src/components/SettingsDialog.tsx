@@ -45,6 +45,18 @@ export function SettingsDialog({ isOpen, onClose, onUpdate }: SettingsDialogProp
     const [lmStudioConfig, setLmStudioConfig] = React.useState(Array.isArray(state.aiConfig.lmstudio) ? state.aiConfig.lmstudio : [state.aiConfig.lmstudio]);
     const [grokConfig, setGrokConfig] = React.useState(Array.isArray(state.aiConfig.grok) ? state.aiConfig.grok : [state.aiConfig.grok]);
     const [geminiConfig, setGeminiConfig] = React.useState(Array.isArray(state.aiConfig.gemini) ? state.aiConfig.gemini : [state.aiConfig.gemini]);
+    const geminiModels = [
+        'gemini-flash-latest',
+        'gemini-flash-lite-latest',
+        'gemini-3.8-flash',
+        'gemini-3.7-flash',
+        'gemini-3.6-flash',
+        'gemini-3.5-flash-lite',
+        'gemini-3.1-flash-lite',
+        'gemini-3-flash-preview',
+        'gemini-4-hydrogen',
+        'gemini-4-carbon'
+    ];
     const [ollamaModels, setOllamaModels] = React.useState<string[]>([]);
 
     // Fetch Ollama models
@@ -281,8 +293,9 @@ export function SettingsDialog({ isOpen, onClose, onUpdate }: SettingsDialogProp
 
                                         {aiPriority[0] === 'gemini' && (
                                             <ConfigGroup title="Gemini Configuration" icon={<BrainCircuit className="size-4" />} configs={geminiConfig} setConfigs={setGeminiConfig}
-                                                template={{ apiKey: "", model: "gemini-2.5-flash" }}
+                                                template={{ apiKey: "", model: "gemini-flash-latest" }}
                                                 fields={['apiKey', 'model']} onBlur={() => {}}
+                                                modelOptions={geminiModels}
                                             />
                                         )}
 

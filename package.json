@@ -11,7 +11,10 @@
     "build:ui": "cd renderer && npm run build",
     "build:electron": "npx tsc -p tsconfig.node.json",
     "start": "NODE_ENV=production npm run build && ELECTRON_DISABLE_SANDBOX=1 npx electron .",
-    "start:prod": "NODE_ENV=production ELECTRON_DISABLE_SANDBOX=1 npx electron ."
+    "start:prod": "NODE_ENV=production ELECTRON_DISABLE_SANDBOX=1 npx electron .",
+    "interview:dev": "npm --prefix getinterviewed run dev",
+    "interview:build": "npm --prefix getinterviewed run build",
+    "interview:start": "npm --prefix getinterviewed run start"
   },
   "dependencies": {
     "dotenv": "^16.4.5",

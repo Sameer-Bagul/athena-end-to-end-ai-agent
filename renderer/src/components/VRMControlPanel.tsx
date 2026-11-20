@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Box, ChevronLeft } from "lucide-react";
+import { Box, ChevronLeft, MessageSquare } from "lucide-react";
 import { cn } from "../lib/utils";
 import ThreeStage from "./ThreeStage";
 import type { ThreeStageHandle } from "./ThreeStage";
@@ -167,8 +167,20 @@ export function VRMControlPanel({ onOpenWidget }: VRMControlPanelProps) {
                     </button>
                 </div>
 
-                {/* Floating Widget Toggle */}
+                {/* Floating Widget & Chat Toggles */}
                 <div className="absolute top-8 right-8 z-20 flex gap-3">
+                    <button
+                        onClick={actions.toggleRightCollapse}
+                        className={cn(
+                            "px-4 py-2 rounded-full border text-[10px] font-medium transition-all backdrop-blur-md flex gap-2 items-center",
+                            !state.isRightCollapsed
+                                ? "bg-white/10 border-white/20 text-white"
+                                : "bg-white/2 hover:bg-white/5 border border-white/5 text-white/30 hover:text-white"
+                        )}
+                        title="Toggle Chat Panel"
+                    >
+                        <MessageSquare className="size-3.5" /> Chat
+                    </button>
                     <button onClick={onOpenWidget} className="px-4 py-2 rounded-full bg-white/2 hover:bg-white/5 border border-white/5 text-[10px] font-medium text-white/30 hover:text-white transition-all backdrop-blur-md flex gap-2 items-center">
                         <Box className="size-3.5" /> Widget
                     </button>

@@ -117,7 +117,7 @@ export const ChatPanel = React.memo(function ChatPanel({ onSendMessage, onReplay
     // --- Collapsed View (Floating Icon) ---
     if (isRightCollapsed) {
         return (
-            <div className="fixed bottom-8 right-8 z-100">
+            <div className="fixed bottom-8 right-8 z-[100]">
                 <motion.div
                     initial={{ scale: 0, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
