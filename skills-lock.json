@@ -1,11 +1,109 @@
 {
-  "version": 1,
+  "version": 2,
   "skills": {
+    "60fps-animation": {
+      "source": "iart-ai/web-animation-skills",
+      "commit": "ed3a045192679b24d32090ee7a983871311ababd",
+      "sourceType": "github",
+      "skillPath": "skills/60fps-animation/SKILL.md",
+      "computedHash": "3783bf5371256b4a496fb3a3ee3e345a66887dc9141091b49984e47bad822811"
+    },
+    "design-taste-frontend": {
+      "source": "Leonxlnx/taste-skill",
+      "commit": "f6b76575f949707b4e3c37cd86cb44b0b98643e8",
+      "sourceType": "github",
+      "skillPath": "skills/taste-skill/SKILL.md",
+      "computedHash": "b10eab0a9684cd09cf34c31ef04a3bf530a5f4404422f9c520d42372d670c7fc"
+    },
+    "glassmorphism": {
+      "source": "iart-ai/web-animation-skills",
+      "commit": "ed3a045192679b24d32090ee7a983871311ababd",
+      "sourceType": "github",
+      "skillPath": "skills/glassmorphism/SKILL.md",
+      "computedHash": "52c31c76c1ce3c52485ed43c3dc36796c833972a0f916215392c2b611209a2dc"
+    },
+    "impeccable": {
+      "source": "pbakaus/impeccable",
+      "commit": "b49177d32788f2dc585c42831d845dacf1ebed2c",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/impeccable/SKILL.md",
+      "computedHash": "08bd5bf141cb507f46bd8347890cd985865606f15adf88295ed3a73bc9ad5d96"
+    },
+    "liquid-glass-skill": {
+      "source": "Playful-Design/liquid-glass-skill",
+      "commit": "17cf2ba76d85146736fb709e65a90bf4ec598115",
+      "sourceType": "github",
+      "skillPath": "SKILL.md",
+      "computedHash": "907e1819146c51f1cc2f9b40843a43f8343e0e6c2c6a04f88e2612db68d79bce"
+    },
+    "micro-interaction": {
+      "source": "iart-ai/web-animation-skills",
+      "commit": "ed3a045192679b24d32090ee7a983871311ababd",
+      "sourceType": "github",
+      "skillPath": "skills/micro-interaction/SKILL.md",
+      "computedHash": "35fe04bed325e1f7cdbf7d25e7327f33b868b854a999eaa0d523a0899331d071"
+    },
+    "no-ai-slop": {
+      "source": "claudiusararu/unslop-ui-skill",
+      "commit": "f954aaf0d21c47d66bfc318b1aab904cf650c109",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/no-ai-slop/SKILL.md",
+      "computedHash": "e468926940e0bff137e11233620c36a3b8e409ade3dfc3739f1ad6009cca276f"
+    },
+    "rust-best-practices": {
+      "source": "apollographql/skills",
+      "commit": "9dda1397730370aeb8df4ff8f2015c34c86b5003",
+      "sourceType": "github",
+      "skillPath": "skills/rust-best-practices/SKILL.md",
+      "computedHash": "7e12e68aa50152eb7ba9ea1f88ca5380c846ea0175f8ab6788bb79b7faf12ca0"
+    },
     "setup-serena-mcp": {
       "source": "neolabhq/context-engineering-kit",
       "sourceType": "github",
       "skillPath": "plugins/mcp/skills/setup-serena-mcp/SKILL.md",
-      "computedHash": "7e4a1bddbfb1785b6e2f024dce477481fc85b0471c09717c3b33387f3054b6eb"
+      "computedHash": "b7eb474899a69a6eb84b44108bc4c8b5138bde35e8890f1a1264162467d55b55"
+    },
+    "tauri-architecture": {
+      "source": "fxckcode/tauri-skills",
+      "commit": "d3959ffae74a04ae0ae8e4ad577e72b66c5e02d4",
+      "sourceType": "github",
+      "skillPath": "skills/tauri-architecture/SKILL.md",
+      "computedHash": "6e6b4163091d6cb177fda6d2bcd6a0a1e1de79914c6dce7bd3aceb8ee1264ca7"
+    },
+    "tauri-frontend": {
+      "source": "fxckcode/tauri-skills",
+      "commit": "d3959ffae74a04ae0ae8e4ad577e72b66c5e02d4",
+      "sourceType": "github",
+      "skillPath": "skills/tauri-frontend/SKILL.md",
+      "computedHash": "2dda0efb7c8f4c0597f494a3ab1828cb56dd90f88285bd08ae70cbe01eccf3bd"
+    },
+    "tauri-rust": {
+      "source": "fxckcode/tauri-skills",
+      "commit": "d3959ffae74a04ae0ae8e4ad577e72b66c5e02d4",
+      "sourceType": "github",
+      "skillPath": "skills/tauri-rust/SKILL.md",
+      "computedHash": "c9b43cf92ffedd65fa9b43b2064897f0ec4c33057960342cc8a5dbd7da086cff"
+    },
+    "tauri-security": {
+      "source": "fxckcode/tauri-skills",
+      "commit": "d3959ffae74a04ae0ae8e4ad577e72b66c5e02d4",
+      "sourceType": "github",
+      "skillPath": "skills/tauri-security/SKILL.md",
+      "computedHash": "98551d4b33c03fc84861e6059d53d27599dfc52836d978b1945ecdaf3bafa47b"
+    },
+    "tauri-testing": {
+      "source": "fxckcode/tauri-skills",
+      "commit": "d3959ffae74a04ae0ae8e4ad577e72b66c5e02d4",
+      "sourceType": "github",
+      "skillPath": "skills/tauri-testing/SKILL.md",
+      "computedHash": "d272a903d0da75e019c54ae3fa7431deafe0417b855ffc8f4fc16d39af8d2b2e"
+    },
+    "vercel-react-best-practices": {
+      "source": "vercel-labs/agent-skills",
+      "commit": "5a37a6329fbad3666c3207392a6a7c0110e92efb",
+      "sourceType": "github",
+      "skillPath": "skills/react-best-practices/SKILL.md",
+      "computedHash": "7991ed4fbecdac23f47c1a40c243e00a212a9e7f3604db93959b3ae11dffe299"
     }
   }
 }
