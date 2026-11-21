@@ -235,21 +235,21 @@ graph TD
 
 Use these checkboxes to track migration progress on the `rust-version` branch:
 
-- [ ] **Phase 1: Project Setup & Tauri 2.0 Scaffolding**
-  - [ ] Initialize Tauri 2.0 CLI and configuration (`src-tauri/`).
-  - [ ] Configure Vite build integration (`renderer/dist`).
-  - [ ] Establish dual-window setup (Main Application Window + Transparent Desktop Widget).
-  - [ ] Verify Three.js 60 FPS VRM rendering inside Tauri webview.
-- [ ] **Phase 2: Core IPC & System Parity**
-  - [ ] Implement `system` commands in Rust (volume, brightness, battery, files).
-  - [ ] Implement window controls (minimize, maximize, close, widget toggle).
-  - [ ] Implement `Alt+Space` global shortcut plugin.
-  - [ ] Implement chat history persistence in local SQLite/JSON store.
-- [ ] **Phase 3: Agent Engine & Tools in Rust**
-  - [ ] Implement Rust async ReAct agent loop with token and progress streaming.
-  - [ ] Implement Gemini REST API client and Ollama API client.
-  - [ ] Port built-in tools (`web_search`, `weather`, `clock`, `timer`).
-  - [ ] Implement `sqlite-vec` semantic RAG document search.
+- [x] **Phase 1: Project Setup & Tauri 2.0 Scaffolding**
+  - [x] Initialize Tauri 2.0 CLI and configuration (`src-tauri/`).
+  - [x] Configure Vite build integration (`renderer/dist`).
+  - [x] Establish dual-window setup (Main Application Window + Transparent Desktop Widget).
+  - [x] Verify Three.js 60 FPS VRM rendering inside Tauri webview.
+- [x] **Phase 2: Core IPC & System Parity**
+  - [x] Implement `system` commands in Rust (volume, brightness, battery, files).
+  - [x] Implement window controls (minimize, maximize, close, widget toggle).
+  - [x] Implement `Alt+Space` global shortcut plugin.
+  - [x] Implement chat history persistence in local SQLite/JSON store.
+- [x] **Phase 3: Agent Engine & Tools in Rust**
+  - [x] Implement Rust async ReAct agent loop with token and progress streaming.
+  - [x] Implement Gemini REST API client and Ollama API client.
+  - [x] Port built-in tools (`web_search`, `weather`, `clock`, `timer`, `news`).
+  - [x] Implement semantic RAG document search and text chunking in Rust.
 - [ ] **Phase 4: Embedded Native Audio (Eliminating Python & Node Services)**
   - [ ] Integrate `whisper-rs` for zero-dependency local STT.
   - [ ] Integrate `ort` for in-process SuperTonic ONNX TTS.

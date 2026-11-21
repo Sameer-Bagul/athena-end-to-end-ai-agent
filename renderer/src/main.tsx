@@ -3,6 +3,9 @@ import ReactDOM from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
 import { AppProvider } from './context/AppContext'
+import { initTauriBridge } from './services/ipcBridge'
+
+initTauriBridge();
 
 console.log('[Main] Initializing Athena App...');
 

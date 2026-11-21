@@ -1,0 +1,39 @@
+[package]
+name = "athena"
+version = "1.0.0"
+description = "Athena - 3D VRM AI Assistant"
+authors = ["Sameer Bagul"]
+license = "MIT"
+repository = "https://github.com/Sameer-Bagul/athena-new"
+edition = "2024"
+rust-version = "1.90"
+
+[lib]
+name = "athena_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2.7.6" }
+
+[dependencies]
+tauri = { version = "2.12.7", features = ["tray-icon"] }
+tauri-plugin-log = "2"
+tauri-plugin-dialog = "2"
+tauri-plugin-global-shortcut = "2"
+
+tokio = { version = "1", features = ["full"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json", "stream", "multipart"] }
+chrono = { version = "0.4", features = ["serde"] }
+scraper = "0.22"
+rusqlite = { version = "0.33", features = ["bundled"] }
+thiserror = "2.0"
+dirs = "6.0"
+futures-util = "0.3"
+regex = "1.11"
+base64 = "0.22"
+async-trait = "0.1"
+log = "0.4"
+uuid = { version = "1.10", features = ["v4"] }
+urlencoding = "2.1"

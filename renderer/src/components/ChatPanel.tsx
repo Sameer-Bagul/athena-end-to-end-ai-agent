@@ -82,9 +82,7 @@ export const ChatPanel = React.memo(function ChatPanel({ onSendMessage, onReplay
     };
 
     const handleAttachDocument = async () => {
-        // @ts-expect-error - athena global not typed
         if (window.athena?.rag?.uploadDocument) {
-            // @ts-expect-error - athena global not typed
             const result = await window.athena.rag.uploadDocument();
             if (result && !result.canceled && !result.error) {
                 // Add to local state for display in message
@@ -106,9 +104,7 @@ export const ChatPanel = React.memo(function ChatPanel({ onSendMessage, onReplay
     };
 
     const handleClearRag = async () => {
-        // @ts-expect-error - athena global not typed
         if (window.athena?.rag?.clear) {
-            // @ts-expect-error - athena global not typed
             await window.athena.rag.clear();
             actions.refreshRagStatus();
         }

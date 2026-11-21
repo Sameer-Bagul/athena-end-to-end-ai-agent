@@ -5,6 +5,9 @@
   "type": "module",
   "main": "dist-electron/electron/main.js",
   "scripts": {
+    "tauri": "npx @tauri-apps/cli",
+    "tauri:dev": "npx @tauri-apps/cli dev",
+    "tauri:build": "npx @tauri-apps/cli build",
     "dev": "NODE_ENV=development cd renderer && npm run dev -- --strictPort & ELECTRON_DISABLE_SANDBOX=1 npx electron .",
     "build": "npm run build:ui && npm run build:electron",
     "build:sdk": "pnpm --filter @athena-ai/core build && pnpm --filter @athena-ai/react build && pnpm --filter @athena-ai/web build",
